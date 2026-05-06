@@ -1,0 +1,35 @@
+{
+  "name": "tytus-app-forge",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tytus Forge \u2014 standalone vscode.dev-style Monaco workbench for Tytus OS.",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "tytus-app.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "vite build && node scripts/inject-css.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "monaco-editor": "^0.55.1"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "~5.9.3",
+    "vite": "^6.0.7"
+  }
+}

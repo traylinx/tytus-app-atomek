@@ -1,0 +1,36 @@
+{
+  "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
+  "id": "forge",
+  "name": "Tytus Forge",
+  "version": "0.1.0",
+  "icon": "Sparkles",
+  "category": "Productivity",
+  "description": "Tytus Forge — standalone vscode.dev-style Monaco workbench for local files, markdown preview, and future agent/Cortex workflows.",
+  "window": {
+    "defaultSize": { "width": 1200, "height": 780 },
+    "minSize": { "width": 760, "height": 520 }
+  },
+  "permissions": [
+    "daemon.read",
+    "daemon.network",
+    "vfs.user.documents",
+    "shell.notifications",
+    "shell.dock"
+  ],
+  "entry": {
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-forge@v0.1.0/dist/index.js"
+  },
+  "contributes": {
+    "fileAssociations": [
+      { "extension": ".md", "mimeType": "text/markdown" },
+      { "extension": ".txt", "mimeType": "text/plain" },
+      { "extension": ".json", "mimeType": "application/json" },
+      { "extension": ".csv", "mimeType": "text/csv" },
+      { "extension": ".ts", "mimeType": "text/typescript" },
+      { "extension": ".tsx", "mimeType": "text/typescript-jsx" },
+      { "extension": ".js", "mimeType": "text/javascript" },
+      { "extension": ".css", "mimeType": "text/css" },
+      { "extension": ".html", "mimeType": "text/html" }
+    ]
+  }
+}
