@@ -13,7 +13,8 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "vite build && node scripts/inject-css.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release:check": "node scripts/release-check.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
