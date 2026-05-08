@@ -50,6 +50,9 @@ export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   body: string;
+  status?: 'pending' | 'streaming' | 'complete' | 'error';
+  gatewayLabel?: string;
+  error?: string;
 };
 
 export type OutputArtifact = {

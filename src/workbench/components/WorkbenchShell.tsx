@@ -30,6 +30,7 @@ import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
 import type { ActivityView, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder } from '../types';
+import { useConversation } from '../ai/useConversation';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
 
@@ -75,7 +76,6 @@ export function WorkbenchShell({ host }: Props) {
   const [chatInput, setChatInput] = useState('');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
@@ -83,6 +83,7 @@ export function WorkbenchShell({ host }: Props) {
 
   const openEditors = openEditorIds.map((id) => files.find((file) => file.id === id)).filter(Boolean) as WorkbenchFile[];
   const activeFile = activeFileId ? files.find((file) => file.id === activeFileId) ?? null : null;
+  const ai = useConversation({ host, activeFile, openEditors, setStatus });
   const showWelcome = !activeFile && !welcomeClosed;
   const dirtyFiles = useMemo(() => files.filter((file) => file.dirty), [files]);
   const visibleFiles = useMemo(() => {
@@ -283,17 +284,9 @@ export function WorkbenchShell({ host }: Props) {
   const askAgent = useCallback(() => {
     const prompt = chatInput.trim();
     if (!prompt) return;
-    const source = activeFile ?? files[0];
-    const answer = source
-      ? `Local draft only. Open source: ${source.path}. Prompt received: ${prompt}. Pod/AIL agent execution is intentionally not wired in this base sprint.`
-      : `Local draft only. Open a file or folder first. Prompt received: ${prompt}.`;
-    setChatMessages((current) => [
-      ...current,
-      { id: `u-${Date.now()}`, role: 'user', body: prompt },
-      { id: `a-${Date.now()}`, role: 'assistant', body: answer },
-    ]);
     setChatInput('');
-  }, [activeFile, chatInput, files]);
+    void ai.askAgent(prompt);
+  }, [ai, chatInput]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -417,8 +410,11 @@ export function WorkbenchShell({ host }: Props) {
           setTab={setSecondaryTab}
           chatInput={chatInput}
           setChatInput={setChatInput}
-          chatMessages={chatMessages}
+          chatMessages={ai.messages}
           askAgent={askAgent}
+          newChat={() => { void ai.newChat(); }}
+          aiStatus={ai.aiStatus}
+          busy={ai.busy}
           outputs={outputs}
           runLocalSynthesis={runLocalSynthesis}
           clearOutputs={() => setOutputs([])}
@@ -840,6 +836,9 @@ function SecondarySidebar(props: {
   setChatInput: (value: string) => void;
   chatMessages: ChatMessage[];
   askAgent: () => void;
+  newChat: () => void;
+  aiStatus: { available: boolean; label: string; reason?: string };
+  busy: boolean;
   outputs: OutputArtifact[];
   runLocalSynthesis: () => void;
   clearOutputs: () => void;
@@ -857,7 +856,7 @@ function SecondarySidebar(props: {
           <button className={`workbench-secondary-tab ${props.tab === 'outputs' ? 'active' : ''}`} onClick={() => props.setTab('outputs')}>OUTPUTS</button>
         </div>
         <div className="workbench-secondary-actions">
-          <button title="New Chat"><Plus size={15} /></button>
+          <button title="New Chat" onClick={props.newChat}><Plus size={15} /></button>
           <button title="More Actions"><MoreHorizontal size={16} /></button>
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
@@ -867,7 +866,15 @@ function SecondarySidebar(props: {
   );
 }
 
-function ChatPane(props: { chatInput: string; setChatInput: (value: string) => void; chatMessages: ChatMessage[]; askAgent: () => void; activeFile: WorkbenchFile | null }) {
+function ChatPane(props: {
+  chatInput: string;
+  setChatInput: (value: string) => void;
+  chatMessages: ChatMessage[];
+  askAgent: () => void;
+  activeFile: WorkbenchFile | null;
+  aiStatus: { available: boolean; label: string; reason?: string };
+  busy: boolean;
+}) {
   return (
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-transcript">
@@ -877,14 +884,17 @@ function ChatPane(props: { chatInput: string; setChatInput: (value: string) => v
               <MessageSquareText size={48} />
               <h3>Build with Agent</h3>
               <p>Ask about open files, request a plan, or draft an artifact.</p>
-              <p className="workbench-chat-empty-link">Local deterministic mode until pods/AIL and connector actions are wired.</p>
+              <p className="workbench-chat-empty-link">{props.aiStatus.available ? props.aiStatus.label : props.aiStatus.reason ?? props.aiStatus.label}</p>
             </div>
           </div>
         ) : props.chatMessages.map((msg) => (
           <div key={msg.id} className={`workbench-chat-message ${msg.role}`}>
             <strong>{msg.role === 'user' ? 'You' : 'Atomek'}</strong>
+            {msg.status === 'streaming' ? <em> streaming</em> : null}
+            {msg.status === 'error' ? <em> error</em> : null}
             <br />
             {msg.body}
+            {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
           </div>
         ))}
       </div>
@@ -892,7 +902,7 @@ function ChatPane(props: { chatInput: string; setChatInput: (value: string) => v
         <div className="workbench-chat-tip">
           <span>Context</span>
           <strong>{props.activeFile ? props.activeFile.name : 'No active file'}</strong>
-          <em>pod/AIL + connectors pending</em>
+          <em>{props.aiStatus.label}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
@@ -906,7 +916,7 @@ function ChatPane(props: { chatInput: string; setChatInput: (value: string) => v
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                props.askAgent();
+                if (!props.busy) props.askAgent();
               }
             }}
             placeholder="Ask Atomek about the open file or describe what to build..."
@@ -916,7 +926,7 @@ function ChatPane(props: { chatInput: string; setChatInput: (value: string) => v
             <button className="workbench-chat-mode">Auto <ChevronDown size={12} /></button>
             <button className="workbench-chat-mode">Plan</button>
             <span />
-            <button className="workbench-chat-send" onClick={props.askAgent} title="Send"><Send size={16} /></button>
+            <button className="workbench-chat-send" onClick={props.askAgent} disabled={props.busy} title="Send"><Send size={16} /></button>
           </div>
         </div>
       </div>
