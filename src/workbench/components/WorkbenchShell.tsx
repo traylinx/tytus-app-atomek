@@ -54,6 +54,17 @@ type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVis
 type PaletteItem = { label: string; detail: string; run: () => void; disabled?: boolean };
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
 type BottomPanelTab = 'problems' | 'output' | 'terminal';
+type QuickPromptKind = 'explain' | 'improve' | 'plan' | 'draft' | 'edit';
+type EditStats = { added: number; removed: number; changed: number };
+type PendingEdit = {
+  fileId: string;
+  fileName: string;
+  originalContent: string;
+  proposedContent: string;
+  sourceTitle: string;
+  extractionLabel: string;
+  stats: EditStats;
+};
 
 export function WorkbenchShell({ host }: Props) {
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
@@ -77,6 +88,7 @@ export function WorkbenchShell({ host }: Props) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
+  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
@@ -353,7 +365,64 @@ export function WorkbenchShell({ host }: Props) {
     setStatus(`Opened ${output.title} as editable file`);
   }, [files, openWorkbenchFile]);
 
-  const runQuickPrompt = useCallback((kind: 'explain' | 'improve' | 'plan' | 'draft') => {
+  const previewEditFromText = useCallback((sourceTitle: string, body: string) => {
+    if (!activeFile) {
+      setStatus('Open a file before previewing an AI edit');
+      return;
+    }
+    const extracted = extractEditableSuggestion(body, activeFile);
+    if (!extracted) {
+      setStatus('No fenced replacement block found. Ask Atomek for a full-file edit first.');
+      return;
+    }
+    setPendingEdit({
+      fileId: activeFile.id,
+      fileName: activeFile.path,
+      originalContent: activeFile.content,
+      proposedContent: extracted.content,
+      sourceTitle,
+      extractionLabel: extracted.label,
+      stats: diffStats(activeFile.content, extracted.content),
+    });
+    setStatus(`Previewing AI edit for ${activeFile.name}`);
+  }, [activeFile]);
+
+  const applyPendingEdit = useCallback(() => {
+    if (!pendingEdit) return;
+    const current = files.find((file) => file.id === pendingEdit.fileId);
+    if (!current) {
+      setStatus(`Cannot apply edit — ${pendingEdit.fileName} is no longer open`);
+      setPendingEdit(null);
+      return;
+    }
+    if (current.content !== pendingEdit.originalContent) {
+      const proceed = window.confirm(`${pendingEdit.fileName} changed after the preview was created. Apply the AI edit anyway?`);
+      if (!proceed) return;
+    }
+    setFiles((currentFiles) => currentFiles.map((file) => file.id === pendingEdit.fileId ? { ...file, content: pendingEdit.proposedContent, dirty: true } : file));
+    setPendingEdit(null);
+    setStatus(`Applied AI edit to ${current.name}`);
+  }, [files, pendingEdit]);
+
+  const openPendingEditAsFile = useCallback(() => {
+    if (!pendingEdit) return;
+    const path = nextGeneratedPath(files, `${slugFileName(pendingEdit.fileName)}-ai-edit`);
+    const file: WorkbenchFile = {
+      id: `pending-edit-${pendingEdit.fileId}-${Date.now()}`,
+      name: path,
+      path,
+      language: activeFile?.language ?? 'markdown',
+      content: pendingEdit.proposedContent,
+      dirty: true,
+      source: 'generated',
+    };
+    setFiles((current) => [...current, file]);
+    openWorkbenchFile(file);
+    setPendingEdit(null);
+    setStatus(`Opened proposed edit as ${path}`);
+  }, [activeFile?.language, files, openWorkbenchFile, pendingEdit]);
+
+  const runQuickPrompt = useCallback((kind: QuickPromptKind) => {
     if (kind === 'explain') {
       askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.');
       return;
@@ -364,6 +433,10 @@ export function WorkbenchShell({ host }: Props) {
     }
     if (kind === 'plan') {
       askAiWithPrompt('Create an implementation plan from the open editor context. Be specific, ordered, and call out blockers.');
+      return;
+    }
+    if (kind === 'edit') {
+      askAiWithPrompt('Edit the active file. Return exactly one complete replacement for the active file in a fenced code block, with no provider-specific tools and no model assumptions.');
       return;
     }
     askAiWithPrompt('Draft a concrete Markdown artifact from the open editor context. Make it ready to save as an output.');
@@ -498,6 +571,7 @@ export function WorkbenchShell({ host }: Props) {
           newChat={() => { void ai.newChat(); }}
           saveMessageAsArtifact={saveMessageAsArtifact}
           rememberMessage={rememberMessage}
+          previewEditFromMessage={(message) => previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek answer', message.body)}
           runQuickPrompt={runQuickPrompt}
           aiStatus={ai.aiStatus}
           busy={ai.busy}
@@ -505,6 +579,7 @@ export function WorkbenchShell({ host }: Props) {
           outputs={combinedOutputs}
           runLocalSynthesis={runLocalSynthesis}
           openOutputAsFile={openOutputAsFile}
+          previewEditFromOutput={(output) => previewEditFromText(output.title, output.body)}
           clearOutputs={() => setOutputs([])}
           deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
           host={host}
@@ -535,12 +610,21 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'Atomek: Create Local Draft', detail: 'Deterministic local synthesis from the active file', run: runLocalSynthesis },
             { label: 'AI: Explain Active File', detail: activeFile ? `Ask Cortex to explain ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.'), disabled: !activeFile },
             { label: 'AI: Improve Active File', detail: activeFile ? `Ask Cortex for concrete edits to ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Review the active file and propose the smallest concrete improvements. Include exact snippets if useful.'), disabled: !activeFile },
+            { label: 'AI: Draft Editable Replacement', detail: activeFile ? `Ask Cortex for a full-file replacement for ${activeFile.path}` : 'Open a file first', run: () => runQuickPrompt('edit'), disabled: !activeFile },
             { label: 'AI: Plan Workspace Work', detail: openEditors.length > 0 ? 'Use open editors as bounded context' : 'Open files first', run: () => askAiWithPrompt('Create an implementation plan from the open editor context. Be specific and sequence the work.'), disabled: openEditors.length === 0 },
             { label: 'AI: Save Active File as Artifact', detail: activeFile ? 'Persist active file in host.ai artifacts' : 'Open a file first', run: saveActiveFileAsArtifact, disabled: !activeFile },
             { label: 'AI: Open Latest Artifact as File', detail: combinedOutputs[0] ? `Create editable file from ${combinedOutputs[0].title}` : 'No outputs yet', run: () => combinedOutputs[0] && openOutputAsFile(combinedOutputs[0]), disabled: combinedOutputs.length === 0 },
           ]}
           openWorkbenchFile={openWorkbenchFile}
           onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
+      {pendingEdit && (
+        <EditReviewDialog
+          edit={pendingEdit}
+          onApply={applyPendingEdit}
+          onOpenAsFile={openPendingEditAsFile}
+          onClose={() => setPendingEdit(null)}
         />
       )}
       <StatusBar status={status} file={activeFile ?? welcomeFile} cursor={cursor} fileCount={files.length} dirtyCount={dirtyFiles.length} />
@@ -935,13 +1019,15 @@ function SecondarySidebar(props: {
   newChat: () => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
-  runQuickPrompt: (kind: 'explain' | 'improve' | 'plan' | 'draft') => void;
+  previewEditFromMessage: (message: ChatMessage) => void;
+  runQuickPrompt: (kind: QuickPromptKind) => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
   memoryHitCount: number;
   outputs: OutputArtifact[];
   runLocalSynthesis: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
+  previewEditFromOutput: (output: OutputArtifact) => void;
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
   host: HostClient;
@@ -963,7 +1049,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} activeFile={props.activeFile} />}
     </aside>
   );
 }
@@ -975,7 +1061,8 @@ function ChatPane(props: {
   askAgent: () => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
-  runQuickPrompt: (kind: 'explain' | 'improve' | 'plan' | 'draft') => void;
+  previewEditFromMessage: (message: ChatMessage) => void;
+  runQuickPrompt: (kind: QuickPromptKind) => void;
   activeFile: WorkbenchFile | null;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
@@ -1005,6 +1092,7 @@ function ChatPane(props: {
               <div className="workbench-chat-message-actions">
                 <button onClick={() => props.saveMessageAsArtifact(msg)}>Save artifact</button>
                 <button onClick={() => props.rememberMessage(msg)}>Remember</button>
+                <button onClick={() => props.previewEditFromMessage(msg)} disabled={!props.activeFile}>Preview edit</button>
               </div>
             ) : null}
           </div>
@@ -1022,6 +1110,7 @@ function ChatPane(props: {
             <span className="workbench-chat-chip"><Paperclip size={13} /> {props.activeFile?.name ?? 'Open editors'}</span>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>Explain</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>Improve</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>Edit</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('draft')} disabled={props.busy}>Draft</button>
           </div>
           <textarea
@@ -1049,7 +1138,7 @@ function ChatPane(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, previewEditFromOutput, activeFile, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; activeFile?: WorkbenchFile | null; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -1062,11 +1151,48 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis,
             <strong>{output.title}</strong>
             <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
             <button onClick={() => openOutputAsFile(output)}>Open as file</button>
+            {previewEditFromOutput ? <button onClick={() => previewEditFromOutput(output)} disabled={!activeFile}>Preview edit</button> : null}
             {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
           </div>
           {output.body}
         </div>
       ))}
+    </div>
+  );
+}
+
+function EditReviewDialog({ edit, onApply, onOpenAsFile, onClose }: { edit: PendingEdit; onApply: () => void; onOpenAsFile: () => void; onClose: () => void }) {
+  return (
+    <div className="workbench-edit-review-overlay" role="dialog" aria-label="Review AI edit">
+      <section className="workbench-edit-review">
+        <header className="workbench-edit-review-head">
+          <div>
+            <strong>Review AI edit</strong>
+            <span>{edit.fileName}</span>
+          </div>
+          <button title="Close" onClick={onClose}><X size={16} /></button>
+        </header>
+        <div className="workbench-edit-review-meta">
+          <span>Source: {edit.sourceTitle}</span>
+          <span>{edit.extractionLabel}</span>
+          <span>+{edit.stats.added} / -{edit.stats.removed} / ~{edit.stats.changed}</span>
+        </div>
+        <div className="workbench-edit-review-grid">
+          <div className="workbench-edit-review-pane">
+            <h4>Current</h4>
+            <pre>{edit.originalContent}</pre>
+          </div>
+          <div className="workbench-edit-review-pane proposed">
+            <h4>Proposed</h4>
+            <pre>{edit.proposedContent}</pre>
+          </div>
+        </div>
+        <footer className="workbench-edit-review-actions">
+          <button className="workbench-button-subtle" onClick={onClose}>Cancel</button>
+          <button className="workbench-button-subtle" onClick={onOpenAsFile}>Open proposed as file</button>
+          <button className="workbench-button-primary" onClick={onApply}>Apply to active file</button>
+        </footer>
+      </section>
     </div>
   );
 }
@@ -1162,6 +1288,63 @@ function nextGeneratedPath(files: WorkbenchFile[], base: string): string {
     index += 1;
   }
   return candidate;
+}
+
+function extractEditableSuggestion(body: string, file: WorkbenchFile): { content: string; label: string } | null {
+  const blocks = Array.from(body.matchAll(/```([^\n`]*)\n([\s\S]*?)```/g)).map((match) => ({
+    lang: match[1].trim().toLowerCase(),
+    content: trimCodeBlock(match[2]),
+  })).filter((block) => block.content.trim().length > 0);
+  if (blocks.length === 0) return null;
+
+  const wanted = languageAliases(file);
+  const fullReplacement = blocks.find((block) => hasFenceFlag(block.lang, 'atomek-replace') || hasFenceFlag(block.lang, 'replace'));
+  if (fullReplacement) return { content: fullReplacement.content, label: `replacement block (${fullReplacement.lang || 'plain'})` };
+
+  const languageMatch = blocks.find((block) => wanted.some((alias) => hasFenceFlag(block.lang, alias)) && !hasFenceFlag(block.lang, 'diff') && !hasFenceFlag(block.lang, 'patch'));
+  if (languageMatch) return { content: languageMatch.content, label: `matched ${languageMatch.lang || file.language} block` };
+
+  const nonDiffBlocks = blocks.filter((block) => !hasFenceFlag(block.lang, 'diff') && !hasFenceFlag(block.lang, 'patch'));
+  const fallback = nonDiffBlocks.sort((a, b) => b.content.length - a.content.length)[0];
+  if (!fallback) return null;
+  return { content: fallback.content, label: `largest fenced block (${fallback.lang || 'plain'})` };
+}
+
+function trimCodeBlock(content: string): string {
+  return content.replace(/^\n+/, '').replace(/\n+$/, '');
+}
+
+function hasFenceFlag(lang: string, flag: string): boolean {
+  return lang.split(/[\s,]+/).filter(Boolean).includes(flag);
+}
+
+function languageAliases(file: WorkbenchFile): string[] {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return Array.from(new Set([
+    file.language,
+    ext,
+    file.language === 'typescript' ? 'ts' : '',
+    file.language === 'javascript' ? 'js' : '',
+    file.language === 'markdown' ? 'md' : '',
+    file.language === 'shell' ? 'sh' : '',
+    file.language === 'yaml' ? 'yml' : '',
+  ].filter(Boolean)));
+}
+
+function diffStats(original: string, proposed: string): EditStats {
+  const before = original.split('\n');
+  const after = proposed.split('\n');
+  const max = Math.max(before.length, after.length);
+  let added = 0;
+  let removed = 0;
+  let changed = 0;
+  for (let index = 0; index < max; index += 1) {
+    if (before[index] === after[index]) continue;
+    if (before[index] === undefined) added += 1;
+    else if (after[index] === undefined) removed += 1;
+    else changed += 1;
+  }
+  return { added, removed, changed };
 }
 
 function readRecent(): RecentEntry[] {
