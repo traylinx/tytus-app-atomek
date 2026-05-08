@@ -60,6 +60,7 @@ export type ChatMessage = {
   status?: 'pending' | 'streaming' | 'complete' | 'error';
   gatewayLabel?: string;
   error?: string;
+  createdAt?: number;
 };
 
 export type OutputArtifact = {

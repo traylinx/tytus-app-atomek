@@ -1,7 +1,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { HostClient } from '@tytus/host-api';
+import type { AiThread, HostClient } from '@tytus/host-api';
 import {
   Blocks,
   Bot,
@@ -24,6 +24,8 @@ import {
   Send,
   Settings,
   SlidersHorizontal,
+  Square,
+  RefreshCcw,
   UserCircle,
   X,
 } from 'lucide-react';
@@ -103,6 +105,7 @@ export function WorkbenchShell({ host }: Props) {
   const [pendingWorkspacePatch, setPendingWorkspacePatch] = useState<PendingWorkspacePatch | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chatSettings, setChatSettings] = useState<ChatAiSettings>(() => readChatAiSettings());
+  const [aiDirtyNotice, setAiDirtyNotice] = useState<string | null>(null);
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
@@ -233,6 +236,7 @@ export function WorkbenchShell({ host }: Props) {
       const saved = await Promise.all(targets.map((file) => saveWorkbenchFile(file)));
       const savedMap = new Map(saved.map((file) => [file.id, file]));
       setFiles((current) => current.map((file) => savedMap.get(file.id) ?? file));
+      setAiDirtyNotice(null);
       setStatus(`Saved ${saved.length} dirty file${saved.length === 1 ? '' : 's'}`);
     } catch (err) {
       setStatus(`Save all failed: ${(err as Error).message}`);
@@ -332,6 +336,16 @@ export function WorkbenchShell({ host }: Props) {
     setSecondaryTab('chat');
     setChatInput('');
     void ai.askAgent(prompt);
+  }, [ai]);
+
+  const regenerateMessage = useCallback((message: ChatMessage) => {
+    const index = ai.messages.findIndex((candidate) => candidate.id === message.id);
+    const previousUser = ai.messages.slice(0, index < 0 ? undefined : index).reverse().find((candidate) => candidate.role === 'user');
+    if (!previousUser?.body.trim()) {
+      setStatus('No previous user prompt to regenerate from');
+      return;
+    }
+    void ai.askAgent(previousUser.body);
   }, [ai]);
 
   const saveMessageAsArtifact = useCallback((message: ChatMessage) => {
@@ -437,8 +451,9 @@ export function WorkbenchShell({ host }: Props) {
       if (!proceed) return;
     }
     setFiles((currentFiles) => currentFiles.map((file) => file.id === pendingEdit.fileId ? { ...file, content: pendingEdit.proposedContent, dirty: true } : file));
+    setAiDirtyNotice(`AI edit applied to ${current.name}. Save All to persist it to disk.`);
     setPendingEdit(null);
-    setStatus(`Applied AI edit to ${current.name}`);
+    setStatus(`Applied AI edit to ${current.name} — unsaved`);
   }, [files, pendingEdit]);
 
   const openPendingEditAsFile = useCallback(() => {
@@ -474,8 +489,9 @@ export function WorkbenchShell({ host }: Props) {
       const edit = editsById.get(file.id);
       return edit ? { ...file, content: edit.proposedContent, dirty: true } : file;
     }));
+    setAiDirtyNotice(`AI workspace patch applied to ${editsById.size} file${editsById.size === 1 ? '' : 's'}. Save All to persist changes.`);
     setPendingWorkspacePatch(null);
-    setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'}`);
+    setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'} — unsaved`);
   }, [files, pendingWorkspacePatch]);
 
   const openWorkspacePatchAsFiles = useCallback(() => {
@@ -548,6 +564,10 @@ export function WorkbenchShell({ host }: Props) {
   }, [dirtyFiles.length]);
 
   useEffect(() => {
+    if (dirtyFiles.length === 0) setAiDirtyNotice(null);
+  }, [dirtyFiles.length]);
+
+  useEffect(() => {
     const prefs: LayoutPrefs = { primaryVisible, primaryWidth, secondaryVisible, secondaryWidth, markdownPreviewVisible };
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(prefs));
   }, [markdownPreviewVisible, primaryVisible, primaryWidth, secondaryVisible, secondaryWidth]);
@@ -603,6 +623,13 @@ export function WorkbenchShell({ host }: Props) {
             togglePreview={() => setMarkdownPreviewVisible((value) => !value)}
           />
           <BreadcrumbBar file={activeFile} folder={folder} showWelcome={showWelcome} />
+          {aiDirtyNotice && dirtyFiles.length > 0 ? (
+            <div className="workbench-ai-dirty-banner">
+              <span>{aiDirtyNotice}</span>
+              <button onClick={() => { void saveAllDirty(); }}>Save all</button>
+              <button onClick={() => setAiDirtyNotice(null)} title="Dismiss"><X size={13} /></button>
+            </div>
+          ) : null}
           <div className="workbench-editor-content">
             {activeFile ? (
               <div className={activeFile.language === 'markdown' && markdownPreviewVisible ? 'workbench-editor-split' : 'workbench-editor-single'}>
@@ -651,8 +678,15 @@ export function WorkbenchShell({ host }: Props) {
           chatInput={chatInput}
           setChatInput={setChatInput}
           chatMessages={ai.messages}
+          chatThread={ai.thread}
+          chatThreads={ai.threads}
           askAgent={askAgent}
+          stopChat={ai.stopChat}
+          regenerateMessage={regenerateMessage}
           newChat={() => { void ai.newChat(); }}
+          selectThread={(threadId) => { void ai.selectThread(threadId); }}
+          renameThread={(threadId, title) => { void ai.renameThread(threadId, title); }}
+          deleteThread={(threadId) => { void ai.deleteThread(threadId); }}
           saveMessageAsArtifact={saveMessageAsArtifact}
           rememberMessage={rememberMessage}
           previewEditFromMessage={(message) => previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek answer', message.body)}
@@ -1119,8 +1153,15 @@ function SecondarySidebar(props: {
   chatInput: string;
   setChatInput: (value: string) => void;
   chatMessages: ChatMessage[];
+  chatThread: AiThread | null;
+  chatThreads: AiThread[];
   askAgent: () => void;
+  stopChat: () => void;
+  regenerateMessage: (message: ChatMessage) => void;
   newChat: () => void;
+  selectThread: (threadId: string) => void;
+  renameThread: (threadId: string, title: string) => void;
+  deleteThread: (threadId: string) => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
@@ -1166,7 +1207,14 @@ function ChatPane(props: {
   chatInput: string;
   setChatInput: (value: string) => void;
   chatMessages: ChatMessage[];
+  chatThread: AiThread | null;
+  chatThreads: AiThread[];
   askAgent: () => void;
+  stopChat: () => void;
+  regenerateMessage: (message: ChatMessage) => void;
+  selectThread: (threadId: string) => void;
+  renameThread: (threadId: string, title: string) => void;
+  deleteThread: (threadId: string) => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
@@ -1181,6 +1229,40 @@ function ChatPane(props: {
 }) {
   return (
     <div className="workbench-chat-wrap">
+      <div className="workbench-chat-threadbar">
+        <select
+          value={props.chatThread?.id ?? ''}
+          onChange={(event) => props.selectThread(event.target.value)}
+          disabled={props.busy || props.chatThreads.length === 0}
+          title="Select chat thread"
+        >
+          {props.chatThreads.length === 0 ? <option value="">No chats</option> : null}
+          {props.chatThreads.map((thread) => (
+            <option key={thread.id} value={thread.id}>
+              {thread.title} · {formatThreadDate(thread.lastMessageAt ?? thread.updatedAt)}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => {
+            if (!props.chatThread) return;
+            const title = window.prompt('Rename chat', props.chatThread.title);
+            if (title !== null) props.renameThread(props.chatThread.id, title);
+          }}
+          disabled={!props.chatThread || props.busy}
+        >
+          Rename
+        </button>
+        <button
+          onClick={() => {
+            if (!props.chatThread) return;
+            if (window.confirm(`Delete chat "${props.chatThread.title}"?`)) props.deleteThread(props.chatThread.id);
+          }}
+          disabled={!props.chatThread || props.busy}
+        >
+          Delete
+        </button>
+      </div>
       <div className="workbench-chat-transcript">
         {props.chatMessages.length === 0 ? (
           <div className="workbench-chat-empty">
@@ -1204,6 +1286,12 @@ function ChatPane(props: {
                 <button onClick={() => props.saveMessageAsArtifact(msg)}>Save artifact</button>
                 <button onClick={() => props.rememberMessage(msg)}>Remember</button>
                 <button onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0}>Preview edit</button>
+                <button onClick={() => props.regenerateMessage(msg)} disabled={props.busy}><RefreshCcw size={11} /> Regenerate</button>
+              </div>
+            ) : null}
+            {msg.role === 'assistant' && msg.status === 'error' ? (
+              <div className="workbench-chat-message-actions">
+                <button onClick={() => props.regenerateMessage(msg)} disabled={props.busy}>Retry</button>
               </div>
             ) : null}
           </div>
@@ -1243,7 +1331,11 @@ function ChatPane(props: {
             </button>
             <button className="workbench-chat-mode" onClick={() => props.runQuickPrompt('plan')} disabled={props.busy}>Plan</button>
             <span />
-            <button className="workbench-chat-send" onClick={props.askAgent} disabled={props.busy} title="Send"><Send size={16} /></button>
+            {props.busy ? (
+              <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop"><Square size={14} /></button>
+            ) : (
+              <button className="workbench-chat-send" onClick={props.askAgent} title="Send"><Send size={16} /></button>
+            )}
           </div>
         </div>
       </div>
@@ -1266,6 +1358,18 @@ function chatSettingsSummary(settings: ChatAiSettings, statusLabel: string, memo
   if (model) parts.push(model);
   if (memoryHitCount > 0) parts.push(`${memoryHitCount} memories`);
   return parts.join(' · ');
+}
+
+function formatThreadDate(ts: number): string {
+  if (!Number.isFinite(ts) || ts <= 0) return 'new';
+  return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function looksEditable(body: string): boolean {
+  return /```(?:diff|patch)\b/i.test(body)
+    || /^diff --git /m.test(body)
+    || /^--- .+\n\+\+\+ /m.test(body)
+    || /```[\w.+-]*\s*\n[\s\S]{80,}```/.test(body);
 }
 
 function AtomekSettingsDialog(props: {
@@ -1383,7 +1487,15 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, op
             <strong>{output.title}</strong>
             <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
             <button onClick={() => openOutputAsFile(output)}>Open as file</button>
-            {previewEditFromOutput ? <button onClick={() => previewEditFromOutput(output)} disabled={!canPreviewEdit}>Preview edit</button> : null}
+            {previewEditFromOutput ? (
+              <button
+                className={looksEditable(output.body) ? 'workbench-output-edit-cta' : undefined}
+                onClick={() => previewEditFromOutput(output)}
+                disabled={!canPreviewEdit}
+              >
+                {looksEditable(output.body) ? 'Preview/apply edit' : 'Preview edit'}
+              </button>
+            ) : null}
             {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
           </div>
           {output.body}

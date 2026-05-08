@@ -30,6 +30,7 @@ const toChatMessage = (msg: AiMessage): ChatMessage | null => {
     status: msg.status,
     gatewayLabel: msg.gatewayLabel ?? undefined,
     error: msg.error ?? undefined,
+    createdAt: msg.createdAt,
   };
 };
 
@@ -73,12 +74,14 @@ const memoryContextPart = (hits: AiMemoryHit[]): AiContextPart | null => {
 export function useConversation({ host, activeFile, openEditors, chatSettings, setStatus }: ConversationOpts) {
   const ai = host.ai;
   const [thread, setThread] = useState<AiThread | null>(null);
+  const [threads, setThreads] = useState<AiThread[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
   const [memoryHits, setMemoryHits] = useState<AiMemoryHit[]>([]);
   const [aiStatus, setAiStatus] = useState<AiStatus>(fallbackStatus);
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
 
   const context = useMemo(() => buildAiContext(activeFile, openEditors), [activeFile, openEditors]);
 
@@ -110,12 +113,28 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     }
   }, [ai, setStatus]);
 
+  const selectThread = useCallback(async (threadId: string) => {
+    if (!ai) return;
+    try {
+      const loaded = await ai.listMessages(threadId);
+      if (!mounted.current) return;
+      const found = threads.find((item) => item.id === threadId) ?? null;
+      if (found) setThread(found);
+      setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
+      setMemoryHits([]);
+      await loadArtifacts(threadId);
+    } catch (err) {
+      setStatus(`Load chat failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [ai, loadArtifacts, setStatus, threads]);
+
   const loadThread = useCallback(async () => {
     if (!ai) return;
     try {
       const existing = await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' });
       const selected = existing[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
       if (!mounted.current) return;
+      setThreads(existing[0] ? existing : [selected]);
       setThread(selected);
       const loaded = await ai.listMessages(selected.id);
       if (!mounted.current) return;
@@ -139,7 +158,10 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     if (!ai) return null;
     if (thread) return thread;
     const created = await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
-    if (mounted.current) setThread(created);
+    if (mounted.current) {
+      setThread(created);
+      setThreads((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+    }
     return created;
   }, [ai, thread]);
 
@@ -147,11 +169,46 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     if (!ai) return;
     const created = await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
     setThread(created);
+    setThreads((current) => [created, ...current.filter((item) => item.id !== created.id)]);
     setMessages([]);
     setArtifacts([]);
     setMemoryHits([]);
     setStatus('New AI chat created');
   }, [ai, setStatus]);
+
+  const renameThread = useCallback(async (threadId: string, title: string) => {
+    if (!ai) return;
+    const nextTitle = title.trim();
+    if (!nextTitle) return;
+    try {
+      const updated = await ai.updateThread({ threadId, title: nextTitle });
+      setThreads((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setThread((current) => current?.id === updated.id ? updated : current);
+      setStatus(`Renamed chat: ${updated.title}`);
+    } catch (err) {
+      setStatus(`Rename chat failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [ai, setStatus]);
+
+  const deleteThread = useCallback(async (threadId: string) => {
+    if (!ai) return;
+    try {
+      await ai.deleteThread(threadId);
+      const remaining = threads.filter((item) => item.id !== threadId);
+      setThreads(remaining);
+      if (thread?.id === threadId) {
+        const next = remaining[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
+        setThread(next);
+        setThreads((current) => current.some((item) => item.id === next.id) ? current : [next, ...current]);
+        const loaded = await ai.listMessages(next.id);
+        setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
+        await loadArtifacts(next.id);
+      }
+      setStatus('Deleted AI chat');
+    } catch (err) {
+      setStatus(`Delete chat failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [ai, loadArtifacts, setStatus, thread?.id, threads]);
 
   const createArtifact = useCallback(async (input: { title?: string; kind?: OutputArtifact['kind']; body: string; messageId?: string | null }) => {
     if (!ai) return null;
@@ -218,6 +275,8 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     if (!body || !ai) return null;
     setBusy(true);
     let finalAssistant: ChatMessage | null = null;
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const activeThread = await ensureThread();
       if (!activeThread) return null;
@@ -231,6 +290,7 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
         gatewayPreference: chatSettings.gatewayPreference,
         model: chatSettings.model.trim() || undefined,
         context: requestContext,
+        signal: controller.signal,
       })) {
         if (event.type === 'message_created') {
           const chat = toChatMessage(event.message);
@@ -252,23 +312,36 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
           if (chat.gatewayLabel) setStatus(`AI answered via ${chat.gatewayLabel}`);
         }
         if (event.type === 'run_failed') {
-          setStatus(`AI failed: ${event.error}`);
+          const stopped = controller.signal.aborted;
+          setStatus(stopped ? 'AI response stopped' : `AI failed: ${event.error}`);
           if (assistantId) {
             setMessages((current) => current.map((m) =>
-              m.id === assistantId ? { ...m, status: 'error', error: event.error, body: event.error } : m,
+              m.id === assistantId ? { ...m, status: 'error', error: event.error, body: stopped ? 'Stopped by user.' : event.error } : m,
             ));
           }
         }
       }
+      const refreshedThreads = await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' }).catch(() => [] as AiThread[]);
+      if (mounted.current && refreshedThreads.length > 0) setThreads(refreshedThreads);
       void refreshStatus();
       return finalAssistant;
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setStatus('AI response stopped');
+        return finalAssistant;
+      }
       setStatus(`AI failed: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
     }
   }, [ai, chatSettings.gatewayPreference, chatSettings.model, context, ensureThread, recall, refreshStatus, setStatus]);
+
+  const stopChat = useCallback(() => {
+    abortRef.current?.abort();
+    setStatus('Stopping AI response…');
+  }, [setStatus]);
 
   return {
     aiStatus,
@@ -276,11 +349,17 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     busy,
     memoryHits,
     messages,
+    thread,
+    threads,
     askAgent,
     createArtifact,
     deleteArtifact,
+    deleteThread,
     newChat,
     recall,
     remember,
+    renameThread,
+    selectThread,
+    stopChat,
   };
 }
