@@ -5,7 +5,7 @@ This workspace app is published as Atomek; internals stay generic so future rebr
 ## Local loop
 
 ```bash
-cd /Users/sebastian/Projects/tytus-apps/tytus-app-forge
+cd /Users/sebastian/Projects/tytus-apps/tytus-app-atomek
 npm install
 npm run typecheck
 npm run build
@@ -39,4 +39,4 @@ npm run release:check
 - Manifest stays public at `tytus-app.json`.
 - Built entry stays `dist/index.js` and must be CSS-injected.
 - AI/pods/Cortex integrations should enter through the right-side chat/outputs extension surface.
-- Do not copy Atomek source back into `tytus-os/packages/app-forge`; that package is intentionally retired.
+- Do not copy Atomek source back into `tytus-os/packages/app-workbench`; that package is intentionally retired.

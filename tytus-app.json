@@ -2,10 +2,10 @@
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
   "id": "atomek",
   "name": "Atomek",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "icon": "Sparkles",
   "category": "Productivity",
-  "description": "Atomek — clean Monaco workspace for local files, markdown preview, and search. No fake remote repository, tunnel, terminal, or extension surfaces.",
+  "description": "Atomek \u2014 Monaco workspace with local files, chat/output panels, extension connectors, markdown preview, and search.",
   "window": {
     "defaultSize": {
       "width": 1200,
@@ -24,7 +24,7 @@
     "shell.dock"
   ],
   "entry": {
-    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.0/dist/index.js"
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.1/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [

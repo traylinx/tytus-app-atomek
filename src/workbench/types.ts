@@ -1,4 +1,6 @@
-export type ActivityView = 'explorer' | 'search';
+export type ActivityView = 'explorer' | 'search' | 'source-control' | 'run' | 'extensions';
+export type SecondaryTab = 'chat' | 'outputs';
+
 export type WorkbenchLanguage =
   | 'markdown'
   | 'json'
@@ -44,5 +46,18 @@ export type WorkbenchFolder = {
   files: WorkbenchFile[];
 };
 
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  body: string;
+};
+
+export type OutputArtifact = {
+  id: string;
+  title: string;
+  kind: 'briefing' | 'action-list' | 'quiz' | 'plan' | 'storyboard' | 'report' | 'local-draft';
+  body: string;
+  createdAt: number;
+};
 
 export type CursorPosition = { lineNumber: number; column: number };

@@ -1,8 +1,8 @@
 {
   "name": "tytus-app-workbench",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
-  "description": "Clean Monaco workspace for local files in Tytus OS.",
+  "description": "Monaco workspace with local files, chat/output panels, extension connectors, markdown preview, and search.",
   "license": "MIT",
   "files": [
     "dist",

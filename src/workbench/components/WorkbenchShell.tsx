@@ -3,6 +3,9 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { HostClient } from '@tytus/host-api';
 import {
+  Blocks,
+  Bot,
+  Bug,
   ChevronDown,
   File,
   FileCode2,
@@ -10,14 +13,23 @@ import {
   FileSearch,
   Folder,
   FolderOpen,
+  GitBranch,
   Eye,
+  MessageSquareText,
+  MoreHorizontal,
+  PanelRight,
+  Paperclip,
+  Plus,
   Search,
+  Send,
+  Settings,
+  UserCircle,
   X,
 } from 'lucide-react';
 import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, CursorPosition, WorkbenchFile, WorkbenchFolder } from '../types';
+import type { ActivityView, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder } from '../types';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
 
@@ -37,15 +49,21 @@ const LAYOUT_KEY = 'tytus.workspace.layout';
 type Props = { host: HostClient };
 
 type RecentEntry = { name: string; path: string; at: number };
-type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; markdownPreviewVisible: boolean };
+type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVisible: boolean; secondaryWidth: number; markdownPreviewVisible: boolean };
 type PaletteItem = { label: string; detail: string; run: () => void; disabled?: boolean };
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
+type BottomPanelTab = 'problems' | 'output' | 'terminal';
 
 export function WorkbenchShell({ host }: Props) {
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
   const [activity, setActivity] = useState<ActivityView>('explorer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
   const [primaryWidth, setPrimaryWidth] = useState(initialLayout.primaryWidth);
+  const [secondaryTab, setSecondaryTab] = useState<SecondaryTab>('chat');
+  const [secondaryVisible, setSecondaryVisible] = useState(initialLayout.secondaryVisible);
+  const [secondaryWidth, setSecondaryWidth] = useState(initialLayout.secondaryWidth);
+  const [bottomPanelVisible, setBottomPanelVisible] = useState(false);
+  const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>('problems');
   const [markdownPreviewVisible, setMarkdownPreviewVisible] = useState(initialLayout.markdownPreviewVisible);
   const [welcomeClosed, setWelcomeClosed] = useState(false);
   const [folder, setFolder] = useState<WorkbenchFolder | null>(null);
@@ -54,8 +72,11 @@ export function WorkbenchShell({ host }: Props) {
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState<CursorPosition>({ lineNumber: 1, column: 1 });
+  const [chatInput, setChatInput] = useState('');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
@@ -70,6 +91,22 @@ export function WorkbenchShell({ host }: Props) {
     return files.filter((file) => file.path.toLowerCase().includes(needle));
   }, [files, query]);
 
+
+  const beginSecondaryResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = secondaryWidth;
+    const onMove = (moveEvent: PointerEvent) => {
+      const next = startWidth + (startX - moveEvent.clientX);
+      setSecondaryWidth(Math.max(380, Math.min(760, next)));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [secondaryWidth]);
 
   const beginPrimaryResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -211,6 +248,28 @@ export function WorkbenchShell({ host }: Props) {
     openWorkbenchFile(file);
   }, [files, openWorkbenchFile]);
 
+  const runLocalSynthesis = useCallback(() => {
+    const source = activeFile ?? files[0];
+    if (!source) {
+      setStatus('No open file to synthesize');
+      return;
+    }
+    const lines = source.content.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 6);
+    const artifact: OutputArtifact = {
+      id: `output-${Date.now()}`,
+      title: `Local draft from ${source.name}`,
+      kind: 'local-draft',
+      body: ['# Local synthesis', '', ...lines.map((line) => `- ${line.replace(/^#+\s*/, '')}`), '', '> Deterministic local draft. Real agents wire in next sprint.'].join('\n'),
+      createdAt: Date.now(),
+    };
+    setOutputs((current) => [artifact, ...current]);
+    setBottomPanelVisible(true);
+    setBottomPanelTab('output');
+    setSecondaryTab('outputs');
+    setSecondaryVisible(true);
+    setStatus('Local synthesis created');
+  }, [activeFile, files]);
+
   const reopenRecent = useCallback((entry: RecentEntry) => {
     const existing = files.find((file) => file.path === entry.path || file.name === entry.name);
     if (existing) {
@@ -220,6 +279,21 @@ export function WorkbenchShell({ host }: Props) {
     }
     setStatus('Browser security requires permission again — use Open File or Open Folder to reopen local content.');
   }, [files, openWorkbenchFile]);
+
+  const askAgent = useCallback(() => {
+    const prompt = chatInput.trim();
+    if (!prompt) return;
+    const source = activeFile ?? files[0];
+    const answer = source
+      ? `Local draft only. Open source: ${source.path}. Prompt received: ${prompt}. Pod/AIL agent execution is intentionally not wired in this base sprint.`
+      : `Local draft only. Open a file or folder first. Prompt received: ${prompt}.`;
+    setChatMessages((current) => [
+      ...current,
+      { id: `u-${Date.now()}`, role: 'user', body: prompt },
+      { id: `a-${Date.now()}`, role: 'assistant', body: answer },
+    ]);
+    setChatInput('');
+  }, [activeFile, chatInput, files]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -247,15 +321,15 @@ export function WorkbenchShell({ host }: Props) {
   }, [dirtyFiles.length]);
 
   useEffect(() => {
-    const prefs: LayoutPrefs = { primaryVisible, primaryWidth, markdownPreviewVisible };
+    const prefs: LayoutPrefs = { primaryVisible, primaryWidth, secondaryVisible, secondaryWidth, markdownPreviewVisible };
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(prefs));
-  }, [markdownPreviewVisible, primaryVisible, primaryWidth]);
+  }, [markdownPreviewVisible, primaryVisible, primaryWidth, secondaryVisible, secondaryWidth]);
 
   return (
     <div
-      className={`workbench-workbench ${primaryVisible ? '' : 'no-primary'}`}
-      data-app="workbench"
-      style={{ '--workbench-primary-width': `${primaryWidth}px` } as CSSProperties}
+      className={`workbench-workbench ${primaryVisible ? '' : 'no-primary'} ${secondaryVisible ? '' : 'no-secondary'} ${bottomPanelVisible ? 'has-bottom-panel' : ''}`}
+      data-app="workbench-vscode-base"
+      style={{ '--workbench-primary-width': `${primaryWidth}px`, '--workbench-secondary-width': `${secondaryWidth}px` } as CSSProperties}
     >
       <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} />
       {primaryVisible && (
@@ -291,6 +365,8 @@ export function WorkbenchShell({ host }: Props) {
             closeEditor={closeEditor}
             saveFile={(id) => { void saveFileById(id); }}
             closeWelcome={() => setWelcomeClosed(true)}
+            secondaryVisible={secondaryVisible}
+            toggleSecondary={() => setSecondaryVisible((value) => !value)}
             canPreview={activeFile?.language === 'markdown'}
             previewVisible={markdownPreviewVisible}
             togglePreview={() => setMarkdownPreviewVisible((value) => !value)}
@@ -314,19 +390,44 @@ export function WorkbenchShell({ host }: Props) {
                 {activeFile.language === 'markdown' && markdownPreviewVisible && <MarkdownPreviewPane content={activeFile.content} />}
               </div>
             ) : showWelcome ? (
-              <WelcomePage openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} />
+              <WelcomePage openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} />
             ) : (
               <div className="workbench-no-editor">
                 <FileSearch size={34} />
                 <p>No editor open</p>
-                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>Show start screen</button>
+                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>Show Welcome</button>
               </div>
             )}
           </div>
-
+          {bottomPanelVisible && (
+            <BottomPanel
+              tab={bottomPanelTab}
+              setTab={setBottomPanelTab}
+              outputs={outputs}
+              clearOutputs={() => setOutputs([])}
+              runLocalSynthesis={runLocalSynthesis}
+              onClose={() => setBottomPanelVisible(false)}
+            />
+          )}
         </section>
       </main>
-
+      {secondaryVisible && (
+        <SecondarySidebar
+          tab={secondaryTab}
+          setTab={setSecondaryTab}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          chatMessages={chatMessages}
+          askAgent={askAgent}
+          outputs={outputs}
+          runLocalSynthesis={runLocalSynthesis}
+          clearOutputs={() => setOutputs([])}
+          host={host}
+          activeFile={activeFile}
+          onResizeStart={beginSecondaryResize}
+          onClose={() => setSecondaryVisible(false)}
+        />
+      )}
       {commandPaletteOpen && (
         <CommandPalette
           query={commandQuery}
@@ -340,10 +441,13 @@ export function WorkbenchShell({ host }: Props) {
             ...recent.map((item) => ({ label: `File: Open Recent — ${item.name}`, detail: item.path, run: () => reopenRecent(item) })),
             { label: 'File: Save All', detail: `${dirtyFiles.length} dirty file${dirtyFiles.length === 1 ? '' : 's'}`, run: () => { void saveAllDirty(); }, disabled: dirtyFiles.length === 0 },
             { label: 'File: Close All Editors', detail: `${openEditors.length} open editor${openEditors.length === 1 ? '' : 's'}`, run: closeAllEditors, disabled: openEditors.length === 0 },
-            { label: 'Search: Find in Files', detail: 'Search the opened workspace', run: () => { setActivity('search'); setPrimaryVisible(true); } },
-            { label: 'Help: Show Start Screen', detail: 'Open the start screen', run: () => { setActiveFileId(null); setWelcomeClosed(false); } },
+            { label: 'Search: Find in Files', detail: 'Open the VS Code-style search side bar', run: () => { setActivity('search'); setPrimaryVisible(true); } },
+            { label: 'Help: Show Welcome', detail: 'Open the workbench welcome page', run: () => { setActiveFileId(null); setWelcomeClosed(false); } },
             { label: 'View: Toggle Primary Side Bar', detail: primaryVisible ? 'Hide Explorer side bar' : 'Show Explorer side bar', run: () => setPrimaryVisible((value) => !value) },
+            { label: 'View: Toggle Chat Panel', detail: secondaryVisible ? 'Hide right AI side bar' : 'Show right AI side bar', run: () => setSecondaryVisible((value) => !value) },
+            { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
             { label: 'View: Toggle Markdown Preview', detail: activeFile?.language === 'markdown' ? 'Show or hide Markdown preview split' : 'Available for Markdown files', run: () => setMarkdownPreviewVisible((value) => !value), disabled: activeFile?.language !== 'markdown' },
+            { label: 'Atomek: Create Local Draft', detail: 'Deterministic local synthesis from the active file', run: runLocalSynthesis },
           ]}
           openWorkbenchFile={openWorkbenchFile}
           onClose={() => setCommandPaletteOpen(false)}
@@ -359,7 +463,12 @@ function ActivityBar({ active, setActive }: { active: ActivityView; setActive: (
     <aside className="workbench-activity-bar" aria-label="Activity Bar">
       <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
       <ActivityButton icon={<Search size={25} />} label="Search" active={active === 'search'} onClick={() => setActive('search')} />
+      <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
+      <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
+      <ActivityButton icon={<Blocks size={25} />} label="Extensions" active={active === 'extensions'} onClick={() => setActive('extensions')} />
       <div className="workbench-activity-spacer" />
+      <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
+      <ActivityButton icon={<Settings size={23} />} label="Manage" active={false} onClick={() => undefined} />
     </aside>
   );
 }
@@ -386,6 +495,9 @@ function PrimarySidebar(props: {
   hasFsAccess: boolean;
 }) {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
+  if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
+  if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
+  if (props.activity === 'extensions') return <ExtensionsPane />;
   return <ExplorerPane {...props} />;
 }
 
@@ -511,6 +623,8 @@ function EditorTabs(props: {
   closeEditor: (id: string) => void;
   saveFile: (id: string) => void;
   closeWelcome: () => void;
+  secondaryVisible: boolean;
+  toggleSecondary: () => void;
   canPreview: boolean;
   previewVisible: boolean;
   togglePreview: () => void;
@@ -534,17 +648,18 @@ function EditorTabs(props: {
       ))}
       <div style={{ flex: 1 }} />
       {props.canPreview && <button className={`workbench-editor-action ${props.previewVisible ? 'active' : ''}`} title="Toggle Markdown Preview" onClick={props.togglePreview}><Eye size={16} /></button>}
+      <button className={`workbench-editor-action ${props.secondaryVisible ? 'active' : ''}`} title="Toggle Chat" onClick={props.toggleSecondary}><PanelRight size={16} /></button>
     </div>
   );
 }
 
-function WelcomePage({ openFile, openFolder, newFile, recent, reopenRecent }: { openFile: () => void; openFolder: () => void; newFile: () => void; recent: RecentEntry[]; reopenRecent: (entry: RecentEntry) => void }) {
+function WelcomePage({ openFile, openFolder, newFile, recent, reopenRecent, setStatus }: { openFile: () => void; openFolder: () => void; newFile: () => void; recent: RecentEntry[]; reopenRecent: (entry: RecentEntry) => void; setStatus: (status: string) => void }) {
   return (
     <div className="workbench-welcome">
       <div className="workbench-welcome-grid">
         <section>
           <h1>Atomek</h1>
-          <div className="workbench-welcome-subtitle">Small, clean workspace for files and notes.</div>
+          <div className="workbench-welcome-subtitle">Shape files into working artifacts</div>
           <h2>Start</h2>
           <button className="workbench-start-link" onClick={newFile}><FilePlus2 size={18} />New File...</button>
           <button className="workbench-start-link" onClick={openFile}><File size={18} />Open File...</button>
@@ -554,12 +669,12 @@ function WelcomePage({ openFile, openFolder, newFile, recent, reopenRecent }: { 
         </section>
         <section>
           <h2>Walkthroughs</h2>
-          <div className="workbench-walkthrough-card"><strong>Get Started with Atomek</strong><span className="workbench-muted">Open local files, edit with Monaco, and keep the interface honest.</span></div>
+          <div className="workbench-walkthrough-card"><strong>Get Started with Atomek</strong><span className="workbench-muted">Open local files, edit with Monaco, then wire Tytus agents and Cortex next.</span></div>
           <div className="workbench-walkthrough-card"><strong>Browse & Edit Local Workspaces</strong><span className="workbench-muted">Uses browser-native File System Access API on supported Chromium builds.</span></div>
-          <div className="workbench-walkthrough-card"><strong>Learn the Fundamentals</strong><span className="workbench-muted">Explorer, tabs, editor, search, status bar.</span></div>
+          <div className="workbench-walkthrough-card"><strong>Learn the Fundamentals</strong><span className="workbench-muted">Explorer, tabs, editor, status bar, chat surface.</span></div>
         </section>
       </div>
-
+      <label className="workbench-welcome-checkbox"><input type="checkbox" defaultChecked /> Show welcome page on startup</label>
     </div>
   );
 }
@@ -685,10 +800,190 @@ function MarkdownPreviewPane({ content }: { content: string }) {
   );
 }
 
+function BottomPanel(props: {
+  tab: BottomPanelTab;
+  setTab: (tab: BottomPanelTab) => void;
+  outputs: OutputArtifact[];
+  clearOutputs: () => void;
+  runLocalSynthesis: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <section className="workbench-bottom-panel" aria-label="Panel">
+      <div className="workbench-bottom-tabs">
+        <button className={props.tab === 'problems' ? 'active' : ''} onClick={() => props.setTab('problems')}>PROBLEMS</button>
+        <button className={props.tab === 'output' ? 'active' : ''} onClick={() => props.setTab('output')}>OUTPUT</button>
+        <button className={props.tab === 'terminal' ? 'active' : ''} onClick={() => props.setTab('terminal')}>TERMINAL</button>
+        <span />
+        <button title="Close Panel" onClick={props.onClose}><X size={14} /></button>
+      </div>
+      <div className="workbench-bottom-body">
+        {props.tab === 'problems' && <p className="workbench-muted">No problems detected in open files. Diagnostics wire in after the base shell is approved.</p>}
+        {props.tab === 'terminal' && (
+          <div>
+            <p className="workbench-muted">Terminal is parked. Native command execution belongs to the pod/daemon integration sprint.</p>
+            <pre className="workbench-terminal-placeholder">$ atomek --local-first</pre>
+          </div>
+        )}
+        {props.tab === 'output' && (
+          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} runLocalSynthesis={props.runLocalSynthesis} compact />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SecondarySidebar(props: {
+  tab: SecondaryTab;
+  setTab: (tab: SecondaryTab) => void;
+  chatInput: string;
+  setChatInput: (value: string) => void;
+  chatMessages: ChatMessage[];
+  askAgent: () => void;
+  outputs: OutputArtifact[];
+  runLocalSynthesis: () => void;
+  clearOutputs: () => void;
+  host: HostClient;
+  activeFile: WorkbenchFile | null;
+  onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onClose: () => void;
+}) {
+  return (
+    <aside className="workbench-secondary">
+      <div className="workbench-secondary-resizer" onPointerDown={props.onResizeStart} title="Resize Chat" />
+      <div className="workbench-secondary-tabs">
+        <div className="workbench-secondary-tab-group">
+          <button className={`workbench-secondary-tab ${props.tab === 'chat' ? 'active' : ''}`} onClick={() => props.setTab('chat')}>CHAT</button>
+          <button className={`workbench-secondary-tab ${props.tab === 'outputs' ? 'active' : ''}`} onClick={() => props.setTab('outputs')}>OUTPUTS</button>
+        </div>
+        <div className="workbench-secondary-actions">
+          <button title="New Chat"><Plus size={15} /></button>
+          <button title="More Actions"><MoreHorizontal size={16} /></button>
+          <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
+        </div>
+      </div>
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} runLocalSynthesis={props.runLocalSynthesis} />}
+    </aside>
+  );
+}
+
+function ChatPane(props: { chatInput: string; setChatInput: (value: string) => void; chatMessages: ChatMessage[]; askAgent: () => void; activeFile: WorkbenchFile | null }) {
+  return (
+    <div className="workbench-chat-wrap">
+      <div className="workbench-chat-transcript">
+        {props.chatMessages.length === 0 ? (
+          <div className="workbench-chat-empty">
+            <div>
+              <MessageSquareText size={48} />
+              <h3>Build with Agent</h3>
+              <p>Ask about open files, request a plan, or draft an artifact.</p>
+              <p className="workbench-chat-empty-link">Local deterministic mode until pods/AIL and connector actions are wired.</p>
+            </div>
+          </div>
+        ) : props.chatMessages.map((msg) => (
+          <div key={msg.id} className={`workbench-chat-message ${msg.role}`}>
+            <strong>{msg.role === 'user' ? 'You' : 'Atomek'}</strong>
+            <br />
+            {msg.body}
+          </div>
+        ))}
+      </div>
+      <div className="workbench-chat-composer">
+        <div className="workbench-chat-tip">
+          <span>Context</span>
+          <strong>{props.activeFile ? props.activeFile.name : 'No active file'}</strong>
+          <em>pod/AIL + connectors pending</em>
+        </div>
+        <div className="workbench-chat-box">
+          <div className="workbench-chat-attachments">
+            <button title="Add context"><Plus size={15} /></button>
+            <span className="workbench-chat-chip"><Paperclip size={13} /> {props.activeFile?.name ?? 'Open editors'}</span>
+          </div>
+          <textarea
+            className="workbench-chat-textarea"
+            value={props.chatInput}
+            onChange={(event) => props.setChatInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                props.askAgent();
+              }
+            }}
+            placeholder="Ask Atomek about the open file or describe what to build..."
+            rows={3}
+          />
+          <div className="workbench-chat-toolbar">
+            <button className="workbench-chat-mode">Auto <ChevronDown size={12} /></button>
+            <button className="workbench-chat-mode">Plan</button>
+            <span />
+            <button className="workbench-chat-send" onClick={props.askAgent} title="Send"><Send size={16} /></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OutputsPane({ outputs, clearOutputs, runLocalSynthesis, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; runLocalSynthesis: () => void; compact?: boolean }) {
+  return (
+    <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <button className="workbench-button-subtle" onClick={runLocalSynthesis}><Bot size={14} />Local draft</button>
+        <button className="workbench-button-subtle" onClick={clearOutputs}>Clear</button>
+      </div>
+      {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Agent/pod execution and connectors wire in from this surface next.</p> : outputs.map((output) => <div key={output.id} className="workbench-output-card"><strong>{output.title}</strong><br />{output.body}</div>)}
+    </div>
+  );
+}
+
+function ExtensionsPane() {
+  const items = [
+    { name: 'Agents', detail: 'chat, planning, repo edits' },
+    { name: 'Pods', detail: 'allocated pod tools + local gateway' },
+    { name: 'local AIL', detail: 'local/private model routing' },
+    { name: 'Swarm', detail: 'parallel specialist workers' },
+    { name: 'Remotion', detail: 'video render recipes' },
+    { name: 'Hyperframes', detail: 'interactive app frames and tool connectors' },
+    { name: 'Blender', detail: '3D scene generation' },
+    { name: 'Media tools', detail: 'image/video/audio source cards' },
+    { name: 'Artifact recipes', detail: 'briefing, quiz, plan, report' },
+  ];
+  return (
+    <aside className="workbench-sidebar">
+      <div className="workbench-sidebar-title">EXTENSIONS</div>
+      <div className="workbench-sidebar-scroll">
+        <div className="workbench-extension-card">
+          <strong>TYTUS EXTENSIONS</strong>
+          <p className="workbench-muted">Connector surface kept intentionally. Chat, agents, pods, Hyperframes, Blender, and media tools wire in from here.</p>
+        </div>
+        {items.map((item) => (
+          <div key={item.name} className="workbench-extension-row">
+            <Blocks size={16} />
+            <div>
+              <strong>{item.name}</strong>
+              <span>{item.detail}</span>
+            </div>
+            <em>coming soon</em>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function PlaceholderPane({ title, body }: { title: string; body: string }) {
+  return (
+    <aside className="workbench-sidebar">
+      <div className="workbench-sidebar-title">{title}</div>
+      <div className="workbench-empty-pane">{body}</div>
+    </aside>
+  );
+}
+
 function StatusBar({ status, file, cursor, fileCount, dirtyCount }: { status: string; file: WorkbenchFile; cursor: CursorPosition; fileCount: number; dirtyCount: number }) {
   return (
     <footer className="workbench-statusbar">
-      <span>$(branch) main</span>
+      <span>main</span>
       <span>{fileCount} files</span>
       {dirtyCount > 0 && <span>{dirtyCount} unsaved</span>}
       <span className="workbench-status-spacer" />
@@ -728,6 +1023,8 @@ function readLayoutPrefs(): LayoutPrefs {
   const fallback: LayoutPrefs = {
     primaryVisible: true,
     primaryWidth: 300,
+    secondaryVisible: true,
+    secondaryWidth: 520,
     markdownPreviewVisible: true,
   };
   try {
@@ -737,6 +1034,8 @@ function readLayoutPrefs(): LayoutPrefs {
     return {
       primaryVisible: typeof parsed.primaryVisible === 'boolean' ? parsed.primaryVisible : fallback.primaryVisible,
       primaryWidth: typeof parsed.primaryWidth === 'number' ? Math.max(240, Math.min(460, parsed.primaryWidth)) : fallback.primaryWidth,
+      secondaryVisible: typeof parsed.secondaryVisible === 'boolean' ? parsed.secondaryVisible : fallback.secondaryVisible,
+      secondaryWidth: typeof parsed.secondaryWidth === 'number' ? Math.max(380, Math.min(760, parsed.secondaryWidth)) : fallback.secondaryWidth,
       markdownPreviewVisible: typeof parsed.markdownPreviewVisible === 'boolean' ? parsed.markdownPreviewVisible : fallback.markdownPreviewVisible,
     };
   } catch {

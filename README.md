@@ -15,7 +15,7 @@ npm run build
 `tytus-app.json` points to the tagged CDN build:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.0/dist/index.js
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.1/dist/index.js
 ```
 
 ## Boundary
