@@ -65,6 +65,11 @@ type PendingEdit = {
   extractionLabel: string;
   stats: EditStats;
 };
+type PendingWorkspacePatch = {
+  sourceTitle: string;
+  edits: PendingEdit[];
+  skipped: string[];
+};
 
 export function WorkbenchShell({ host }: Props) {
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
@@ -89,6 +94,7 @@ export function WorkbenchShell({ host }: Props) {
   const [commandQuery, setCommandQuery] = useState('');
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
+  const [pendingWorkspacePatch, setPendingWorkspacePatch] = useState<PendingWorkspacePatch | null>(null);
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
@@ -366,8 +372,21 @@ export function WorkbenchShell({ host }: Props) {
   }, [files, openWorkbenchFile]);
 
   const previewEditFromText = useCallback((sourceTitle: string, body: string) => {
+    const workspacePatch = extractWorkspacePatch(body, files, sourceTitle);
+    if (workspacePatch.edits.length > 1) {
+      setPendingWorkspacePatch(workspacePatch);
+      setPendingEdit(null);
+      setStatus(`Previewing AI workspace patch for ${workspacePatch.edits.length} files`);
+      return;
+    }
+    if (workspacePatch.edits.length === 1) {
+      setPendingEdit(workspacePatch.edits[0]);
+      setPendingWorkspacePatch(null);
+      setStatus(`Previewing AI patch for ${workspacePatch.edits[0].fileName}`);
+      return;
+    }
     if (!activeFile) {
-      setStatus('Open a file before previewing an AI edit');
+      setStatus('Open a file before previewing an AI edit, or ask Atomek for a git-style diff against opened files.');
       return;
     }
     const extracted = extractEditableSuggestion(body, activeFile);
@@ -375,6 +394,7 @@ export function WorkbenchShell({ host }: Props) {
       setStatus('No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again.');
       return;
     }
+    setPendingWorkspacePatch(null);
     setPendingEdit({
       fileId: activeFile.id,
       fileName: activeFile.path,
@@ -385,7 +405,7 @@ export function WorkbenchShell({ host }: Props) {
       stats: diffStats(activeFile.content, extracted.content),
     });
     setStatus(`Previewing AI edit for ${activeFile.name}`);
-  }, [activeFile]);
+  }, [activeFile, files]);
 
   const applyPendingEdit = useCallback(() => {
     if (!pendingEdit) return;
@@ -422,6 +442,49 @@ export function WorkbenchShell({ host }: Props) {
     setStatus(`Opened proposed edit as ${path}`);
   }, [activeFile?.language, files, openWorkbenchFile, pendingEdit]);
 
+  const applyWorkspacePatch = useCallback(() => {
+    if (!pendingWorkspacePatch) return;
+    const editsById = new Map(pendingWorkspacePatch.edits.map((edit) => [edit.fileId, edit]));
+    const changedAfterPreview = files.some((file) => {
+      const edit = editsById.get(file.id);
+      return edit && file.content !== edit.originalContent;
+    });
+    if (changedAfterPreview) {
+      const proceed = window.confirm('One or more files changed after the workspace patch preview was created. Apply anyway?');
+      if (!proceed) return;
+    }
+    setFiles((currentFiles) => currentFiles.map((file) => {
+      const edit = editsById.get(file.id);
+      return edit ? { ...file, content: edit.proposedContent, dirty: true } : file;
+    }));
+    setPendingWorkspacePatch(null);
+    setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'}`);
+  }, [files, pendingWorkspacePatch]);
+
+  const openWorkspacePatchAsFiles = useCallback(() => {
+    if (!pendingWorkspacePatch) return;
+    const existing = [...files];
+    const generated = pendingWorkspacePatch.edits.map((edit) => {
+      const path = nextGeneratedPath(existing, `${slugFileName(edit.fileName)}-ai-edit`);
+      const original = files.find((file) => file.id === edit.fileId);
+      const file: WorkbenchFile = {
+        id: `workspace-patch-${edit.fileId}-${Date.now()}-${path}`,
+        name: path,
+        path,
+        language: original?.language ?? 'markdown',
+        content: edit.proposedContent,
+        dirty: true,
+        source: 'generated',
+      };
+      existing.push(file);
+      return file;
+    });
+    setFiles((current) => [...current, ...generated]);
+    if (generated[0]) openWorkbenchFile(generated[0]);
+    setPendingWorkspacePatch(null);
+    setStatus(`Opened ${generated.length} proposed edit file${generated.length === 1 ? '' : 's'}`);
+  }, [files, openWorkbenchFile, pendingWorkspacePatch]);
+
   const runQuickPrompt = useCallback((kind: QuickPromptKind) => {
     if (kind === 'explain') {
       askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.');
@@ -436,7 +499,7 @@ export function WorkbenchShell({ host }: Props) {
       return;
     }
     if (kind === 'edit') {
-      askAiWithPrompt('Edit the active file. Return either one unified diff in a fenced diff block or one complete replacement in a fenced code block. Do not use provider-specific tools or model assumptions.');
+      askAiWithPrompt('Edit the active file or open workspace files. Prefer one git-style unified diff in a fenced diff block, with paths matching opened files. If editing one file, a complete fenced replacement is also OK. Do not use provider-specific tools or model assumptions.');
       return;
     }
     askAiWithPrompt('Draft a concrete Markdown artifact from the open editor context. Make it ready to save as an output.');
@@ -573,6 +636,7 @@ export function WorkbenchShell({ host }: Props) {
           rememberMessage={rememberMessage}
           previewEditFromMessage={(message) => previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek answer', message.body)}
           runQuickPrompt={runQuickPrompt}
+          workspaceFileCount={files.length}
           aiStatus={ai.aiStatus}
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
@@ -580,6 +644,7 @@ export function WorkbenchShell({ host }: Props) {
           runLocalSynthesis={runLocalSynthesis}
           openOutputAsFile={openOutputAsFile}
           previewEditFromOutput={(output) => previewEditFromText(output.title, output.body)}
+          canPreviewEdit={files.length > 0}
           clearOutputs={() => setOutputs([])}
           deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
           host={host}
@@ -625,6 +690,14 @@ export function WorkbenchShell({ host }: Props) {
           onApply={applyPendingEdit}
           onOpenAsFile={openPendingEditAsFile}
           onClose={() => setPendingEdit(null)}
+        />
+      )}
+      {pendingWorkspacePatch && (
+        <WorkspacePatchReviewDialog
+          patch={pendingWorkspacePatch}
+          onApply={applyWorkspacePatch}
+          onOpenAsFiles={openWorkspacePatchAsFiles}
+          onClose={() => setPendingWorkspacePatch(null)}
         />
       )}
       <StatusBar status={status} file={activeFile ?? welcomeFile} cursor={cursor} fileCount={files.length} dirtyCount={dirtyFiles.length} />
@@ -1021,6 +1094,7 @@ function SecondarySidebar(props: {
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
   runQuickPrompt: (kind: QuickPromptKind) => void;
+  workspaceFileCount: number;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
   memoryHitCount: number;
@@ -1028,6 +1102,7 @@ function SecondarySidebar(props: {
   runLocalSynthesis: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
   previewEditFromOutput: (output: OutputArtifact) => void;
+  canPreviewEdit: boolean;
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
   host: HostClient;
@@ -1049,7 +1124,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} activeFile={props.activeFile} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} canPreviewEdit={props.canPreviewEdit} />}
     </aside>
   );
 }
@@ -1063,6 +1138,7 @@ function ChatPane(props: {
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
   runQuickPrompt: (kind: QuickPromptKind) => void;
+  workspaceFileCount: number;
   activeFile: WorkbenchFile | null;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
@@ -1092,7 +1168,7 @@ function ChatPane(props: {
               <div className="workbench-chat-message-actions">
                 <button onClick={() => props.saveMessageAsArtifact(msg)}>Save artifact</button>
                 <button onClick={() => props.rememberMessage(msg)}>Remember</button>
-                <button onClick={() => props.previewEditFromMessage(msg)} disabled={!props.activeFile}>Preview edit</button>
+                <button onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0}>Preview edit</button>
               </div>
             ) : null}
           </div>
@@ -1138,7 +1214,7 @@ function ChatPane(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, previewEditFromOutput, activeFile, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; activeFile?: WorkbenchFile | null; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -1151,7 +1227,7 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis,
             <strong>{output.title}</strong>
             <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
             <button onClick={() => openOutputAsFile(output)}>Open as file</button>
-            {previewEditFromOutput ? <button onClick={() => previewEditFromOutput(output)} disabled={!activeFile}>Preview edit</button> : null}
+            {previewEditFromOutput ? <button onClick={() => previewEditFromOutput(output)} disabled={!canPreviewEdit}>Preview edit</button> : null}
             {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
           </div>
           {output.body}
@@ -1191,6 +1267,57 @@ function EditReviewDialog({ edit, onApply, onOpenAsFile, onClose }: { edit: Pend
           <button className="workbench-button-subtle" onClick={onClose}>Cancel</button>
           <button className="workbench-button-subtle" onClick={onOpenAsFile}>Open proposed as file</button>
           <button className="workbench-button-primary" onClick={onApply}>Apply to active file</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function WorkspacePatchReviewDialog({ patch, onApply, onOpenAsFiles, onClose }: { patch: PendingWorkspacePatch; onApply: () => void; onOpenAsFiles: () => void; onClose: () => void }) {
+  const totals = patch.edits.reduce((acc, edit) => ({
+    added: acc.added + edit.stats.added,
+    removed: acc.removed + edit.stats.removed,
+    changed: acc.changed + edit.stats.changed,
+  }), { added: 0, removed: 0, changed: 0 });
+  return (
+    <div className="workbench-edit-review-overlay" role="dialog" aria-label="Review AI workspace patch">
+      <section className="workbench-edit-review workspace">
+        <header className="workbench-edit-review-head">
+          <div>
+            <strong>Review AI workspace patch</strong>
+            <span>{patch.sourceTitle}</span>
+          </div>
+          <button title="Close" onClick={onClose}><X size={16} /></button>
+        </header>
+        <div className="workbench-edit-review-meta">
+          <span>{patch.edits.length} files</span>
+          <span>+{totals.added} / -{totals.removed} / ~{totals.changed}</span>
+          {patch.skipped.length > 0 ? <span>{patch.skipped.length} skipped</span> : null}
+        </div>
+        <div className="workbench-workspace-patch-list">
+          {patch.edits.map((edit) => (
+            <article key={edit.fileId} className="workbench-workspace-patch-card">
+              <header>
+                <strong>{edit.fileName}</strong>
+                <span>{edit.extractionLabel} · +{edit.stats.added} / -{edit.stats.removed} / ~{edit.stats.changed}</span>
+              </header>
+              <pre>{previewPatchContent(edit.proposedContent)}</pre>
+            </article>
+          ))}
+          {patch.skipped.length > 0 ? (
+            <article className="workbench-workspace-patch-card skipped">
+              <header>
+                <strong>Skipped</strong>
+                <span>Paths not open or hunks did not match</span>
+              </header>
+              <pre>{patch.skipped.join('\n')}</pre>
+            </article>
+          ) : null}
+        </div>
+        <footer className="workbench-edit-review-actions">
+          <button className="workbench-button-subtle" onClick={onClose}>Cancel</button>
+          <button className="workbench-button-subtle" onClick={onOpenAsFiles}>Open proposals as files</button>
+          <button className="workbench-button-primary" onClick={onApply}>Apply workspace patch</button>
         </footer>
       </section>
     </div>
@@ -1288,6 +1415,96 @@ function nextGeneratedPath(files: WorkbenchFile[], base: string): string {
     index += 1;
   }
   return candidate;
+}
+
+function extractWorkspacePatch(body: string, files: WorkbenchFile[], sourceTitle: string): PendingWorkspacePatch {
+  const blocks = Array.from(body.matchAll(/```([^\n`]*)\n([\s\S]*?)```/g)).map((match) => ({
+    lang: match[1].trim().toLowerCase(),
+    content: trimCodeBlock(match[2]),
+  })).filter((block) => block.content.trim().length > 0);
+  const candidates = [
+    ...blocks.filter((block) => hasFenceFlag(block.lang, 'diff') || hasFenceFlag(block.lang, 'patch')).map((block) => block.content),
+    body,
+  ];
+  const byFileId = new Map<string, PendingEdit>();
+  const skipped: string[] = [];
+
+  for (const candidate of candidates) {
+    for (const section of splitUnifiedDiffByFile(candidate)) {
+      const path = diffSectionPath(section);
+      if (!path) continue;
+      const file = findFileForPatchPath(files, path);
+      if (!file) {
+        skipped.push(`${path}: no opened file`);
+        continue;
+      }
+      const proposed = applyUnifiedDiff(file.content, section);
+      if (!proposed || proposed === file.content) {
+        skipped.push(`${path}: patch did not match or produced no change`);
+        continue;
+      }
+      byFileId.set(file.id, {
+        fileId: file.id,
+        fileName: file.path,
+        originalContent: file.content,
+        proposedContent: proposed,
+        sourceTitle,
+        extractionLabel: `workspace diff (${path})`,
+        stats: diffStats(file.content, proposed),
+      });
+    }
+  }
+
+  return { sourceTitle, edits: Array.from(byFileId.values()), skipped: Array.from(new Set(skipped)) };
+}
+
+function splitUnifiedDiffByFile(diff: string): string[] {
+  const normalized = diff.replace(/\r\n/g, '\n');
+  if (!/^@@\s+-\d+/m.test(normalized)) return [];
+  const lines = normalized.split('\n');
+  const starts: number[] = [];
+  lines.forEach((line, index) => {
+    if (line.startsWith('diff --git ') || line.startsWith('--- ')) starts.push(index);
+  });
+  if (starts.length === 0) return [normalized];
+  const uniqueStarts = Array.from(new Set(starts)).sort((a, b) => a - b);
+  const sections: string[] = [];
+  for (let index = 0; index < uniqueStarts.length; index += 1) {
+    const start = uniqueStarts[index];
+    const next = uniqueStarts.find((candidate) => candidate > start && lines[candidate].startsWith('diff --git '));
+    const end = next ?? lines.length;
+    const section = lines.slice(start, end).join('\n');
+    if (/^@@\s+-\d+/m.test(section)) sections.push(section);
+  }
+  return sections.length > 0 ? sections : [normalized];
+}
+
+function diffSectionPath(section: string): string | null {
+  const gitHeader = section.match(/^diff --git\s+(?:"?a\/(.+?)"?|(\S+))\s+(?:"?b\/(.+?)"?|(\S+))/m);
+  if (gitHeader) return normalizePatchPath(gitHeader[3] || gitHeader[4] || gitHeader[1] || gitHeader[2] || '');
+  const plusHeader = section.match(/^\+\+\+\s+(?:"?b\/(.+?)"?|(\S+))/m);
+  if (plusHeader) return normalizePatchPath(plusHeader[1] || plusHeader[2] || '');
+  const minusHeader = section.match(/^---\s+(?:"?a\/(.+?)"?|(\S+))/m);
+  if (minusHeader) return normalizePatchPath(minusHeader[1] || minusHeader[2] || '');
+  return null;
+}
+
+function normalizePatchPath(path: string): string {
+  return path.replace(/^["']|["']$/g, '').replace(/\\/g, '/').replace(/^[ab]\//, '').replace(/^\.\//, '');
+}
+
+function findFileForPatchPath(files: WorkbenchFile[], patchPath: string): WorkbenchFile | null {
+  const normalized = normalizePatchPath(patchPath);
+  const base = normalized.split('/').at(-1) ?? normalized;
+  return files.find((file) => {
+    const filePath = normalizePatchPath(file.path);
+    return filePath === normalized || filePath.endsWith(`/${normalized}`) || file.name === base || filePath.endsWith(`/${base}`);
+  }) ?? null;
+}
+
+function previewPatchContent(content: string): string {
+  const lines = content.split('\n');
+  return lines.slice(0, 80).join('\n') + (lines.length > 80 ? '\n…' : '');
 }
 
 function extractEditableSuggestion(body: string, file: WorkbenchFile): { content: string; label: string } | null {
