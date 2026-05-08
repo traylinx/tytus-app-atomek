@@ -279,27 +279,36 @@ export function WorkbenchShell({ host }: Props) {
     openWorkbenchFile(file);
   }, [files, openWorkbenchFile]);
 
-  const runLocalSynthesis = useCallback(() => {
-    const source = activeFile ?? files[0];
-    if (!source) {
-      setStatus('No open file to synthesize');
+  const runAiSynthesis = useCallback(() => {
+    if (!activeFile && openEditors.length === 0) {
+      setStatus('Open a file before asking Atomek to synthesize an AI artifact');
       return;
     }
-    const lines = source.content.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 6);
-    const artifact: OutputArtifact = {
-      id: `output-${Date.now()}`,
-      title: `Local draft from ${source.name}`,
-      kind: 'local-draft',
-      body: ['# Local synthesis', '', ...lines.map((line) => `- ${line.replace(/^#+\s*/, '')}`), '', '> Deterministic local draft. Real agents wire in next sprint.'].join('\n'),
-      createdAt: Date.now(),
-    };
-    setOutputs((current) => [artifact, ...current]);
-    setBottomPanelVisible(true);
-    setBottomPanelTab('output');
-    setSecondaryTab('outputs');
+    const target = activeFile?.path ?? `${openEditors.length} open editors`;
+    const prompt = [
+      `Create a polished Markdown artifact from ${target}.`,
+      'Use the open editor context already attached by Atomek.',
+      'Prefer an actionable structure: summary, key findings, risks, and next steps.',
+      'Do not invent missing facts. Do not use provider-specific tools or model assumptions.',
+    ].join(' ');
     setSecondaryVisible(true);
-    setStatus('Local synthesis created');
-  }, [activeFile, files]);
+    setSecondaryTab('chat');
+    setStatus('Asking Atomek to synthesize an AI artifact…');
+    void ai.askAgent(prompt).then((message) => {
+      if (!message || message.status === 'error') return;
+      void ai.createArtifact({
+        messageId: message.id,
+        title: `AI synthesis — ${activeFile?.name ?? 'open workspace'}`,
+        kind: 'markdown',
+        body: message.body,
+      }).then(() => {
+        setSecondaryVisible(true);
+        setSecondaryTab('outputs');
+        setBottomPanelVisible(true);
+        setBottomPanelTab('output');
+      });
+    });
+  }, [activeFile, ai, openEditors.length]);
 
   const reopenRecent = useCallback((entry: RecentEntry) => {
     const existing = files.find((file) => file.path === entry.path || file.name === entry.name);
@@ -628,7 +637,7 @@ export function WorkbenchShell({ host }: Props) {
               outputs={combinedOutputs}
               clearOutputs={() => setOutputs([])}
               deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
-              runLocalSynthesis={runLocalSynthesis}
+              runAiSynthesis={runAiSynthesis}
               openOutputAsFile={openOutputAsFile}
               onClose={() => setBottomPanelVisible(false)}
             />
@@ -655,7 +664,7 @@ export function WorkbenchShell({ host }: Props) {
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
           outputs={combinedOutputs}
-          runLocalSynthesis={runLocalSynthesis}
+          runAiSynthesis={runAiSynthesis}
           openOutputAsFile={openOutputAsFile}
           previewEditFromOutput={(output) => previewEditFromText(output.title, output.body)}
           canPreviewEdit={files.length > 0}
@@ -686,7 +695,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'View: Toggle Chat Panel', detail: secondaryVisible ? 'Hide right AI side bar' : 'Show right AI side bar', run: () => setSecondaryVisible((value) => !value) },
             { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
             { label: 'View: Toggle Markdown Preview', detail: activeFile?.language === 'markdown' ? 'Show or hide Markdown preview split' : 'Available for Markdown files', run: () => setMarkdownPreviewVisible((value) => !value), disabled: activeFile?.language !== 'markdown' },
-            { label: 'Atomek: Create Local Draft', detail: 'Deterministic local synthesis from the active file', run: runLocalSynthesis },
+            { label: 'Atomek: Create AI Synthesis', detail: activeFile || openEditors.length > 0 ? 'Ask AIL to produce a saved Markdown artifact' : 'Open a file first', run: runAiSynthesis, disabled: !activeFile && openEditors.length === 0 },
             { label: 'AI: Explain Active File', detail: activeFile ? `Ask Cortex to explain ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.'), disabled: !activeFile },
             { label: 'AI: Improve Active File', detail: activeFile ? `Ask Cortex for concrete edits to ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Review the active file and propose the smallest concrete improvements. Include exact snippets if useful.'), disabled: !activeFile },
             { label: 'AI: Draft Editable Replacement', detail: activeFile ? `Ask Cortex for a full-file replacement for ${activeFile.path}` : 'Open a file first', run: () => runQuickPrompt('edit'), disabled: !activeFile },
@@ -1075,7 +1084,7 @@ function BottomPanel(props: {
   outputs: OutputArtifact[];
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
-  runLocalSynthesis: () => void;
+  runAiSynthesis: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
   onClose: () => void;
 }) {
@@ -1097,7 +1106,7 @@ function BottomPanel(props: {
           </div>
         )}
         {props.tab === 'output' && (
-          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} compact />
+          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} openOutputAsFile={props.openOutputAsFile} compact />
         )}
       </div>
     </section>
@@ -1123,7 +1132,7 @@ function SecondarySidebar(props: {
   busy: boolean;
   memoryHitCount: number;
   outputs: OutputArtifact[];
-  runLocalSynthesis: () => void;
+  runAiSynthesis: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
   previewEditFromOutput: (output: OutputArtifact) => void;
   canPreviewEdit: boolean;
@@ -1148,7 +1157,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} canPreviewEdit={props.canPreviewEdit} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} canPreviewEdit={props.canPreviewEdit} />}
     </aside>
   );
 }
@@ -1361,14 +1370,14 @@ function AtomekSettingsDialog(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runAiSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <button className="workbench-button-subtle" onClick={runLocalSynthesis}><Bot size={14} />Local draft</button>
+        <button className="workbench-button-subtle" onClick={runAiSynthesis}><Bot size={14} />AI synthesis</button>
         <button className="workbench-button-subtle" onClick={clearOutputs}>Clear</button>
       </div>
-      {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Save an AI answer as an artifact or create a local draft.</p> : outputs.map((output) => (
+      {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Save an AI answer as an artifact or create an AI synthesis.</p> : outputs.map((output) => (
         <div key={output.id} className="workbench-output-card">
           <div className="workbench-output-head">
             <strong>{output.title}</strong>

@@ -213,13 +213,14 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     return hits;
   }, [ai]);
 
-  const askAgent = useCallback(async (prompt: string) => {
+  const askAgent = useCallback(async (prompt: string): Promise<ChatMessage | null> => {
     const body = prompt.trim();
-    if (!body || !ai) return;
+    if (!body || !ai) return null;
     setBusy(true);
+    let finalAssistant: ChatMessage | null = null;
     try {
       const activeThread = await ensureThread();
-      if (!activeThread) return;
+      if (!activeThread) return null;
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
       const requestContext = memoryPart ? [...context, memoryPart] : context;
@@ -246,6 +247,7 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
         if (event.type === 'message_updated' || event.type === 'done') {
           const chat = toChatMessage(event.message);
           if (!chat) continue;
+          if (chat.role === 'assistant') finalAssistant = chat;
           setMessages((current) => current.map((m) => (m.id === chat.id ? chat : m)));
           if (chat.gatewayLabel) setStatus(`AI answered via ${chat.gatewayLabel}`);
         }
@@ -259,8 +261,10 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
         }
       }
       void refreshStatus();
+      return finalAssistant;
     } catch (err) {
       setStatus(`AI failed: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
     } finally {
       setBusy(false);
     }
