@@ -4,7 +4,7 @@
 //
 // Single-file pure function so it can be used by any app that needs
 // to render markdown without pulling in a markdown library. Used by:
-//   - Forge VS Code-style markdown preview split
+//   - workspace markdown preview split
 //
 // All styling is inline so the output drops into any component
 // without a separate stylesheet. Theme tokens come from CSS vars

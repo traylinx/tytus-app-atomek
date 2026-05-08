@@ -34,7 +34,7 @@ export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChan
   useEffect(() => {
     if (!containerRef.current) return;
     registerTytusMonacoTheme(monaco);
-    const uri = monaco.Uri.parse(`tytus-forge:///${encodeURI(file.path)}`);
+    const uri = monaco.Uri.parse(`tytus-workbench:///${encodeURI(file.path)}`);
     const existing = monaco.editor.getModel(uri);
     const model = existing ?? monaco.editor.createModel(file.content, file.language, uri);
     modelRef.current = model;
@@ -65,7 +65,7 @@ export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChan
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    const uri = monaco.Uri.parse(`tytus-forge:///${encodeURI(file.path)}`);
+    const uri = monaco.Uri.parse(`tytus-workbench:///${encodeURI(file.path)}`);
     let model = monaco.editor.getModel(uri);
     if (!model) model = monaco.editor.createModel(file.content, file.language, uri);
     if (model.getValue() !== file.content) model.setValue(file.content);

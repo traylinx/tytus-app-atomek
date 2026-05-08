@@ -1,8 +1,8 @@
 {
-  "name": "tytus-app-forge",
-  "version": "0.1.0",
+  "name": "tytus-app-workbench",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Tytus Forge \u2014 standalone vscode.dev-style Monaco workbench for Tytus OS.",
+  "description": "Clean Monaco workspace for local files in Tytus OS.",
   "license": "MIT",
   "files": [
     "dist",

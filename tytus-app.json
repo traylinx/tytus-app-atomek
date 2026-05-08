@@ -1,14 +1,20 @@
 {
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
-  "id": "forge",
-  "name": "Tytus Forge",
-  "version": "0.1.0",
+  "id": "atomek",
+  "name": "Atomek",
+  "version": "0.2.0",
   "icon": "Sparkles",
   "category": "Productivity",
-  "description": "Tytus Forge — standalone vscode.dev-style Monaco workbench for local files, markdown preview, and future agent/Cortex workflows.",
+  "description": "Atomek — clean Monaco workspace for local files, markdown preview, and search. No fake remote repository, tunnel, terminal, or extension surfaces.",
   "window": {
-    "defaultSize": { "width": 1200, "height": 780 },
-    "minSize": { "width": 760, "height": 520 }
+    "defaultSize": {
+      "width": 1200,
+      "height": 780
+    },
+    "minSize": {
+      "width": 760,
+      "height": 520
+    }
   },
   "permissions": [
     "daemon.read",
@@ -18,19 +24,46 @@
     "shell.dock"
   ],
   "entry": {
-    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-forge@0.1.0/dist/index.js"
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.0/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [
-      { "extension": ".md", "mimeType": "text/markdown" },
-      { "extension": ".txt", "mimeType": "text/plain" },
-      { "extension": ".json", "mimeType": "application/json" },
-      { "extension": ".csv", "mimeType": "text/csv" },
-      { "extension": ".ts", "mimeType": "text/typescript" },
-      { "extension": ".tsx", "mimeType": "text/typescript-jsx" },
-      { "extension": ".js", "mimeType": "text/javascript" },
-      { "extension": ".css", "mimeType": "text/css" },
-      { "extension": ".html", "mimeType": "text/html" }
+      {
+        "extension": ".md",
+        "mimeType": "text/markdown"
+      },
+      {
+        "extension": ".txt",
+        "mimeType": "text/plain"
+      },
+      {
+        "extension": ".json",
+        "mimeType": "application/json"
+      },
+      {
+        "extension": ".csv",
+        "mimeType": "text/csv"
+      },
+      {
+        "extension": ".ts",
+        "mimeType": "text/typescript"
+      },
+      {
+        "extension": ".tsx",
+        "mimeType": "text/typescript-jsx"
+      },
+      {
+        "extension": ".js",
+        "mimeType": "text/javascript"
+      },
+      {
+        "extension": ".css",
+        "mimeType": "text/css"
+      },
+      {
+        "extension": ".html",
+        "mimeType": "text/html"
+      }
     ]
   }
 }

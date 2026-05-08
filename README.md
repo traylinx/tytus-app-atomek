@@ -1,6 +1,6 @@
-# Tytus Forge
+# Atomek
 
-Standalone Tytus app: a `vscode.dev`-style Monaco workbench for local files, markdown preview, and future agent/Cortex workflows.
+Standalone Tytus app: a clean Monaco workspace for local files, markdown preview, and search.
 
 ## Development
 
@@ -15,9 +15,9 @@ npm run build
 `tytus-app.json` points to the tagged CDN build:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-forge@0.1.0/dist/index.js
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.2.0/dist/index.js
 ```
 
 ## Boundary
 
-Forge is product surface. Tytus OS is platform/runtime. Normal Forge development happens here, not in the Tytus OS core repo.
+Atomek is product surface. Tytus OS is platform/runtime. Normal Atomek development happens here, not in the Tytus OS core repo.

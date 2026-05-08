@@ -1,8 +1,8 @@
 import type { AppBootEnv } from '@tytus/host-api';
-import { Forge } from './Forge';
+import { App as RootApp } from './App';
 
-export default function bootForge(env: AppBootEnv) {
-  return function TytusForgeApp() {
-    return <Forge host={env.host} />;
+export default function bootApp(env: AppBootEnv) {
+  return function BootedApp() {
+    return <RootApp host={env.host} />;
   };
 }

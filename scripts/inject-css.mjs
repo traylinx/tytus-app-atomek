@@ -12,6 +12,6 @@ for (const file of cssFiles) {
 }
 const indexPath = join(dist.pathname, 'index.js');
 const index = await readFile(indexPath, 'utf8');
-const inject = `const __tytusForgeCss=${JSON.stringify(css)};if(typeof document!=="undefined"&&!document.getElementById("tytus-forge-css")){const s=document.createElement("style");s.id="tytus-forge-css";s.textContent=__tytusForgeCss;document.head.appendChild(s);}
+const inject = `const __tytusWorkbenchCss=${JSON.stringify(css)};if(typeof document!=="undefined"&&!document.getElementById("tytus-workbench-css")){const s=document.createElement("style");s.id="tytus-workbench-css";s.textContent=__tytusWorkbenchCss;document.head.appendChild(s);}
 `;
 await writeFile(indexPath, inject + index);

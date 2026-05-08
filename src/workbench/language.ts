@@ -1,6 +1,6 @@
-import type { ForgeLanguage } from './types';
+import type { WorkbenchLanguage } from './types';
 
-const EXTENSION_LANGUAGE: Record<string, ForgeLanguage> = {
+const EXTENSION_LANGUAGE: Record<string, WorkbenchLanguage> = {
   md: 'markdown',
   markdown: 'markdown',
   json: 'json',
@@ -29,13 +29,13 @@ const EXTENSION_LANGUAGE: Record<string, ForgeLanguage> = {
   log: 'text',
 };
 
-export function languageForPath(path: string): ForgeLanguage {
+export function languageForPath(path: string): WorkbenchLanguage {
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
   return EXTENSION_LANGUAGE[ext] ?? 'text';
 }
 
-export function labelForLanguage(language: ForgeLanguage): string {
-  const labels: Record<ForgeLanguage, string> = {
+export function labelForLanguage(language: WorkbenchLanguage): string {
+  const labels: Record<WorkbenchLanguage, string> = {
     markdown: 'Markdown',
     json: 'JSON',
     typescript: 'TypeScript',

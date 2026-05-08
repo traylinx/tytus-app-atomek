@@ -1,7 +1,5 @@
-export type ActivityView = 'explorer' | 'search' | 'source-control' | 'run' | 'extensions';
-export type SecondaryTab = 'chat' | 'outputs';
-
-export type ForgeLanguage =
+export type ActivityView = 'explorer' | 'search';
+export type WorkbenchLanguage =
   | 'markdown'
   | 'json'
   | 'typescript'
@@ -32,7 +30,7 @@ export type WorkbenchFile = {
   id: string;
   name: string;
   path: string;
-  language: ForgeLanguage;
+  language: WorkbenchLanguage;
   content: string;
   dirty: boolean;
   handle?: BrowserFileHandleLike;
@@ -46,18 +44,5 @@ export type WorkbenchFolder = {
   files: WorkbenchFile[];
 };
 
-export type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  body: string;
-};
-
-export type OutputArtifact = {
-  id: string;
-  title: string;
-  kind: 'briefing' | 'action-list' | 'quiz' | 'plan' | 'storyboard' | 'report' | 'local-draft';
-  body: string;
-  createdAt: number;
-};
 
 export type CursorPosition = { lineNumber: number; column: number };
