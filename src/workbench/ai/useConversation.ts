@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiArtifact, AiContextPart, AiMemoryHit, AiMessage, AiStatus, AiThread, HostClient } from '@tytus/host-api';
-import type { ChatMessage, OutputArtifact, WorkbenchFile } from '../types';
+import type { ChatAiSettings, ChatMessage, OutputArtifact, WorkbenchFile } from '../types';
 import { buildAiContext } from './contextBuilder';
 
 type ConversationOpts = {
   host: HostClient;
   activeFile: WorkbenchFile | null;
   openEditors: readonly WorkbenchFile[];
+  chatSettings: ChatAiSettings;
   setStatus: (status: string) => void;
 };
 
@@ -69,7 +70,7 @@ const memoryContextPart = (hits: AiMemoryHit[]): AiContextPart | null => {
   };
 };
 
-export function useConversation({ host, activeFile, openEditors, setStatus }: ConversationOpts) {
+export function useConversation({ host, activeFile, openEditors, chatSettings, setStatus }: ConversationOpts) {
   const ai = host.ai;
   const [thread, setThread] = useState<AiThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -226,6 +227,8 @@ export function useConversation({ host, activeFile, openEditors, setStatus }: Co
       for await (const event of ai.sendMessage({
         threadId: activeThread.id,
         body,
+        gatewayPreference: chatSettings.gatewayPreference,
+        model: chatSettings.model.trim() || undefined,
         context: requestContext,
       })) {
         if (event.type === 'message_created') {
@@ -261,7 +264,7 @@ export function useConversation({ host, activeFile, openEditors, setStatus }: Co
     } finally {
       setBusy(false);
     }
-  }, [ai, context, ensureThread, recall, refreshStatus, setStatus]);
+  }, [ai, chatSettings.gatewayPreference, chatSettings.model, context, ensureThread, recall, refreshStatus, setStatus]);
 
   return {
     aiStatus,

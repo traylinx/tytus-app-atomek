@@ -23,13 +23,14 @@ import {
   Search,
   Send,
   Settings,
+  SlidersHorizontal,
   UserCircle,
   X,
 } from 'lucide-react';
 import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder } from '../types';
+import type { ActivityView, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder } from '../types';
 import { useConversation } from '../ai/useConversation';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
@@ -46,6 +47,11 @@ const welcomeFile: WorkbenchFile = {
 
 const RECENT_KEY = 'tytus.workspace.recent';
 const LAYOUT_KEY = 'tytus.workspace.layout';
+const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
+const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
+  gatewayPreference: 'auto',
+  model: '',
+};
 
 type Props = { host: HostClient };
 
@@ -95,13 +101,15 @@ export function WorkbenchShell({ host }: Props) {
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [pendingWorkspacePatch, setPendingWorkspacePatch] = useState<PendingWorkspacePatch | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatSettings, setChatSettings] = useState<ChatAiSettings>(() => readChatAiSettings());
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
 
   const openEditors = openEditorIds.map((id) => files.find((file) => file.id === id)).filter(Boolean) as WorkbenchFile[];
   const activeFile = activeFileId ? files.find((file) => file.id === activeFileId) ?? null : null;
-  const ai = useConversation({ host, activeFile, openEditors, setStatus });
+  const ai = useConversation({ host, activeFile, openEditors, chatSettings, setStatus });
   const combinedOutputs = useMemo(
     () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
     [ai.artifacts, outputs],
@@ -535,13 +543,17 @@ export function WorkbenchShell({ host }: Props) {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(prefs));
   }, [markdownPreviewVisible, primaryVisible, primaryWidth, secondaryVisible, secondaryWidth]);
 
+  useEffect(() => {
+    localStorage.setItem(CHAT_AI_SETTINGS_KEY, JSON.stringify(chatSettings));
+  }, [chatSettings]);
+
   return (
     <div
       className={`workbench-workbench ${primaryVisible ? '' : 'no-primary'} ${secondaryVisible ? '' : 'no-secondary'} ${bottomPanelVisible ? 'has-bottom-panel' : ''}`}
       data-app="workbench-vscode-base"
       style={{ '--workbench-primary-width': `${primaryWidth}px`, '--workbench-secondary-width': `${secondaryWidth}px` } as CSSProperties}
     >
-      <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} />
+      <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} openSettings={() => setSettingsOpen(true)} />
       {primaryVisible && (
         <div className="workbench-primary-region">
           <PrimarySidebar
@@ -638,6 +650,8 @@ export function WorkbenchShell({ host }: Props) {
           runQuickPrompt={runQuickPrompt}
           workspaceFileCount={files.length}
           aiStatus={ai.aiStatus}
+          chatSettings={chatSettings}
+          openSettings={() => setSettingsOpen(true)}
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
           outputs={combinedOutputs}
@@ -700,12 +714,20 @@ export function WorkbenchShell({ host }: Props) {
           onClose={() => setPendingWorkspacePatch(null)}
         />
       )}
+      {settingsOpen && (
+        <AtomekSettingsDialog
+          host={host}
+          chatSettings={chatSettings}
+          onChange={setChatSettings}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       <StatusBar status={status} file={activeFile ?? welcomeFile} cursor={cursor} fileCount={files.length} dirtyCount={dirtyFiles.length} />
     </div>
   );
 }
 
-function ActivityBar({ active, setActive }: { active: ActivityView; setActive: (view: ActivityView) => void }) {
+function ActivityBar({ active, setActive, openSettings }: { active: ActivityView; setActive: (view: ActivityView) => void; openSettings: () => void }) {
   return (
     <aside className="workbench-activity-bar" aria-label="Activity Bar">
       <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
@@ -715,7 +737,7 @@ function ActivityBar({ active, setActive }: { active: ActivityView; setActive: (
       <ActivityButton icon={<Blocks size={25} />} label="Extensions" active={active === 'extensions'} onClick={() => setActive('extensions')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
-      <ActivityButton icon={<Settings size={23} />} label="Manage" active={false} onClick={() => undefined} />
+      <ActivityButton icon={<Settings size={23} />} label="Manage" active={false} onClick={openSettings} />
     </aside>
   );
 }
@@ -1096,6 +1118,8 @@ function SecondarySidebar(props: {
   runQuickPrompt: (kind: QuickPromptKind) => void;
   workspaceFileCount: number;
   aiStatus: { available: boolean; label: string; reason?: string };
+  chatSettings: ChatAiSettings;
+  openSettings: () => void;
   busy: boolean;
   memoryHitCount: number;
   outputs: OutputArtifact[];
@@ -1120,7 +1144,7 @@ function SecondarySidebar(props: {
         </div>
         <div className="workbench-secondary-actions">
           <button title="New Chat" onClick={props.newChat}><Plus size={15} /></button>
-          <button title="More Actions"><MoreHorizontal size={16} /></button>
+          <button title="Chat Settings" onClick={props.openSettings}><MoreHorizontal size={16} /></button>
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
@@ -1141,6 +1165,8 @@ function ChatPane(props: {
   workspaceFileCount: number;
   activeFile: WorkbenchFile | null;
   aiStatus: { available: boolean; label: string; reason?: string };
+  chatSettings: ChatAiSettings;
+  openSettings: () => void;
   busy: boolean;
   memoryHitCount: number;
 }) {
@@ -1178,7 +1204,7 @@ function ChatPane(props: {
         <div className="workbench-chat-tip">
           <span>Context</span>
           <strong>{props.activeFile ? props.activeFile.name : 'No active file'}</strong>
-          <em>{props.memoryHitCount > 0 ? `${props.aiStatus.label} · ${props.memoryHitCount} memories` : props.aiStatus.label}</em>
+          <em>{chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount)}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
@@ -1203,13 +1229,134 @@ function ChatPane(props: {
             rows={3}
           />
           <div className="workbench-chat-toolbar">
-            <button className="workbench-chat-mode">Auto <ChevronDown size={12} /></button>
+            <button className="workbench-chat-mode" onClick={props.openSettings} title="Chat AI settings">
+              {chatGatewayLabel(props.chatSettings.gatewayPreference)} <ChevronDown size={12} />
+            </button>
             <button className="workbench-chat-mode" onClick={() => props.runQuickPrompt('plan')} disabled={props.busy}>Plan</button>
             <span />
             <button className="workbench-chat-send" onClick={props.askAgent} disabled={props.busy} title="Send"><Send size={16} /></button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function chatGatewayLabel(preference: ChatGatewayPreference): string {
+  if (preference === 'remote') return 'Remote AIL';
+  if (preference === 'local') return 'Local AIL';
+  return 'Auto';
+}
+
+function chatSettingsSummary(settings: ChatAiSettings, statusLabel: string, memoryHitCount: number): string {
+  const model = settings.model.trim();
+  const routing = settings.gatewayPreference === 'auto'
+    ? statusLabel
+    : chatGatewayLabel(settings.gatewayPreference);
+  const parts = [routing];
+  if (model) parts.push(model);
+  if (memoryHitCount > 0) parts.push(`${memoryHitCount} memories`);
+  return parts.join(' · ');
+}
+
+function AtomekSettingsDialog(props: {
+  host: HostClient;
+  chatSettings: ChatAiSettings;
+  onChange: (settings: ChatAiSettings) => void;
+  onClose: () => void;
+}) {
+  const [models, setModels] = useState<Array<{ id: string; gatewayLabel: string }>>([]);
+  const [modelsStatus, setModelsStatus] = useState('Loading gateway models…');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      if (!props.host.ai?.listModels) {
+        setModels([]);
+        setModelsStatus('This Tytus build does not expose model discovery yet.');
+        return;
+      }
+      setModelsStatus('Loading gateway models…');
+      try {
+        const found = await props.host.ai.listModels({
+          gatewayPreference: props.chatSettings.gatewayPreference,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setModels(found.map((model) => ({ id: model.id, gatewayLabel: model.gatewayLabel })));
+        setModelsStatus(found.length > 0 ? `${found.length} models discovered from AIL.` : 'No models discovered. You can still enter any AIL alias manually.');
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setModels([]);
+        setModelsStatus(`Model discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [props.chatSettings.gatewayPreference, props.host.ai]);
+
+  const setGatewayPreference = (gatewayPreference: ChatGatewayPreference) => {
+    props.onChange({ ...props.chatSettings, gatewayPreference });
+  };
+  const setModel = (model: string) => {
+    props.onChange({ ...props.chatSettings, model });
+  };
+
+  return (
+    <div className="workbench-settings-backdrop" onClick={props.onClose}>
+      <section className="workbench-settings-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Atomek Settings">
+        <header className="workbench-settings-header">
+          <SlidersHorizontal size={15} />
+          <strong>Atomek Settings</strong>
+          <button onClick={props.onClose} title="Close"><X size={15} /></button>
+        </header>
+        <div className="workbench-settings-body">
+          <div className="workbench-settings-section">
+            <h3>Chat AI routing</h3>
+            <p>
+              Choose which AIL gateway Atomek uses. Model names are not hardcoded here:
+              enter an AIL alias/model from your global gateway config, or leave it empty for the gateway default.
+            </p>
+            <label className="workbench-settings-label">
+              Gateway
+              <select
+                value={props.chatSettings.gatewayPreference}
+                onChange={(event) => setGatewayPreference(event.target.value as ChatGatewayPreference)}
+              >
+                <option value="auto">Auto failover</option>
+                <option value="remote">Remote Tytus AIL only</option>
+                <option value="local">Local AIL only</option>
+              </select>
+            </label>
+            <label className="workbench-settings-label">
+              Chat model alias
+              <input
+                value={props.chatSettings.model}
+                onChange={(event) => setModel(event.target.value)}
+                list="atomek-chat-models"
+                placeholder="Empty = AIL default/global alias"
+                spellCheck={false}
+              />
+              <datalist id="atomek-chat-models">
+                {models.map((model) => (
+                  <option key={`${model.gatewayLabel}:${model.id}`} value={model.id}>{model.gatewayLabel}</option>
+                ))}
+              </datalist>
+            </label>
+            <div className="workbench-settings-note">
+              Current request: {chatGatewayLabel(props.chatSettings.gatewayPreference)}
+              {props.chatSettings.model.trim() ? ` · ${props.chatSettings.model.trim()}` : ' · gateway default'}
+            </div>
+            <div className="workbench-settings-note">
+              {modelsStatus}
+            </div>
+          </div>
+        </div>
+        <footer className="workbench-settings-footer">
+          <button onClick={() => props.onChange(DEFAULT_CHAT_AI_SETTINGS)}>Reset</button>
+          <button onClick={props.onClose}>Done</button>
+        </footer>
+      </section>
     </div>
   );
 }
@@ -1660,5 +1807,23 @@ function readLayoutPrefs(): LayoutPrefs {
     };
   } catch {
     return fallback;
+  }
+}
+
+function readChatAiSettings(): ChatAiSettings {
+  try {
+    const raw = localStorage.getItem(CHAT_AI_SETTINGS_KEY);
+    if (!raw) return DEFAULT_CHAT_AI_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<ChatAiSettings>;
+    const gatewayPreference: ChatGatewayPreference =
+      parsed.gatewayPreference === 'remote' || parsed.gatewayPreference === 'local' || parsed.gatewayPreference === 'auto'
+        ? parsed.gatewayPreference
+        : DEFAULT_CHAT_AI_SETTINGS.gatewayPreference;
+    return {
+      gatewayPreference,
+      model: typeof parsed.model === 'string' ? parsed.model : '',
+    };
+  } catch {
+    return DEFAULT_CHAT_AI_SETTINGS;
   }
 }

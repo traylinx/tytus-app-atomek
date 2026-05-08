@@ -1,6 +1,13 @@
 export type ActivityView = 'explorer' | 'search' | 'source-control' | 'run' | 'extensions';
 export type SecondaryTab = 'chat' | 'outputs';
 
+export type ChatGatewayPreference = 'auto' | 'remote' | 'local';
+
+export type ChatAiSettings = {
+  gatewayPreference: ChatGatewayPreference;
+  model: string;
+};
+
 export type WorkbenchLanguage =
   | 'markdown'
   | 'json'

@@ -584,6 +584,128 @@ button { font: inherit; }
 }
 .workbench-chat-mode { height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; color: #cfcfcf; }
 .workbench-chat-send { width: 28px; height: 26px; display: grid; place-items: center; background: var(--workbench-blue); color: white; }
+.workbench-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+.workbench-settings-dialog {
+  width: min(560px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--workbench-border-strong);
+  border-radius: 10px;
+  background: var(--workbench-panel);
+  box-shadow: 0 22px 72px rgba(0, 0, 0, 0.48);
+}
+.workbench-settings-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 16px;
+  color: var(--workbench-text);
+  border-bottom: 1px solid var(--workbench-border);
+  background: var(--workbench-side);
+}
+.workbench-settings-header svg { color: var(--workbench-blue-2); }
+.workbench-settings-header button {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--workbench-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.workbench-settings-header button:hover { background: #2d2d2d; color: #fff; }
+.workbench-settings-body {
+  overflow: auto;
+  padding: 18px;
+}
+.workbench-settings-section {
+  border: 1px solid var(--workbench-border);
+  border-radius: 8px;
+  background: #202020;
+  padding: 14px;
+}
+.workbench-settings-section h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--workbench-text);
+}
+.workbench-settings-section p {
+  margin: 0 0 14px;
+  color: var(--workbench-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.workbench-settings-label {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #bbbbbb;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.workbench-settings-label select,
+.workbench-settings-label input {
+  height: 32px;
+  border: 1px solid var(--workbench-border-strong);
+  border-radius: 5px;
+  background: #1b1b1b;
+  color: var(--workbench-text);
+  padding: 0 10px;
+  outline: none;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.workbench-settings-label input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.workbench-settings-label select:focus,
+.workbench-settings-label input:focus { border-color: var(--workbench-blue); }
+.workbench-settings-note {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--workbench-border);
+  border-radius: 6px;
+  background: #252526;
+  color: var(--workbench-muted);
+  font-size: 12px;
+}
+.workbench-settings-footer {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px;
+  border-top: 1px solid var(--workbench-border);
+  background: var(--workbench-side);
+}
+.workbench-settings-footer button {
+  height: 30px;
+  border: 1px solid var(--workbench-border-strong);
+  border-radius: 5px;
+  background: #2d2d2d;
+  color: var(--workbench-text);
+  cursor: pointer;
+  padding: 0 12px;
+}
+.workbench-settings-footer button:hover { background: #383838; color: #fff; }
 .workbench-panel-list { overflow: auto; padding: 12px; }
 .workbench-panel-list.compact { padding: 0; }
 .workbench-output-card { border: 1px solid var(--workbench-border-strong); background: #252526; border-radius: 4px; padding: 12px; margin-bottom: 10px; white-space: pre-wrap; }
