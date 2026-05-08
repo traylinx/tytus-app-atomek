@@ -84,6 +84,10 @@ export function WorkbenchShell({ host }: Props) {
   const openEditors = openEditorIds.map((id) => files.find((file) => file.id === id)).filter(Boolean) as WorkbenchFile[];
   const activeFile = activeFileId ? files.find((file) => file.id === activeFileId) ?? null : null;
   const ai = useConversation({ host, activeFile, openEditors, setStatus });
+  const combinedOutputs = useMemo(
+    () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
+    [ai.artifacts, outputs],
+  );
   const showWelcome = !activeFile && !welcomeClosed;
   const dirtyFiles = useMemo(() => files.filter((file) => file.dirty), [files]);
   const visibleFiles = useMemo(() => {
@@ -288,6 +292,51 @@ export function WorkbenchShell({ host }: Props) {
     void ai.askAgent(prompt);
   }, [ai, chatInput]);
 
+  const askAiWithPrompt = useCallback((prompt: string) => {
+    setSecondaryVisible(true);
+    setSecondaryTab('chat');
+    setChatInput('');
+    void ai.askAgent(prompt);
+  }, [ai]);
+
+  const saveMessageAsArtifact = useCallback((message: ChatMessage) => {
+    void ai.createArtifact({
+      messageId: message.id,
+      title: message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek answer',
+      kind: 'markdown',
+      body: message.body,
+    }).then(() => {
+      setSecondaryTab('outputs');
+      setBottomPanelVisible(true);
+      setBottomPanelTab('output');
+    });
+  }, [ai]);
+
+  const rememberMessage = useCallback((message: ChatMessage) => {
+    void ai.remember({
+      messageId: message.id,
+      title: message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek memory',
+      body: message.body,
+    });
+  }, [ai]);
+
+  const saveActiveFileAsArtifact = useCallback(() => {
+    if (!activeFile) {
+      setStatus('No active file to save as AI artifact');
+      return;
+    }
+    void ai.createArtifact({
+      title: activeFile.path,
+      kind: activeFile.language === 'markdown' ? 'markdown' : 'report',
+      body: activeFile.content,
+    }).then(() => {
+      setSecondaryVisible(true);
+      setSecondaryTab('outputs');
+      setBottomPanelVisible(true);
+      setBottomPanelTab('output');
+    });
+  }, [activeFile, ai]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
@@ -396,8 +445,9 @@ export function WorkbenchShell({ host }: Props) {
             <BottomPanel
               tab={bottomPanelTab}
               setTab={setBottomPanelTab}
-              outputs={outputs}
+              outputs={combinedOutputs}
               clearOutputs={() => setOutputs([])}
+              deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
               runLocalSynthesis={runLocalSynthesis}
               onClose={() => setBottomPanelVisible(false)}
             />
@@ -413,11 +463,15 @@ export function WorkbenchShell({ host }: Props) {
           chatMessages={ai.messages}
           askAgent={askAgent}
           newChat={() => { void ai.newChat(); }}
+          saveMessageAsArtifact={saveMessageAsArtifact}
+          rememberMessage={rememberMessage}
           aiStatus={ai.aiStatus}
           busy={ai.busy}
-          outputs={outputs}
+          memoryHitCount={ai.memoryHits.length}
+          outputs={combinedOutputs}
           runLocalSynthesis={runLocalSynthesis}
           clearOutputs={() => setOutputs([])}
+          deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
           host={host}
           activeFile={activeFile}
           onResizeStart={beginSecondaryResize}
@@ -444,6 +498,10 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
             { label: 'View: Toggle Markdown Preview', detail: activeFile?.language === 'markdown' ? 'Show or hide Markdown preview split' : 'Available for Markdown files', run: () => setMarkdownPreviewVisible((value) => !value), disabled: activeFile?.language !== 'markdown' },
             { label: 'Atomek: Create Local Draft', detail: 'Deterministic local synthesis from the active file', run: runLocalSynthesis },
+            { label: 'AI: Explain Active File', detail: activeFile ? `Ask Cortex to explain ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.'), disabled: !activeFile },
+            { label: 'AI: Improve Active File', detail: activeFile ? `Ask Cortex for concrete edits to ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Review the active file and propose the smallest concrete improvements. Include exact snippets if useful.'), disabled: !activeFile },
+            { label: 'AI: Plan Workspace Work', detail: openEditors.length > 0 ? 'Use open editors as bounded context' : 'Open files first', run: () => askAiWithPrompt('Create an implementation plan from the open editor context. Be specific and sequence the work.'), disabled: openEditors.length === 0 },
+            { label: 'AI: Save Active File as Artifact', detail: activeFile ? 'Persist active file in host.ai artifacts' : 'Open a file first', run: saveActiveFileAsArtifact, disabled: !activeFile },
           ]}
           openWorkbenchFile={openWorkbenchFile}
           onClose={() => setCommandPaletteOpen(false)}
@@ -801,6 +859,7 @@ function BottomPanel(props: {
   setTab: (tab: BottomPanelTab) => void;
   outputs: OutputArtifact[];
   clearOutputs: () => void;
+  deleteArtifact: (id: string) => void;
   runLocalSynthesis: () => void;
   onClose: () => void;
 }) {
@@ -822,7 +881,7 @@ function BottomPanel(props: {
           </div>
         )}
         {props.tab === 'output' && (
-          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} runLocalSynthesis={props.runLocalSynthesis} compact />
+          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} compact />
         )}
       </div>
     </section>
@@ -837,11 +896,15 @@ function SecondarySidebar(props: {
   chatMessages: ChatMessage[];
   askAgent: () => void;
   newChat: () => void;
+  saveMessageAsArtifact: (message: ChatMessage) => void;
+  rememberMessage: (message: ChatMessage) => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
+  memoryHitCount: number;
   outputs: OutputArtifact[];
   runLocalSynthesis: () => void;
   clearOutputs: () => void;
+  deleteArtifact: (id: string) => void;
   host: HostClient;
   activeFile: WorkbenchFile | null;
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -861,7 +924,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} runLocalSynthesis={props.runLocalSynthesis} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} />}
     </aside>
   );
 }
@@ -871,9 +934,12 @@ function ChatPane(props: {
   setChatInput: (value: string) => void;
   chatMessages: ChatMessage[];
   askAgent: () => void;
+  saveMessageAsArtifact: (message: ChatMessage) => void;
+  rememberMessage: (message: ChatMessage) => void;
   activeFile: WorkbenchFile | null;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
+  memoryHitCount: number;
 }) {
   return (
     <div className="workbench-chat-wrap">
@@ -895,6 +961,12 @@ function ChatPane(props: {
             <br />
             {msg.body}
             {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
+            {msg.role === 'assistant' && msg.status !== 'streaming' && msg.status !== 'error' ? (
+              <div className="workbench-chat-message-actions">
+                <button onClick={() => props.saveMessageAsArtifact(msg)}>Save artifact</button>
+                <button onClick={() => props.rememberMessage(msg)}>Remember</button>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
@@ -902,7 +974,7 @@ function ChatPane(props: {
         <div className="workbench-chat-tip">
           <span>Context</span>
           <strong>{props.activeFile ? props.activeFile.name : 'No active file'}</strong>
-          <em>{props.aiStatus.label}</em>
+          <em>{props.memoryHitCount > 0 ? `${props.aiStatus.label} · ${props.memoryHitCount} memories` : props.aiStatus.label}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
@@ -934,14 +1006,23 @@ function ChatPane(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, runLocalSynthesis, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; runLocalSynthesis: () => void; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <button className="workbench-button-subtle" onClick={runLocalSynthesis}><Bot size={14} />Local draft</button>
         <button className="workbench-button-subtle" onClick={clearOutputs}>Clear</button>
       </div>
-      {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Agent/pod execution and connectors wire in from this surface next.</p> : outputs.map((output) => <div key={output.id} className="workbench-output-card"><strong>{output.title}</strong><br />{output.body}</div>)}
+      {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Save an AI answer as an artifact or create a local draft.</p> : outputs.map((output) => (
+        <div key={output.id} className="workbench-output-card">
+          <div className="workbench-output-head">
+            <strong>{output.title}</strong>
+            <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
+            {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
+          </div>
+          {output.body}
+        </div>
+      ))}
     </div>
   );
 }

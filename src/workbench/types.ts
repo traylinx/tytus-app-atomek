@@ -58,9 +58,10 @@ export type ChatMessage = {
 export type OutputArtifact = {
   id: string;
   title: string;
-  kind: 'briefing' | 'action-list' | 'quiz' | 'plan' | 'storyboard' | 'report' | 'local-draft';
+  kind: 'briefing' | 'action-list' | 'quiz' | 'plan' | 'storyboard' | 'report' | 'local-draft' | 'markdown' | 'memory';
   body: string;
   createdAt: number;
+  source?: 'local' | 'ai';
 };
 
 export type CursorPosition = { lineNumber: number; column: number };
