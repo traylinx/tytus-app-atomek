@@ -542,6 +542,24 @@ button { font: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.workbench-chat-chip-button {
+  height: 23px;
+  border: 1px solid var(--border-subtle, #34343a) !important;
+  border-radius: 999px !important;
+  background: #24272a !important;
+  color: #d7d7d7 !important;
+  padding: 0 9px;
+  width: auto !important;
+  font-size: 11px;
+}
+.workbench-chat-chip-button:hover:not(:disabled) {
+  border-color: var(--border-focus, rgba(124, 77, 255, 0.55)) !important;
+  background: #2e3338 !important;
+}
+.workbench-chat-chip-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 .workbench-chat-textarea {
   width: 100%;
   min-height: 92px;

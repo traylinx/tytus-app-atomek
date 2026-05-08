@@ -337,6 +337,38 @@ export function WorkbenchShell({ host }: Props) {
     });
   }, [activeFile, ai]);
 
+  const openOutputAsFile = useCallback((output: OutputArtifact) => {
+    const path = nextGeneratedPath(files, slugFileName(output.title || output.kind));
+    const file: WorkbenchFile = {
+      id: `artifact-file-${output.id}-${Date.now()}`,
+      name: path,
+      path,
+      language: 'markdown',
+      content: output.body,
+      dirty: true,
+      source: 'generated',
+    };
+    setFiles((current) => [...current, file]);
+    openWorkbenchFile(file);
+    setStatus(`Opened ${output.title} as editable file`);
+  }, [files, openWorkbenchFile]);
+
+  const runQuickPrompt = useCallback((kind: 'explain' | 'improve' | 'plan' | 'draft') => {
+    if (kind === 'explain') {
+      askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.');
+      return;
+    }
+    if (kind === 'improve') {
+      askAiWithPrompt('Review the active file and propose the smallest concrete improvements. Include exact snippets if useful.');
+      return;
+    }
+    if (kind === 'plan') {
+      askAiWithPrompt('Create an implementation plan from the open editor context. Be specific, ordered, and call out blockers.');
+      return;
+    }
+    askAiWithPrompt('Draft a concrete Markdown artifact from the open editor context. Make it ready to save as an output.');
+  }, [askAiWithPrompt]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
@@ -449,6 +481,7 @@ export function WorkbenchShell({ host }: Props) {
               clearOutputs={() => setOutputs([])}
               deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
               runLocalSynthesis={runLocalSynthesis}
+              openOutputAsFile={openOutputAsFile}
               onClose={() => setBottomPanelVisible(false)}
             />
           )}
@@ -465,11 +498,13 @@ export function WorkbenchShell({ host }: Props) {
           newChat={() => { void ai.newChat(); }}
           saveMessageAsArtifact={saveMessageAsArtifact}
           rememberMessage={rememberMessage}
+          runQuickPrompt={runQuickPrompt}
           aiStatus={ai.aiStatus}
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
           outputs={combinedOutputs}
           runLocalSynthesis={runLocalSynthesis}
+          openOutputAsFile={openOutputAsFile}
           clearOutputs={() => setOutputs([])}
           deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
           host={host}
@@ -502,6 +537,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'AI: Improve Active File', detail: activeFile ? `Ask Cortex for concrete edits to ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Review the active file and propose the smallest concrete improvements. Include exact snippets if useful.'), disabled: !activeFile },
             { label: 'AI: Plan Workspace Work', detail: openEditors.length > 0 ? 'Use open editors as bounded context' : 'Open files first', run: () => askAiWithPrompt('Create an implementation plan from the open editor context. Be specific and sequence the work.'), disabled: openEditors.length === 0 },
             { label: 'AI: Save Active File as Artifact', detail: activeFile ? 'Persist active file in host.ai artifacts' : 'Open a file first', run: saveActiveFileAsArtifact, disabled: !activeFile },
+            { label: 'AI: Open Latest Artifact as File', detail: combinedOutputs[0] ? `Create editable file from ${combinedOutputs[0].title}` : 'No outputs yet', run: () => combinedOutputs[0] && openOutputAsFile(combinedOutputs[0]), disabled: combinedOutputs.length === 0 },
           ]}
           openWorkbenchFile={openWorkbenchFile}
           onClose={() => setCommandPaletteOpen(false)}
@@ -861,6 +897,7 @@ function BottomPanel(props: {
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
   runLocalSynthesis: () => void;
+  openOutputAsFile: (output: OutputArtifact) => void;
   onClose: () => void;
 }) {
   return (
@@ -881,7 +918,7 @@ function BottomPanel(props: {
           </div>
         )}
         {props.tab === 'output' && (
-          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} compact />
+          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} compact />
         )}
       </div>
     </section>
@@ -898,11 +935,13 @@ function SecondarySidebar(props: {
   newChat: () => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
+  runQuickPrompt: (kind: 'explain' | 'improve' | 'plan' | 'draft') => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
   memoryHitCount: number;
   outputs: OutputArtifact[];
   runLocalSynthesis: () => void;
+  openOutputAsFile: (output: OutputArtifact) => void;
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
   host: HostClient;
@@ -924,7 +963,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runLocalSynthesis={props.runLocalSynthesis} openOutputAsFile={props.openOutputAsFile} />}
     </aside>
   );
 }
@@ -936,6 +975,7 @@ function ChatPane(props: {
   askAgent: () => void;
   saveMessageAsArtifact: (message: ChatMessage) => void;
   rememberMessage: (message: ChatMessage) => void;
+  runQuickPrompt: (kind: 'explain' | 'improve' | 'plan' | 'draft') => void;
   activeFile: WorkbenchFile | null;
   aiStatus: { available: boolean; label: string; reason?: string };
   busy: boolean;
@@ -980,6 +1020,9 @@ function ChatPane(props: {
           <div className="workbench-chat-attachments">
             <button title="Add context"><Plus size={15} /></button>
             <span className="workbench-chat-chip"><Paperclip size={13} /> {props.activeFile?.name ?? 'Open editors'}</span>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>Explain</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>Improve</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('draft')} disabled={props.busy}>Draft</button>
           </div>
           <textarea
             className="workbench-chat-textarea"
@@ -996,7 +1039,7 @@ function ChatPane(props: {
           />
           <div className="workbench-chat-toolbar">
             <button className="workbench-chat-mode">Auto <ChevronDown size={12} /></button>
-            <button className="workbench-chat-mode">Plan</button>
+            <button className="workbench-chat-mode" onClick={() => props.runQuickPrompt('plan')} disabled={props.busy}>Plan</button>
             <span />
             <button className="workbench-chat-send" onClick={props.askAgent} disabled={props.busy} title="Send"><Send size={16} /></button>
           </div>
@@ -1006,7 +1049,7 @@ function ChatPane(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis, openOutputAsFile, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runLocalSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -1018,6 +1061,7 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runLocalSynthesis,
           <div className="workbench-output-head">
             <strong>{output.title}</strong>
             <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
+            <button onClick={() => openOutputAsFile(output)}>Open as file</button>
             {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
           </div>
           {output.body}
@@ -1097,6 +1141,27 @@ function mergeFiles(current: WorkbenchFile[], incoming: WorkbenchFile[]): Workbe
   const map = new Map(current.map((file) => [file.id, file]));
   incoming.forEach((file) => map.set(file.id, file));
   return Array.from(map.values());
+}
+
+function slugFileName(title: string): string {
+  const cleaned = title
+    .replace(/\.[a-z0-9]+$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 54);
+  return cleaned || 'ai-artifact';
+}
+
+function nextGeneratedPath(files: WorkbenchFile[], base: string): string {
+  const paths = new Set(files.map((file) => file.path));
+  let candidate = `${base}.md`;
+  let index = 2;
+  while (paths.has(candidate)) {
+    candidate = `${base}-${index}.md`;
+    index += 1;
+  }
+  return candidate;
 }
 
 function readRecent(): RecentEntry[] {
