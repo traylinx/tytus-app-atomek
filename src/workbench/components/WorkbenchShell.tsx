@@ -372,7 +372,7 @@ export function WorkbenchShell({ host }: Props) {
     }
     const extracted = extractEditableSuggestion(body, activeFile);
     if (!extracted) {
-      setStatus('No fenced replacement block found. Ask Atomek for a full-file edit first.');
+      setStatus('No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again.');
       return;
     }
     setPendingEdit({
@@ -436,7 +436,7 @@ export function WorkbenchShell({ host }: Props) {
       return;
     }
     if (kind === 'edit') {
-      askAiWithPrompt('Edit the active file. Return exactly one complete replacement for the active file in a fenced code block, with no provider-specific tools and no model assumptions.');
+      askAiWithPrompt('Edit the active file. Return either one unified diff in a fenced diff block or one complete replacement in a fenced code block. Do not use provider-specific tools or model assumptions.');
       return;
     }
     askAiWithPrompt('Draft a concrete Markdown artifact from the open editor context. Make it ready to save as an output.');
@@ -1295,6 +1295,14 @@ function extractEditableSuggestion(body: string, file: WorkbenchFile): { content
     lang: match[1].trim().toLowerCase(),
     content: trimCodeBlock(match[2]),
   })).filter((block) => block.content.trim().length > 0);
+  const diffCandidates = [
+    ...blocks.filter((block) => hasFenceFlag(block.lang, 'diff') || hasFenceFlag(block.lang, 'patch')).map((block) => block.content),
+    body,
+  ];
+  for (const candidate of diffCandidates) {
+    const patched = applyUnifiedDiff(file.content, candidate);
+    if (patched) return { content: patched, label: 'unified diff patch' };
+  }
   if (blocks.length === 0) return null;
 
   const wanted = languageAliases(file);
@@ -1308,6 +1316,62 @@ function extractEditableSuggestion(body: string, file: WorkbenchFile): { content
   const fallback = nonDiffBlocks.sort((a, b) => b.content.length - a.content.length)[0];
   if (!fallback) return null;
   return { content: fallback.content, label: `largest fenced block (${fallback.lang || 'plain'})` };
+}
+
+function applyUnifiedDiff(original: string, diff: string): string | null {
+  if (!/^@@\s+-\d+/m.test(diff)) return null;
+  const originalLines = original.split('\n');
+  const diffLines = diff.replace(/\r\n/g, '\n').split('\n');
+  const output: string[] = [];
+  let originalIndex = 0;
+  let sawHunk = false;
+
+  for (let index = 0; index < diffLines.length; index += 1) {
+    const header = diffLines[index].match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
+    if (!header) continue;
+    sawHunk = true;
+    const oldStart = Number(header[1]);
+    const hunkStart = Math.max(0, oldStart - 1);
+    if (hunkStart < originalIndex) return null;
+    output.push(...originalLines.slice(originalIndex, hunkStart));
+    originalIndex = hunkStart;
+
+    index += 1;
+    for (; index < diffLines.length; index += 1) {
+      const line = diffLines[index];
+      if (line.startsWith('@@ ')) {
+        index -= 1;
+        break;
+      }
+      if (line.startsWith('diff --git ') || line.startsWith('--- ') || line.startsWith('+++ ')) continue;
+      if (line.startsWith('\\ No newline at end of file')) continue;
+      const marker = line[0];
+      const content = line.slice(1);
+      if (marker === ' ') {
+        if (originalLines[originalIndex] !== content) return null;
+        output.push(content);
+        originalIndex += 1;
+        continue;
+      }
+      if (marker === '-') {
+        if (originalLines[originalIndex] !== content) return null;
+        originalIndex += 1;
+        continue;
+      }
+      if (marker === '+') {
+        output.push(content);
+        continue;
+      }
+      if (line === '') {
+        continue;
+      }
+      return null;
+    }
+  }
+
+  if (!sawHunk) return null;
+  output.push(...originalLines.slice(originalIndex));
+  return output.join('\n');
 }
 
 function trimCodeBlock(content: string): string {
