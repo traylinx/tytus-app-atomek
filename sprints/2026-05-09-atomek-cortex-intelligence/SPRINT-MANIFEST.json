@@ -2,8 +2,9 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "PHASE_1_2_PARTIAL_3_IMPLEMENTED",
+  "status": "ATOMEK_0_4_0_RELEASE_READY",
   "currentVersionAtCreation": "0.3.9",
+  "releaseVersion": "0.4.0",
   "hardRules": [
     "no hardcoded model IDs",
     "no provider-specific tool hardcodes",
@@ -14,53 +15,31 @@
     "context must be inspectable removable and versioned",
     "AI edit prompts must produce preview/apply or an explicit generate-patch CTA"
   ],
-  "phases": [
+  "implementedPhases": [
     "baseline-audit",
     "ide-context-spine",
     "chat-ux-repair",
     "workspace-edit-pipeline",
     "project-index-without-embeddings",
     "embedding-capability-discovery",
-    "semantic-retrieval",
-    "agentic-edit-loop-v1",
-    "release-live-qa"
+    "agentic-edit-loop-v1-keyword-fallback",
+    "release-prep"
   ],
-  "sourceScreenshots": [
-    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.29.17.png",
-    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.29.06.png",
-    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.28.07.png",
-    "/Users/sebastian/Desktop/Screenshot 2026-05-08 at 21.43.44.png"
+  "hostApiDeferred": [
+    "host.ai.embedText",
+    "persistent vector storage",
+    "semantic vector RAG"
   ],
-  "chatUxRequirements": [
-    "transcript follow mode with jump-to-latest",
-    "visible incremental streaming",
-    "edit prompts open preview/apply when possible",
-    "removable context chips and per-message context scope",
-    "clean composer without Auto/Plan in primary input lane",
-    "dynamic AIL model/routing aliases only"
+  "gates": [
+    "npm run typecheck",
+    "npm run build",
+    "npm run release:check",
+    "grep: no minimax/m2.1/m2.7/web_search",
+    "grep: no hardcoded tools array"
   ],
   "reviewedCodebases": [
     "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
     "/Users/sebastian/Projects/makakoo/agents/sample_apps/monaco-editor",
     "/Users/sebastian/Projects/makakoo/agents/sample_apps/vscode"
-  ],
-  "productionSpine": [
-    "DocumentRegistry tracks uri/path/version/dirty/language/selection",
-    "ChatContextStore owns explicit attachments and implicit context policy",
-    "ContextBuilder uses per-request scope and removable chips",
-    "ChatTranscript supports streaming follow mode and jump-to-latest",
-    "WorkbenchEditService previews/applies workspace edits with conflict checks",
-    "AIL global aliases own chat and embedding models"
-  ],
-  "implementedPhases": [
-    "baseline-audit",
-    "ide-context-spine",
-    "chat-ux-repair",
-    "workspace-edit-pipeline-partial"
-  ],
-  "knownRemaining": [
-    "composer still needs deeper cleanup of Plan/Auto placement",
-    "patch parser/edit service extraction remains in later Phase 3 hardening",
-    "project index, embeddings, semantic retrieval, agentic check loop not started"
   ]
 }

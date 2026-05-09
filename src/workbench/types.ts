@@ -6,6 +6,7 @@ export type ChatGatewayPreference = 'auto' | 'remote' | 'local';
 export type ChatAiSettings = {
   gatewayPreference: ChatGatewayPreference;
   model: string;
+  embeddingModel: string;
 };
 
 export type WorkbenchLanguage =

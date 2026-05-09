@@ -9,6 +9,10 @@ type ConversationOpts = {
   setStatus: (status: string) => void;
 };
 
+type AskAgentOptions = {
+  requestContext?: readonly AiContextPart[];
+};
+
 const WORKSPACE_KEY = 'atomek:default';
 const MAX_MEMORY_CHARS = 3_000;
 const THREAD_TITLE_OVERRIDES_KEY = 'tytus.atomek.threadTitleOverrides';
@@ -316,7 +320,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     return hits;
   }, [ai]);
 
-  const askAgent = useCallback(async (prompt: string): Promise<ChatMessage | null> => {
+  const askAgent = useCallback(async (prompt: string, options: AskAgentOptions = {}): Promise<ChatMessage | null> => {
     const body = prompt.trim();
     if (!body || !ai) return null;
     setBusy(true);
@@ -328,7 +332,8 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
       if (!activeThread) return null;
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
-      const contextParts = memoryPart ? [...requestContext, memoryPart] : [...requestContext];
+      const baseContext = options.requestContext ?? requestContext;
+      const contextParts = memoryPart ? [...baseContext, memoryPart] : [...baseContext];
       let assistantId: string | null = null;
       for await (const event of ai.sendMessage({
         threadId: activeThread.id,

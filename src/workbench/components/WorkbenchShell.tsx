@@ -1,7 +1,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { AiThread, HostClient } from '@tytus/host-api';
+import type { AiContextPart, AiThread, HostClient } from '@tytus/host-api';
 import {
   Blocks,
   Bot,
@@ -38,6 +38,11 @@ import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
 import type { ChatContextAttachment, ChatContextScope, ChatContextState } from '../context/chatContextStore';
 import { buildAiContext } from '../context/contextBuilder';
+import { contextHitToText, useProjectIndex } from '../projectIndex';
+import type { ProjectIndexContextHit } from '../projectIndex';
+import { buildWorkspaceEditCandidate } from '../edits';
+import type { WorkspaceEditFileCandidate } from '../edits';
+import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
 
@@ -57,6 +62,7 @@ const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
+  embeddingModel: '',
 };
 
 type Props = { host: HostClient };
@@ -105,6 +111,7 @@ export function WorkbenchShell({ host }: Props) {
   const [documentVersions, setDocumentVersions] = useState<Record<string, number>>({});
   const [chatContextScope, setChatContextScope] = useState<ChatContextScope>(DEFAULT_CHAT_CONTEXT_SCOPE);
   const [removedContextAttachmentIds, setRemovedContextAttachmentIds] = useState<string[]>([]);
+  const [projectContextHits, setProjectContextHits] = useState<ProjectIndexContextHit[]>([]);
   const [pendingPatchPrompt, setPendingPatchPrompt] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -128,6 +135,20 @@ export function WorkbenchShell({ host }: Props) {
     selectedFileIds: [],
   }), [chatContextScope, removedContextAttachmentIds]);
   const builtChatContext = useMemo(() => buildAiContext(documentRegistry, files, chatContextState), [chatContextState, documentRegistry, files]);
+  const projectIndex = useProjectIndex(files, { autoRefresh: true, includeDirty: true });
+  const indexContextAttachments = useMemo<ChatContextAttachment[]>(() => projectContextHits.map((hit) => ({
+    id: hit.id,
+    kind: 'index-hit',
+    label: hit.label,
+    path: hit.path,
+    fileId: hit.fileId,
+    range: hit.range,
+    dirty: hit.dirty,
+    includeBody: true,
+    removable: true,
+    implicit: false,
+  })), [projectContextHits]);
+  const contextAttachments = useMemo(() => [...builtChatContext.attachments, ...indexContextAttachments], [builtChatContext.attachments, indexContextAttachments]);
   const ai = useConversation({ host, requestContext: builtChatContext.parts, chatSettings, setStatus });
   const combinedOutputs = useMemo(
     () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
@@ -151,9 +172,19 @@ export function WorkbenchShell({ host }: Props) {
 
   useEffect(() => {
     setRemovedContextAttachmentIds([]);
+    setProjectContextHits([]);
   }, [activeFileId, chatContextScope, openEditorIds]);
 
+  useEffect(() => {
+    setProjectContextHits([]);
+  }, [files]);
+
   const removeContextAttachment = useCallback((attachment: ChatContextAttachment) => {
+    if (attachment.kind === 'index-hit') {
+      setProjectContextHits((hits) => hits.filter((hit) => hit.id !== attachment.id));
+      setStatus(`Removed project context: ${attachment.label}`);
+      return;
+    }
     setRemovedContextAttachmentIds((ids) => ids.includes(attachment.id) ? ids : [...ids, attachment.id]);
     setStatus(`Removed chat context: ${attachment.label}`);
   }, []);
@@ -338,6 +369,30 @@ export function WorkbenchShell({ host }: Props) {
     openWorkbenchFile(file);
   }, [files, openWorkbenchFile]);
 
+  const buildRequestContextForPrompt = useCallback((prompt: string): AiContextPart[] => {
+    const requestContext = [...builtChatContext.parts];
+    if (chatContextScope !== 'indexed-project') {
+      setProjectContextHits([]);
+      return requestContext;
+    }
+    const hits = projectIndex.retrieve(prompt, { limit: 8, maxChars: 12_000, includeDirty: true });
+    setProjectContextHits(hits);
+    if (hits.length === 0) {
+      setStatus(projectIndex.snapshot.chunks.length === 0
+        ? 'Project index is empty — open a folder with readable files first'
+        : 'Project index found no matching context for this prompt');
+      return requestContext;
+    }
+    return [
+      ...requestContext,
+      ...hits.map((hit): AiContextPart => ({
+        kind: 'workspace',
+        title: `Indexed project context — ${hit.label}`,
+        text: contextHitToText(hit),
+      })),
+    ];
+  }, [builtChatContext.parts, chatContextScope, projectIndex]);
+
   const runAiSynthesis = useCallback(() => {
     if (!activeFile && openEditors.length === 0) {
       setStatus('Open a file before asking Atomek to synthesize an AI artifact');
@@ -353,7 +408,7 @@ export function WorkbenchShell({ host }: Props) {
     setSecondaryVisible(true);
     setSecondaryTab('chat');
     setStatus('Asking Atomek to synthesize an AI artifact…');
-    void ai.askAgent(prompt).then((message) => {
+    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) }).then((message) => {
       if (!message || message.status === 'error') return;
       void ai.createArtifact({
         messageId: message.id,
@@ -367,7 +422,7 @@ export function WorkbenchShell({ host }: Props) {
         setBottomPanelTab('output');
       });
     });
-  }, [activeFile, ai, openEditors.length]);
+  }, [activeFile, ai, buildRequestContextForPrompt, openEditors.length]);
 
   const reopenRecent = useCallback((entry: RecentEntry) => {
     const existing = files.find((file) => file.path === entry.path || file.name === entry.name);
@@ -383,8 +438,8 @@ export function WorkbenchShell({ host }: Props) {
     setSecondaryVisible(true);
     setSecondaryTab('chat');
     setChatInput('');
-    void ai.askAgent(prompt);
-  }, [ai]);
+    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) });
+  }, [ai, buildRequestContextForPrompt]);
 
   const regenerateMessage = useCallback((message: ChatMessage) => {
     const index = ai.messages.findIndex((candidate) => candidate.id === message.id);
@@ -393,8 +448,8 @@ export function WorkbenchShell({ host }: Props) {
       setStatus('No previous user prompt to regenerate from');
       return;
     }
-    void ai.askAgent(previousUser.body);
-  }, [ai]);
+    void ai.askAgent(previousUser.body, { requestContext: buildRequestContextForPrompt(previousUser.body) });
+  }, [ai, buildRequestContextForPrompt]);
 
   const saveMessageAsArtifact = useCallback((message: ChatMessage) => {
     void ai.createArtifact({
@@ -451,53 +506,47 @@ export function WorkbenchShell({ host }: Props) {
   }, [files, openWorkbenchFile]);
 
   const previewEditFromText = useCallback((sourceTitle: string, body: string): boolean => {
-    const workspacePatch = extractWorkspacePatch(body, files, sourceTitle);
-    if (workspacePatch.edits.length > 1) {
+    const candidate = buildWorkspaceEditCandidate({
+      body,
+      files,
+      sourceTitle,
+      activeFile,
+      versions: documentVersions,
+    });
+    const workspacePatch: PendingWorkspacePatch = {
+      sourceTitle: candidate.sourceTitle,
+      edits: candidate.edits.map(toPendingEdit),
+      skipped: candidate.skipped,
+    };
+    if (candidate.edits.length > 1) {
       setPendingWorkspacePatch(workspacePatch);
       setPendingEdit(null);
-      setStatus(`Previewing AI workspace patch for ${workspacePatch.edits.length} files`);
+      setStatus(`Previewing AI workspace patch for ${candidate.edits.length} files`);
       return true;
     }
-    if (workspacePatch.edits.length === 1) {
+    if (candidate.edits.length === 1) {
       setPendingEdit(workspacePatch.edits[0]);
       setPendingWorkspacePatch(null);
       setStatus(`Previewing AI patch for ${workspacePatch.edits[0].fileName}`);
       return true;
     }
-    if (!activeFile) {
-      setStatus('Open a file before previewing an AI edit, or ask Atomek for a git-style diff against opened files.');
-      return false;
-    }
-    const extracted = extractEditableSuggestion(body, activeFile);
-    if (!extracted) {
-      setStatus('No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again.');
-      return false;
-    }
-    setPendingWorkspacePatch(null);
-    setPendingEdit({
-      fileId: activeFile.id,
-      fileName: activeFile.path,
-      originalContent: activeFile.content,
-      proposedContent: extracted.content,
-      sourceTitle,
-      extractionLabel: extracted.label,
-      stats: diffStats(activeFile.content, extracted.content),
-    });
-    setStatus(`Previewing AI edit for ${activeFile.name}`);
-    return true;
-  }, [activeFile, files]);
+    setStatus(candidate.skipped.length > 0
+      ? `No applicable edit found. ${candidate.skipped.slice(0, 2).join(' · ')}`
+      : 'No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again.');
+    return false;
+  }, [activeFile, documentVersions, files]);
 
   const askAgent = useCallback(() => {
     const prompt = chatInput.trim();
     if (!prompt) return;
     setChatInput('');
     const shouldAutoPreviewEdit = looksLikeEditPrompt(prompt);
-    void ai.askAgent(prompt).then((message) => {
+    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) }).then((message) => {
       if (!shouldAutoPreviewEdit || !message || message.status === 'error') return;
       const ok = previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek edit', message.body);
       if (!ok) setStatus('Edit request answered without a patch. Use Generate patch / Edit to request an applicable diff.');
     });
-  }, [ai, chatInput, previewEditFromText]);
+  }, [ai, buildRequestContextForPrompt, chatInput, previewEditFromText]);
 
   const generatePatchPrompt = useCallback(() => {
     if (!pendingPatchPrompt) return;
@@ -780,9 +829,15 @@ export function WorkbenchShell({ host }: Props) {
           activeFile={activeFile}
           contextScope={chatContextScope}
           setContextScope={setChatContextScope}
-          contextAttachments={builtChatContext.attachments}
+          contextAttachments={contextAttachments}
           removeContextAttachment={removeContextAttachment}
           revealContextAttachment={revealContextAttachment}
+          projectIndexSummary={`${projectIndex.snapshot.files.length} files · ${projectIndex.snapshot.chunks.length} chunks`}
+          projectIndexStale={projectIndex.isStale}
+          refreshProjectIndex={() => {
+            const snapshot = projectIndex.refresh(files);
+            setStatus(`Project index refreshed: ${snapshot.files.length} files · ${snapshot.chunks.length} chunks`);
+          }}
           onResizeStart={beginSecondaryResize}
           onClose={() => setSecondaryVisible(false)}
         />
@@ -1265,6 +1320,9 @@ function SecondarySidebar(props: {
   contextAttachments: ChatContextAttachment[];
   removeContextAttachment: (attachment: ChatContextAttachment) => void;
   revealContextAttachment: (attachment: ChatContextAttachment) => void;
+  projectIndexSummary: string;
+  projectIndexStale: boolean;
+  refreshProjectIndex: () => void;
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onClose: () => void;
 }) {
@@ -1312,6 +1370,9 @@ function ChatPane(props: {
   contextAttachments: ChatContextAttachment[];
   removeContextAttachment: (attachment: ChatContextAttachment) => void;
   revealContextAttachment: (attachment: ChatContextAttachment) => void;
+  projectIndexSummary: string;
+  projectIndexStale: boolean;
+  refreshProjectIndex: () => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   chatSettings: ChatAiSettings;
   openSettings: () => void;
@@ -1441,7 +1502,18 @@ function ChatPane(props: {
               <option value="active-selection">Selection</option>
               <option value="active-file">Active file</option>
               <option value="open-editors">Open editors</option>
+              <option value="indexed-project">Indexed project</option>
             </select>
+            {props.contextScope === 'indexed-project' ? (
+              <>
+                <button className="workbench-chat-chip-button" onClick={props.refreshProjectIndex} disabled={props.busy}>
+                  <RefreshCcw size={12} /> Index
+                </button>
+                <span className={`workbench-chat-chip ${props.projectIndexStale ? 'warn' : 'muted'}`} title="Project index used for query-scoped retrieval">
+                  <FileSearch size={13} /> {props.projectIndexSummary}{props.projectIndexStale ? ' · stale' : ''}
+                </span>
+              </>
+            ) : null}
             {props.contextAttachments.length === 0 ? (
               <span className="workbench-chat-chip muted"><Paperclip size={13} /> No file context</span>
             ) : props.contextAttachments.map((attachment) => (
@@ -1475,11 +1547,8 @@ function ChatPane(props: {
             placeholder="Ask Atomek about the open file or describe what to build..."
             rows={3}
           />
-          <div className="workbench-chat-toolbar">
-            <button className="workbench-chat-mode" onClick={props.openSettings} title="Chat AI settings">
-              {chatGatewayLabel(props.chatSettings.gatewayPreference)} <ChevronDown size={12} />
-            </button>
-            <button className="workbench-chat-mode" onClick={() => props.runQuickPrompt('plan')} disabled={props.busy}>Plan</button>
+          <div className="workbench-chat-toolbar compact">
+            <span className="workbench-chat-route-summary">{chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount)}</span>
             <span />
             {props.busy ? (
               <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop"><Square size={14} /></button>
@@ -1523,8 +1592,8 @@ function looksEditable(body: string): boolean {
 }
 
 function looksLikeEditPrompt(prompt: string): boolean {
-  return /(change|edit|modify|replace|update|rename|fix|rewrite|apply)/i.test(prompt)
-    && /(file|code|author|title|line|function|component|content|text|this|it)/i.test(prompt);
+  return /\b(change|edit|modify|replace|update|rename|fix|rewrite|apply)\b/i.test(prompt)
+    && /\b(file|code|author|title|line|function|component|content|text|this|it)\b/i.test(prompt);
 }
 
 function editPromptWithPatchInstructions(prompt: string): string {
@@ -1542,6 +1611,8 @@ function AtomekSettingsDialog(props: {
 }) {
   const [models, setModels] = useState<Array<{ id: string; gatewayLabel: string }>>([]);
   const [modelsStatus, setModelsStatus] = useState('Loading gateway models…');
+  const [embeddingModels, setEmbeddingModels] = useState<Array<{ id: string; gatewayLabel: string }>>([]);
+  const [embeddingStatus, setEmbeddingStatus] = useState('Checking embedding capability…');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1570,11 +1641,42 @@ function AtomekSettingsDialog(props: {
     return () => controller.abort();
   }, [props.chatSettings.gatewayPreference, props.host.ai]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      const unavailable = embeddingUnavailableReason(props.host);
+      if (unavailable) {
+        setEmbeddingModels([]);
+        setEmbeddingStatus(unavailable);
+        return;
+      }
+      setEmbeddingStatus('Loading embedding-capable models from AIL…');
+      try {
+        const found = await listEmbeddingModels(props.host, {
+          gatewayPreference: props.chatSettings.gatewayPreference,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setEmbeddingModels(found.map((model) => ({ id: model.id, gatewayLabel: model.gatewayLabel ?? model.source ?? 'AIL' })));
+        setEmbeddingStatus(found.length > 0 ? `${found.length} embedding models discovered from AIL metadata.` : 'AIL embedding API is present, but no embedding-capable model metadata was returned.');
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setEmbeddingModels([]);
+        setEmbeddingStatus(`Embedding model discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [props.chatSettings.gatewayPreference, props.host]);
+
   const setGatewayPreference = (gatewayPreference: ChatGatewayPreference) => {
     props.onChange({ ...props.chatSettings, gatewayPreference });
   };
   const setModel = (model: string) => {
     props.onChange({ ...props.chatSettings, model });
+  };
+  const setEmbeddingModel = (embeddingModel: string) => {
+    props.onChange({ ...props.chatSettings, embeddingModel });
   };
 
   return (
@@ -1624,6 +1726,33 @@ function AtomekSettingsDialog(props: {
             </div>
             <div className="workbench-settings-note">
               {modelsStatus}
+            </div>
+          </div>
+          <div className="workbench-settings-section">
+            <h3>Project context / embeddings</h3>
+            <p>
+              Atomek keeps retrieval model selection dynamic. Leave empty for AIL global defaults, or pin an AIL embedding alias exposed by your gateway.
+            </p>
+            <label className="workbench-settings-label">
+              Embedding model alias
+              <input
+                value={props.chatSettings.embeddingModel}
+                onChange={(event) => setEmbeddingModel(event.target.value)}
+                list="atomek-embedding-models"
+                placeholder="Empty = AIL embedding default/global alias"
+                spellCheck={false}
+              />
+              <datalist id="atomek-embedding-models">
+                {embeddingModels.map((model) => (
+                  <option key={`${model.gatewayLabel}:${model.id}`} value={model.id}>{model.gatewayLabel}</option>
+                ))}
+              </datalist>
+            </label>
+            <div className="workbench-settings-note">
+              {props.chatSettings.embeddingModel.trim() ? `Embedding alias: ${props.chatSettings.embeddingModel.trim()}` : 'Embedding alias: gateway default'}
+            </div>
+            <div className="workbench-settings-note">
+              {embeddingStatus}
             </div>
           </div>
         </div>
@@ -1847,215 +1976,21 @@ function nextGeneratedPath(files: WorkbenchFile[], base: string): string {
   return candidate;
 }
 
-function extractWorkspacePatch(body: string, files: WorkbenchFile[], sourceTitle: string): PendingWorkspacePatch {
-  const blocks = Array.from(body.matchAll(/```([^\n`]*)\n([\s\S]*?)```/g)).map((match) => ({
-    lang: match[1].trim().toLowerCase(),
-    content: trimCodeBlock(match[2]),
-  })).filter((block) => block.content.trim().length > 0);
-  const candidates = [
-    ...blocks.filter((block) => hasFenceFlag(block.lang, 'diff') || hasFenceFlag(block.lang, 'patch')).map((block) => block.content),
-    body,
-  ];
-  const byFileId = new Map<string, PendingEdit>();
-  const skipped: string[] = [];
-
-  for (const candidate of candidates) {
-    for (const section of splitUnifiedDiffByFile(candidate)) {
-      const path = diffSectionPath(section);
-      if (!path) continue;
-      const file = findFileForPatchPath(files, path);
-      if (!file) {
-        skipped.push(`${path}: no opened file`);
-        continue;
-      }
-      const proposed = applyUnifiedDiff(file.content, section);
-      if (!proposed || proposed === file.content) {
-        skipped.push(`${path}: patch did not match or produced no change`);
-        continue;
-      }
-      byFileId.set(file.id, {
-        fileId: file.id,
-        fileName: file.path,
-        originalContent: file.content,
-        proposedContent: proposed,
-        sourceTitle,
-        extractionLabel: `workspace diff (${path})`,
-        stats: diffStats(file.content, proposed),
-      });
-    }
-  }
-
-  return { sourceTitle, edits: Array.from(byFileId.values()), skipped: Array.from(new Set(skipped)) };
-}
-
-function splitUnifiedDiffByFile(diff: string): string[] {
-  const normalized = diff.replace(/\r\n/g, '\n');
-  if (!/^@@\s+-\d+/m.test(normalized)) return [];
-  const lines = normalized.split('\n');
-  const starts: number[] = [];
-  lines.forEach((line, index) => {
-    if (line.startsWith('diff --git ') || line.startsWith('--- ')) starts.push(index);
-  });
-  if (starts.length === 0) return [normalized];
-  const uniqueStarts = Array.from(new Set(starts)).sort((a, b) => a - b);
-  const sections: string[] = [];
-  for (let index = 0; index < uniqueStarts.length; index += 1) {
-    const start = uniqueStarts[index];
-    const next = uniqueStarts.find((candidate) => candidate > start && lines[candidate].startsWith('diff --git '));
-    const end = next ?? lines.length;
-    const section = lines.slice(start, end).join('\n');
-    if (/^@@\s+-\d+/m.test(section)) sections.push(section);
-  }
-  return sections.length > 0 ? sections : [normalized];
-}
-
-function diffSectionPath(section: string): string | null {
-  const gitHeader = section.match(/^diff --git\s+(?:"?a\/(.+?)"?|(\S+))\s+(?:"?b\/(.+?)"?|(\S+))/m);
-  if (gitHeader) return normalizePatchPath(gitHeader[3] || gitHeader[4] || gitHeader[1] || gitHeader[2] || '');
-  const plusHeader = section.match(/^\+\+\+\s+(?:"?b\/(.+?)"?|(\S+))/m);
-  if (plusHeader) return normalizePatchPath(plusHeader[1] || plusHeader[2] || '');
-  const minusHeader = section.match(/^---\s+(?:"?a\/(.+?)"?|(\S+))/m);
-  if (minusHeader) return normalizePatchPath(minusHeader[1] || minusHeader[2] || '');
-  return null;
-}
-
-function normalizePatchPath(path: string): string {
-  return path.replace(/^["']|["']$/g, '').replace(/\\/g, '/').replace(/^[ab]\//, '').replace(/^\.\//, '');
-}
-
-function findFileForPatchPath(files: WorkbenchFile[], patchPath: string): WorkbenchFile | null {
-  const normalized = normalizePatchPath(patchPath);
-  const base = normalized.split('/').at(-1) ?? normalized;
-  return files.find((file) => {
-    const filePath = normalizePatchPath(file.path);
-    return filePath === normalized || filePath.endsWith(`/${normalized}`) || file.name === base || filePath.endsWith(`/${base}`);
-  }) ?? null;
+function toPendingEdit(edit: WorkspaceEditFileCandidate): PendingEdit {
+  return {
+    fileId: edit.fileId,
+    fileName: edit.filePath,
+    originalContent: edit.originalContent,
+    proposedContent: edit.proposedContent,
+    sourceTitle: edit.sourceTitle,
+    extractionLabel: edit.extractionLabel,
+    stats: edit.stats,
+  };
 }
 
 function previewPatchContent(content: string): string {
   const lines = content.split('\n');
   return lines.slice(0, 80).join('\n') + (lines.length > 80 ? '\n…' : '');
-}
-
-function extractEditableSuggestion(body: string, file: WorkbenchFile): { content: string; label: string } | null {
-  const blocks = Array.from(body.matchAll(/```([^\n`]*)\n([\s\S]*?)```/g)).map((match) => ({
-    lang: match[1].trim().toLowerCase(),
-    content: trimCodeBlock(match[2]),
-  })).filter((block) => block.content.trim().length > 0);
-  const diffCandidates = [
-    ...blocks.filter((block) => hasFenceFlag(block.lang, 'diff') || hasFenceFlag(block.lang, 'patch')).map((block) => block.content),
-    body,
-  ];
-  for (const candidate of diffCandidates) {
-    const patched = applyUnifiedDiff(file.content, candidate);
-    if (patched) return { content: patched, label: 'unified diff patch' };
-  }
-  if (blocks.length === 0) return null;
-
-  const wanted = languageAliases(file);
-  const fullReplacement = blocks.find((block) => hasFenceFlag(block.lang, 'atomek-replace') || hasFenceFlag(block.lang, 'replace'));
-  if (fullReplacement) return { content: fullReplacement.content, label: `replacement block (${fullReplacement.lang || 'plain'})` };
-
-  const languageMatch = blocks.find((block) => wanted.some((alias) => hasFenceFlag(block.lang, alias)) && !hasFenceFlag(block.lang, 'diff') && !hasFenceFlag(block.lang, 'patch'));
-  if (languageMatch) return { content: languageMatch.content, label: `matched ${languageMatch.lang || file.language} block` };
-
-  const nonDiffBlocks = blocks.filter((block) => !hasFenceFlag(block.lang, 'diff') && !hasFenceFlag(block.lang, 'patch'));
-  const fallback = nonDiffBlocks.sort((a, b) => b.content.length - a.content.length)[0];
-  if (!fallback) return null;
-  return { content: fallback.content, label: `largest fenced block (${fallback.lang || 'plain'})` };
-}
-
-function applyUnifiedDiff(original: string, diff: string): string | null {
-  if (!/^@@\s+-\d+/m.test(diff)) return null;
-  const originalLines = original.split('\n');
-  const diffLines = diff.replace(/\r\n/g, '\n').split('\n');
-  const output: string[] = [];
-  let originalIndex = 0;
-  let sawHunk = false;
-
-  for (let index = 0; index < diffLines.length; index += 1) {
-    const header = diffLines[index].match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
-    if (!header) continue;
-    sawHunk = true;
-    const oldStart = Number(header[1]);
-    const hunkStart = Math.max(0, oldStart - 1);
-    if (hunkStart < originalIndex) return null;
-    output.push(...originalLines.slice(originalIndex, hunkStart));
-    originalIndex = hunkStart;
-
-    index += 1;
-    for (; index < diffLines.length; index += 1) {
-      const line = diffLines[index];
-      if (line.startsWith('@@ ')) {
-        index -= 1;
-        break;
-      }
-      if (line.startsWith('diff --git ') || line.startsWith('--- ') || line.startsWith('+++ ')) continue;
-      if (line.startsWith('\\ No newline at end of file')) continue;
-      const marker = line[0];
-      const content = line.slice(1);
-      if (marker === ' ') {
-        if (originalLines[originalIndex] !== content) return null;
-        output.push(content);
-        originalIndex += 1;
-        continue;
-      }
-      if (marker === '-') {
-        if (originalLines[originalIndex] !== content) return null;
-        originalIndex += 1;
-        continue;
-      }
-      if (marker === '+') {
-        output.push(content);
-        continue;
-      }
-      if (line === '') {
-        continue;
-      }
-      return null;
-    }
-  }
-
-  if (!sawHunk) return null;
-  output.push(...originalLines.slice(originalIndex));
-  return output.join('\n');
-}
-
-function trimCodeBlock(content: string): string {
-  return content.replace(/^\n+/, '').replace(/\n+$/, '');
-}
-
-function hasFenceFlag(lang: string, flag: string): boolean {
-  return lang.split(/[\s,]+/).filter(Boolean).includes(flag);
-}
-
-function languageAliases(file: WorkbenchFile): string[] {
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  return Array.from(new Set([
-    file.language,
-    ext,
-    file.language === 'typescript' ? 'ts' : '',
-    file.language === 'javascript' ? 'js' : '',
-    file.language === 'markdown' ? 'md' : '',
-    file.language === 'shell' ? 'sh' : '',
-    file.language === 'yaml' ? 'yml' : '',
-  ].filter(Boolean)));
-}
-
-function diffStats(original: string, proposed: string): EditStats {
-  const before = original.split('\n');
-  const after = proposed.split('\n');
-  const max = Math.max(before.length, after.length);
-  let added = 0;
-  let removed = 0;
-  let changed = 0;
-  for (let index = 0; index < max; index += 1) {
-    if (before[index] === after[index]) continue;
-    if (before[index] === undefined) added += 1;
-    else if (after[index] === undefined) removed += 1;
-    else changed += 1;
-  }
-  return { added, removed, changed };
 }
 
 function readRecent(): RecentEntry[] {
@@ -2105,6 +2040,7 @@ function readChatAiSettings(): ChatAiSettings {
     return {
       gatewayPreference,
       model: typeof parsed.model === 'string' ? parsed.model : '',
+      embeddingModel: typeof parsed.embeddingModel === 'string' ? parsed.embeddingModel : '',
     };
   } catch {
     return DEFAULT_CHAT_AI_SETTINGS;
