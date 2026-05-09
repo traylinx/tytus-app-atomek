@@ -2,11 +2,11 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "ATOMEK_0_4_0_RELEASED",
+  "status": "ATOMEK_0_4_1_SEMANTIC_RELEASE_READY",
   "currentVersionAtCreation": "0.3.9",
-  "releaseVersion": "0.4.0",
+  "releaseVersion": "0.4.1",
   "atomekCommit": "6ee73c0",
-  "atomekTag": "v0.4.0",
+  "atomekTag": "v0.4.1",
   "catalogCommit": "1fe09da",
   "catalogVersion": 30,
   "hardRules": [
@@ -27,17 +27,19 @@
     "project-index-without-embeddings",
     "embedding-capability-discovery",
     "agentic-edit-loop-v1-keyword-fallback",
+    "tytusos-host-embed-api",
+    "semantic-hybrid-retrieval",
+    "cortex-contract-harness",
     "release-prep"
   ],
   "hostApiDeferred": [
-    "host.ai.embedText",
-    "persistent vector storage",
-    "semantic vector RAG"
+    "host command runner for automatic checks"
   ],
   "gates": [
     "npm run typecheck",
     "npm run build",
     "npm run release:check",
+    "npm run verify:cortex",
     "grep: no minimax/m2.1/m2.7/web_search",
     "grep: no hardcoded tools array"
   ],

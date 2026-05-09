@@ -21,6 +21,10 @@ export type ChatContextAttachment = {
   implicit: boolean;
   stale?: boolean;
   charCount?: number;
+  score?: number;
+  keywordScore?: number;
+  vectorScore?: number;
+  snippet?: string;
 };
 
 export type ChatContextState = {

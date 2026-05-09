@@ -38,8 +38,9 @@ import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
 import type { ChatContextAttachment, ChatContextScope, ChatContextState } from '../context/chatContextStore';
 import { buildAiContext } from '../context/contextBuilder';
-import { contextHitToText, useProjectIndex } from '../projectIndex';
+import { useProjectIndex } from '../projectIndex';
 import type { ProjectIndexContextHit } from '../projectIndex';
+import { retrieveSemanticProjectContext, semanticHitsToContextParts } from '../semantic';
 import { buildWorkspaceEditCandidate } from '../edits';
 import type { WorkspaceEditFileCandidate } from '../edits';
 import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
@@ -147,6 +148,10 @@ export function WorkbenchShell({ host }: Props) {
     includeBody: true,
     removable: true,
     implicit: false,
+    score: hit.score,
+    keywordScore: hit.keywordScore,
+    vectorScore: hit.vectorScore,
+    snippet: hit.snippet,
   })), [projectContextHits]);
   const contextAttachments = useMemo(() => [...builtChatContext.attachments, ...indexContextAttachments], [builtChatContext.attachments, indexContextAttachments]);
   const ai = useConversation({ host, requestContext: builtChatContext.parts, chatSettings, setStatus });
@@ -369,13 +374,21 @@ export function WorkbenchShell({ host }: Props) {
     openWorkbenchFile(file);
   }, [files, openWorkbenchFile]);
 
-  const buildRequestContextForPrompt = useCallback((prompt: string): AiContextPart[] => {
+  const buildRequestContextForPrompt = useCallback(async (prompt: string): Promise<AiContextPart[]> => {
     const requestContext = [...builtChatContext.parts];
     if (chatContextScope !== 'indexed-project') {
       setProjectContextHits([]);
       return requestContext;
     }
-    const hits = projectIndex.retrieve(prompt, { limit: 8, maxChars: 12_000, includeDirty: true });
+    const result = await retrieveSemanticProjectContext(
+      host,
+      projectIndex.snapshot,
+      prompt,
+      chatSettings,
+      { limit: 8, maxChars: 12_000, includeDirty: true },
+      projectIndex.staleReport,
+    );
+    const hits = result.hits;
     setProjectContextHits(hits);
     if (hits.length === 0) {
       setStatus(projectIndex.snapshot.chunks.length === 0
@@ -383,15 +396,13 @@ export function WorkbenchShell({ host }: Props) {
         : 'Project index found no matching context for this prompt');
       return requestContext;
     }
+    if (result.mode !== 'hybrid' && result.reason) setStatus(result.reason);
+    else setStatus(`${hits.length} project context hit${hits.length === 1 ? '' : 's'} · ${result.reason ?? 'hybrid retrieval'}`);
     return [
       ...requestContext,
-      ...hits.map((hit): AiContextPart => ({
-        kind: 'workspace',
-        title: `Indexed project context — ${hit.label}`,
-        text: contextHitToText(hit),
-      })),
+      ...semanticHitsToContextParts(hits),
     ];
-  }, [builtChatContext.parts, chatContextScope, projectIndex]);
+  }, [builtChatContext.parts, chatContextScope, chatSettings, host, projectIndex]);
 
   const runAiSynthesis = useCallback(() => {
     if (!activeFile && openEditors.length === 0) {
@@ -408,7 +419,9 @@ export function WorkbenchShell({ host }: Props) {
     setSecondaryVisible(true);
     setSecondaryTab('chat');
     setStatus('Asking Atomek to synthesize an AI artifact…');
-    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) }).then((message) => {
+    void (async () => {
+      const requestContext = await buildRequestContextForPrompt(prompt);
+      const message = await ai.askAgent(prompt, { requestContext });
       if (!message || message.status === 'error') return;
       void ai.createArtifact({
         messageId: message.id,
@@ -421,7 +434,7 @@ export function WorkbenchShell({ host }: Props) {
         setBottomPanelVisible(true);
         setBottomPanelTab('output');
       });
-    });
+    })();
   }, [activeFile, ai, buildRequestContextForPrompt, openEditors.length]);
 
   const reopenRecent = useCallback((entry: RecentEntry) => {
@@ -438,7 +451,10 @@ export function WorkbenchShell({ host }: Props) {
     setSecondaryVisible(true);
     setSecondaryTab('chat');
     setChatInput('');
-    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) });
+    void (async () => {
+      const requestContext = await buildRequestContextForPrompt(prompt);
+      await ai.askAgent(prompt, { requestContext });
+    })();
   }, [ai, buildRequestContextForPrompt]);
 
   const regenerateMessage = useCallback((message: ChatMessage) => {
@@ -448,7 +464,10 @@ export function WorkbenchShell({ host }: Props) {
       setStatus('No previous user prompt to regenerate from');
       return;
     }
-    void ai.askAgent(previousUser.body, { requestContext: buildRequestContextForPrompt(previousUser.body) });
+    void (async () => {
+      const requestContext = await buildRequestContextForPrompt(previousUser.body);
+      await ai.askAgent(previousUser.body, { requestContext });
+    })();
   }, [ai, buildRequestContextForPrompt]);
 
   const saveMessageAsArtifact = useCallback((message: ChatMessage) => {
@@ -541,11 +560,13 @@ export function WorkbenchShell({ host }: Props) {
     if (!prompt) return;
     setChatInput('');
     const shouldAutoPreviewEdit = looksLikeEditPrompt(prompt);
-    void ai.askAgent(prompt, { requestContext: buildRequestContextForPrompt(prompt) }).then((message) => {
+    void (async () => {
+      const requestContext = await buildRequestContextForPrompt(prompt);
+      const message = await ai.askAgent(prompt, { requestContext });
       if (!shouldAutoPreviewEdit || !message || message.status === 'error') return;
       const ok = previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek edit', message.body);
       if (!ok) setStatus('Edit request answered without a patch. Use Generate patch / Edit to request an applicable diff.');
-    });
+    })();
   }, [ai, buildRequestContextForPrompt, chatInput, previewEditFromText]);
 
   const generatePatchPrompt = useCallback(() => {
@@ -1516,14 +1537,30 @@ function ChatPane(props: {
             ) : null}
             {props.contextAttachments.length === 0 ? (
               <span className="workbench-chat-chip muted"><Paperclip size={13} /> No file context</span>
-            ) : props.contextAttachments.map((attachment) => (
-              <span key={attachment.id} className="workbench-chat-chip" title={[attachment.path, attachment.range ? `${attachment.range.startLineNumber}:${attachment.range.startColumn}-${attachment.range.endLineNumber}:${attachment.range.endColumn}` : null, attachment.dirty ? 'dirty' : null].filter(Boolean).join(' · ')}>
-                <button className="workbench-chat-chip-open" onClick={() => props.revealContextAttachment(attachment)} disabled={!attachment.fileId} title="Reveal context"><Paperclip size={13} /></button>
-                {attachment.label}
-                {attachment.dirty ? <small>dirty</small> : null}
-                {attachment.removable ? <button className="workbench-chat-chip-remove" onClick={() => props.removeContextAttachment(attachment)} title="Remove context"><X size={11} /></button> : null}
-              </span>
-            ))}
+            ) : props.contextAttachments.map((attachment) => {
+              const score = typeof attachment.score === 'number' ? attachment.score.toFixed(2) : null;
+              const vectorScore = typeof attachment.vectorScore === 'number' ? attachment.vectorScore.toFixed(2) : null;
+              const keywordScore = typeof attachment.keywordScore === 'number' ? attachment.keywordScore.toFixed(1) : null;
+              const title = [
+                attachment.path,
+                attachment.range ? `${attachment.range.startLineNumber}:${attachment.range.startColumn}-${attachment.range.endLineNumber}:${attachment.range.endColumn}` : null,
+                score ? `score ${score}` : null,
+                vectorScore ? `vector ${vectorScore}` : null,
+                keywordScore ? `keyword ${keywordScore}` : null,
+                attachment.snippet,
+                attachment.dirty ? 'dirty' : null,
+              ].filter(Boolean).join(' · ');
+              return (
+                <span key={attachment.id} className="workbench-chat-chip" title={title}>
+                  <button className="workbench-chat-chip-open" onClick={() => props.revealContextAttachment(attachment)} disabled={!attachment.fileId} title="Reveal context"><Paperclip size={13} /></button>
+                  {attachment.label}
+                  {score ? <small>{score}</small> : null}
+                  {attachment.snippet ? <small>{attachment.snippet.slice(0, 60)}{attachment.snippet.length > 60 ? '…' : ''}</small> : null}
+                  {attachment.dirty ? <small>dirty</small> : null}
+                  {attachment.removable ? <button className="workbench-chat-chip-remove" onClick={() => props.removeContextAttachment(attachment)} title="Remove context"><X size={11} /></button> : null}
+                </span>
+              );
+            })}
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>Explain</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>Improve</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>Edit</button>

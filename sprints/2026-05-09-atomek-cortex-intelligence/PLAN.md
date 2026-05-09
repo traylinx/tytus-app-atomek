@@ -98,7 +98,7 @@ npm run build
 ## Phase 5 — Embedding capability discovery
 
 - [x] Inspect runtime `host.ai` for embedding API capability.
-- [ ] If missing, design/add host API in TytusOS: `embedText` and optional model discovery capability.
+- [x] Add host API in TytusOS: `host.ai.embedText` routes to AIL `/v1/embeddings` with dynamic model alias.
 - [x] Route embedding model selection through global AIL alias field when host capability exists.
 - [x] No hardcoded embedding model in Atomek.
 - [x] Fallback to keyword retrieval if embedding unavailable.
@@ -113,11 +113,11 @@ npm run test --workspace app -- src/runtime/ai/conversation-service.test.ts src/
 
 ## Phase 6 — Semantic retrieval
 
-- [ ] Embed chunks through dynamic AIL embedding alias/provider.
-- [ ] Persist vectors app-scoped.
-- [ ] Add cosine search.
-- [ ] Combine keyword + vector rankings.
-- [ ] Show retrieved context as removable chips with file paths/snippets/scores.
+- [x] Embed chunks through dynamic AIL embedding alias/provider when `host.ai.embedText` exists.
+- [x] Persist vectors app-scoped in browser localStorage keyed by app/model alias/chunk/hash.
+- [x] Add cosine search.
+- [x] Combine keyword + vector rankings.
+- [x] Show retrieved context as removable chips with file paths/snippets/scores.
 
 Gate:
 
@@ -146,13 +146,13 @@ npm run release:check
 
 ## Phase 8 — Release + live QA
 
-- [ ] Add/enable tests for context builder/store, patch parser, edit service, transcript follow mode.
+- [x] Add lightweight cortex contract harness for context builder/store, patch parser/edit service, and project index retrieval.
 - [x] Run all gates.
 - [x] Bump Atomek version.
 - [x] Build and release-check.
-- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`).
+- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` pending closeout).
 - [x] Update app catalog (`tytus-app-catalog` commit `1fe09da`, catalog version 30).
-- [ ] If TytusOS touched, update/vendored local runtime separately.
+- [x] TytusOS host API touched: `host.ai.embedText` landed in `f6a1905` on `feature/tytus-forge-mvp`.
 - [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
 
 Release gates:

@@ -69,3 +69,35 @@ Technical escalation was sent to Lope validators `kimi`, `pi`, and `opencode` ab
 - Atomek commit: `6ee73c0` (`Ship Atomek intelligent chat 0.4.0`) pushed to `origin/main`.
 - Atomek tag: `v0.4.0` pushed.
 - Catalog commit: `1fe09da` (`Publish Atomek 0.4.0`) pushed to `tytus-app-catalog` `origin/main`; catalog version `30`.
+
+
+## Semantic/host continuation
+
+- Continued sprint beyond `0.4.0` in swarm.
+- TytusOS host API now exposes `host.ai.embedText(input)` and routes to AIL `/v1/embeddings` with `gatewayPreference` and optional dynamic `model` alias; no hardcoded embedding model IDs.
+- Atomek now uses semantic hybrid retrieval when `host.ai.embedText` exists:
+  - query embedding through selected local/remote/auto AIL gateway,
+  - chunk embedding through `chatSettings.embeddingModel`,
+  - localStorage vector cache keyed by app id, model alias, chunk id, and content hash,
+  - cosine similarity + keyword score ranking,
+  - fallback to keyword retrieval if embedding is unavailable or fails,
+  - removable `index-hit` chips show scores/snippets.
+- Added `scripts/verify-cortex-contracts.mjs` and `npm run verify:cortex` for pure-module regression coverage.
+- Atomek semantic release version bumped to `0.4.1`; release/tag/catalog closeout follows this change.
+
+## Additional gates run
+
+```bash
+# Atomek
+npm run typecheck
+npm run verify:cortex
+npm run build
+npm run release:check
+
+# TytusOS host API
+npm run test --workspace app -- src/runtime/ai/gateway-candidates.test.ts src/runtime/ai/conversation-service.test.ts
+npm run typecheck --workspace @tytus/host-api
+npm run typecheck --workspace app
+```
+
+Results: all passed.

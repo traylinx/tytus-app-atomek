@@ -28,6 +28,8 @@ export type ProjectIndexContextHit = {
   text: string;
   snippet: string;
   score: number;
+  keywordScore?: number;
+  vectorScore?: number;
 };
 
 type ScoredChunk = { chunk: ProjectIndexChunk; score: number; matchedTerms: string[] };

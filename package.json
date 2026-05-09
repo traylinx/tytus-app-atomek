@@ -1,8 +1,8 @@
 {
   "name": "tytus-app-workbench",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
-  "description": "Monaco workspace with local files, chat/output panels, extension connectors, markdown preview, and search.",
+  "description": "Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, artifacts, markdown preview, and AI edit previews.",
   "license": "MIT",
   "files": [
     "dist",
@@ -14,7 +14,8 @@
   "scripts": {
     "build": "vite build && node scripts/inject-css.mjs",
     "typecheck": "tsc --noEmit",
-    "release:check": "node scripts/release-check.mjs"
+    "release:check": "node scripts/release-check.mjs",
+    "verify:cortex": "node scripts/verify-cortex-contracts.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
