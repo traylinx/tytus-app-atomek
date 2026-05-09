@@ -69,6 +69,7 @@ const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   model: '',
   embeddingModel: '',
 };
+const ACTIVITY_BAR_WIDTH = 48;
 
 type Props = { host: HostClient };
 
@@ -93,6 +94,25 @@ type PendingWorkspacePatch = {
   edits: PendingEdit[];
   skipped: string[];
 };
+
+function clampWidth(value: number, min: number, max: number): number {
+  return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function workbenchLayoutLimits(width: number): { primaryMin: number; primaryMax: number; secondaryMin: number; secondaryMax: number } {
+  const safeWidth = Math.max(width || 1400, 760);
+  const usable = Math.max(0, safeWidth - ACTIVITY_BAR_WIDTH);
+  const compact = usable < 1180;
+  const primaryMin = compact ? 200 : 240;
+  const secondaryMin = compact ? 300 : 340;
+  const editorTargetMin = compact ? 420 : 560;
+  const primaryMax = Math.max(primaryMin, Math.min(compact ? 340 : 420, Math.floor(usable * 0.28)));
+  const assumedPrimary = Math.min(300, primaryMax);
+  const secondaryByRatio = Math.floor(usable * (compact ? 0.34 : 0.36));
+  const secondaryByEditor = usable - assumedPrimary - editorTargetMin;
+  const secondaryMax = Math.max(secondaryMin, Math.min(compact ? 500 : 640, secondaryByRatio, secondaryByEditor));
+  return { primaryMin, primaryMax, secondaryMin, secondaryMax };
+}
 
 type RichSegment = { type: 'markdown'; body: string; key: string } | { type: 'code'; body: string; language: string; key: string };
 
@@ -142,6 +162,8 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
 }
 
 export function WorkbenchShell({ host }: Props) {
+  const workbenchRef = useRef<HTMLDivElement | null>(null);
+  const [workbenchWidth, setWorkbenchWidth] = useState(0);
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
   const [activity, setActivity] = useState<ActivityView>('explorer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
@@ -171,7 +193,7 @@ export function WorkbenchShell({ host }: Props) {
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const [pendingWorkspacePatch, setPendingWorkspacePatch] = useState<PendingWorkspacePatch | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTabOpen, setSettingsTabOpen] = useState(false);
   const [chatSettings, setChatSettings] = useState<ChatAiSettings>(() => readChatAiSettings());
   const [aiDirtyNotice, setAiDirtyNotice] = useState<string | null>(null);
   const [manualCheckSession, setManualCheckSession] = useState<ManualCheckSession | null>(null);
@@ -215,7 +237,8 @@ export function WorkbenchShell({ host }: Props) {
     () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
     [ai.artifacts, outputs],
   );
-  const showWelcome = !activeFile && !welcomeClosed;
+  const settingsActive = settingsTabOpen && !activeFile;
+  const showWelcome = !activeFile && !settingsActive && !welcomeClosed;
   const dirtyFiles = useMemo(() => files.filter((file) => file.dirty), [files]);
   const visibleFiles = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -250,6 +273,20 @@ export function WorkbenchShell({ host }: Props) {
     setStatus(`Removed chat context: ${attachment.label}`);
   }, []);
 
+  const openSettingsTab = useCallback(() => {
+    setSettingsTabOpen(true);
+    setActiveFileId(null);
+    setWelcomeClosed(true);
+    setStatus('Atomek settings opened');
+  }, []);
+
+  const closeSettingsTab = useCallback(() => {
+    setSettingsTabOpen(false);
+    setActiveFileId((current) => current ?? openEditorIds.at(-1) ?? null);
+    if (openEditorIds.length === 0) setWelcomeClosed(false);
+    setStatus('Atomek settings closed');
+  }, [openEditorIds]);
+
 
   const bumpDocumentVersion = useCallback((fileId: string) => {
     setDocumentVersions((current) => ({ ...current, [fileId]: (current[fileId] ?? 1) + 1 }));
@@ -257,11 +294,13 @@ export function WorkbenchShell({ host }: Props) {
 
   const beginSecondaryResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const limits = workbenchLayoutLimits(workbenchWidth);
     const startX = event.clientX;
     const startWidth = secondaryWidth;
     const onMove = (moveEvent: PointerEvent) => {
       const next = startWidth + (startX - moveEvent.clientX);
-      setSecondaryWidth(Math.max(380, Math.min(760, next)));
+      setSecondaryWidth(clampWidth(next, limits.secondaryMin, limits.secondaryMax));
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
@@ -269,15 +308,17 @@ export function WorkbenchShell({ host }: Props) {
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [secondaryWidth]);
+  }, [secondaryWidth, workbenchWidth]);
 
   const beginPrimaryResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const limits = workbenchLayoutLimits(workbenchWidth);
     const startX = event.clientX;
     const startWidth = primaryWidth;
     const onMove = (moveEvent: PointerEvent) => {
       const next = startWidth + (moveEvent.clientX - startX);
-      setPrimaryWidth(Math.max(240, Math.min(460, next)));
+      setPrimaryWidth(clampWidth(next, limits.primaryMin, limits.primaryMax));
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
@@ -285,7 +326,7 @@ export function WorkbenchShell({ host }: Props) {
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [primaryWidth]);
+  }, [primaryWidth, workbenchWidth]);
 
   const remember = useCallback((entry: RecentEntry) => {
     const next = [entry, ...recent.filter((item) => item.path !== entry.path)].slice(0, 6);
@@ -851,6 +892,23 @@ export function WorkbenchShell({ host }: Props) {
   }, [dirtyFiles.length]);
 
   useEffect(() => {
+    const node = workbenchRef.current;
+    if (!node) return;
+    const update = () => setWorkbenchWidth(Math.round(node.getBoundingClientRect().width));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!workbenchWidth) return;
+    const limits = workbenchLayoutLimits(workbenchWidth);
+    setPrimaryWidth((width) => clampWidth(width, limits.primaryMin, limits.primaryMax));
+    setSecondaryWidth((width) => clampWidth(width, limits.secondaryMin, limits.secondaryMax));
+  }, [workbenchWidth]);
+
+  useEffect(() => {
     const prefs: LayoutPrefs = { primaryVisible, primaryWidth, secondaryVisible, secondaryWidth, markdownPreviewVisible };
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(prefs));
   }, [markdownPreviewVisible, primaryVisible, primaryWidth, secondaryVisible, secondaryWidth]);
@@ -861,11 +919,12 @@ export function WorkbenchShell({ host }: Props) {
 
   return (
     <div
+      ref={workbenchRef}
       className={`workbench-workbench ${primaryVisible ? '' : 'no-primary'} ${secondaryVisible ? '' : 'no-secondary'} ${bottomPanelVisible ? 'has-bottom-panel' : ''}`}
       data-app="workbench-vscode-base"
       style={{ '--workbench-primary-width': `${primaryWidth}px`, '--workbench-secondary-width': `${secondaryWidth}px` } as CSSProperties}
     >
-      <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} openSettings={() => setSettingsOpen(true)} />
+      <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} openSettings={openSettingsTab} settingsActive={settingsActive} />
       {primaryVisible && (
         <div className="workbench-primary-region">
           <PrimarySidebar
@@ -895,10 +954,14 @@ export function WorkbenchShell({ host }: Props) {
             openEditors={openEditors}
             activeFileId={activeFileId}
             showWelcome={showWelcome}
+            settingsOpen={settingsTabOpen}
+            settingsActive={settingsActive}
             setActiveFileId={setActiveFileId}
             closeEditor={closeEditor}
             saveFile={(id) => { void saveFileById(id); }}
             closeWelcome={() => setWelcomeClosed(true)}
+            openSettings={openSettingsTab}
+            closeSettings={closeSettingsTab}
             secondaryVisible={secondaryVisible}
             toggleSecondary={() => setSecondaryVisible((value) => !value)}
             canPreview={activeFile?.language === 'markdown'}
@@ -931,6 +994,13 @@ export function WorkbenchShell({ host }: Props) {
                 </div>
                 {activeFile.language === 'markdown' && markdownPreviewVisible && <MarkdownPreviewPane content={activeFile.content} />}
               </div>
+            ) : settingsActive ? (
+              <AtomekSettingsPane
+                host={host}
+                chatSettings={chatSettings}
+                onChange={setChatSettings}
+                onClose={closeSettingsTab}
+              />
             ) : showWelcome ? (
               <WelcomePage openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} />
             ) : (
@@ -994,7 +1064,7 @@ export function WorkbenchShell({ host }: Props) {
           workspaceFileCount={files.length}
           aiStatus={ai.aiStatus}
           chatSettings={chatSettings}
-          openSettings={() => setSettingsOpen(true)}
+          openSettings={openSettingsTab}
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
           outputs={combinedOutputs}
@@ -1040,6 +1110,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'View: Toggle Primary Side Bar', detail: primaryVisible ? 'Hide Explorer side bar' : 'Show Explorer side bar', run: () => setPrimaryVisible((value) => !value) },
             { label: 'View: Toggle Chat Panel', detail: secondaryVisible ? 'Hide right AI side bar' : 'Show right AI side bar', run: () => setSecondaryVisible((value) => !value) },
             { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
+            { label: 'Atomek: Open Settings', detail: 'Open settings as an editor tab', run: openSettingsTab },
             { label: 'Checks: Open Manual Check Panel', detail: 'Capture copy/paste check commands without host execution', run: () => startManualCheckSession('Manual check requested from command palette') },
             { label: 'View: Toggle Markdown Preview', detail: activeFile?.language === 'markdown' ? 'Show or hide Markdown preview split' : 'Available for Markdown files', run: () => setMarkdownPreviewVisible((value) => !value), disabled: activeFile?.language !== 'markdown' },
             { label: 'Atomek: Create AI Synthesis', detail: activeFile || openEditors.length > 0 ? 'Ask AIL to produce a saved Markdown artifact' : 'Open a file first', run: runAiSynthesis, disabled: !activeFile && openEditors.length === 0 },
@@ -1071,20 +1142,12 @@ export function WorkbenchShell({ host }: Props) {
           onClose={() => setPendingWorkspacePatch(null)}
         />
       )}
-      {settingsOpen && (
-        <AtomekSettingsDialog
-          host={host}
-          chatSettings={chatSettings}
-          onChange={setChatSettings}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
       <StatusBar status={status} file={activeFile ?? welcomeFile} cursor={cursor} fileCount={files.length} dirtyCount={dirtyFiles.length} />
     </div>
   );
 }
 
-function ActivityBar({ active, setActive, openSettings }: { active: ActivityView; setActive: (view: ActivityView) => void; openSettings: () => void }) {
+function ActivityBar({ active, setActive, openSettings, settingsActive }: { active: ActivityView; setActive: (view: ActivityView) => void; openSettings: () => void; settingsActive: boolean }) {
   return (
     <aside className="workbench-activity-bar" aria-label="Activity Bar">
       <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
@@ -1094,7 +1157,7 @@ function ActivityBar({ active, setActive, openSettings }: { active: ActivityView
       <ActivityButton icon={<Blocks size={25} />} label="Extensions" active={active === 'extensions'} onClick={() => setActive('extensions')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
-      <ActivityButton icon={<Settings size={23} />} label="Manage" active={false} onClick={openSettings} />
+      <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
     </aside>
   );
 }
@@ -1245,10 +1308,14 @@ function EditorTabs(props: {
   openEditors: WorkbenchFile[];
   activeFileId: string | null;
   showWelcome: boolean;
+  settingsOpen: boolean;
+  settingsActive: boolean;
   setActiveFileId: (id: string | null) => void;
   closeEditor: (id: string) => void;
   saveFile: (id: string) => void;
   closeWelcome: () => void;
+  openSettings: () => void;
+  closeSettings: () => void;
   secondaryVisible: boolean;
   toggleSecondary: () => void;
   canPreview: boolean;
@@ -1262,6 +1329,13 @@ function EditorTabs(props: {
           <FileSearch size={15} />
           <span className="workbench-tab-name">Welcome</span>
           <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeWelcome(); }}><X size={13} /></span>
+        </button>
+      )}
+      {props.settingsOpen && (
+        <button className={`workbench-tab ${props.settingsActive ? 'active' : ''}`} onClick={props.openSettings} title="Atomek Settings">
+          <SlidersHorizontal size={15} />
+          <span className="workbench-tab-name">Atomek Settings</span>
+          <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeSettings(); }}><X size={13} /></span>
         </button>
       )}
       {props.openEditors.map((file) => (
@@ -1972,7 +2046,7 @@ function editPromptWithPatchInstructions(prompt: string): string {
   ].join('\n\n');
 }
 
-function AtomekSettingsDialog(props: {
+function AtomekSettingsPane(props: {
   host: HostClient;
   chatSettings: ChatAiSettings;
   onChange: (settings: ChatAiSettings) => void;
@@ -2049,8 +2123,8 @@ function AtomekSettingsDialog(props: {
   };
 
   return (
-    <div className="workbench-settings-backdrop" onClick={props.onClose}>
-      <section className="workbench-settings-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Atomek Settings">
+    <div className="workbench-settings-tab">
+      <section className="workbench-settings-page" aria-label="Atomek Settings">
         <header className="workbench-settings-header">
           <SlidersHorizontal size={15} />
           <strong>Atomek Settings</strong>
@@ -2127,7 +2201,7 @@ function AtomekSettingsDialog(props: {
         </div>
         <footer className="workbench-settings-footer">
           <button onClick={() => props.onChange(DEFAULT_CHAT_AI_SETTINGS)}>Reset</button>
-          <button onClick={props.onClose}>Done</button>
+          <button onClick={props.onClose}>Close tab</button>
         </footer>
       </section>
     </div>
