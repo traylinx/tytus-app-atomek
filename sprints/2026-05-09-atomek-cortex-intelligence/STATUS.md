@@ -2,7 +2,7 @@
 
 ## Current truth
 
-Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a chat UX repair pass before deeper Cortex work: transcript follow mode, visible streaming, removable context chips, cleaner composer, and reliable edit-preview/apply behavior.
+Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a production chat/file integration pass before deeper Cortex work: a document registry, dynamic/removable context attachments, transcript follow mode, visible streaming, cleaner composer, and reliable edit-preview/apply behavior.
 
 ### Already shipped before this sprint
 
@@ -23,9 +23,12 @@ Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a ch
 
 - Chat transcript does not reliably follow new messages/stream output.
 - Streaming is not visibly trustworthy in the UI.
+- Chat/file context is implicit and sampled at send time instead of a live interactive context model.
+- Active file/open editors are injected unconditionally by `buildAiContext()`; user cannot inspect/remove exact context.
 - File-change prompts can still end as prose instead of a concrete preview/apply flow.
 - Composer has confusing primary controls (`Auto`, `Plan`).
 - Attached/active file context cannot be clearly removed per message.
+- `WorkbenchShell.tsx` is carrying too much chat/context/edit responsibility and needs production component/service split.
 - No Atomek embedding pipeline.
 - No semantic/vector RAG in Atomek.
 - No project/workspace file index.
@@ -39,3 +42,4 @@ Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a ch
 
 - 2026-05-09: Sprint folder created. Status corrected from false “complete” to `READY_TO_EXECUTE`.
 - 2026-05-09: Added chat UX repair track from screenshots: auto-follow, visible streaming, edit-preview/apply reliability, composer cleanup, and removable context chips.
+- 2026-05-09: Re-reviewed sprint against Atomek, Monaco sample, and VSCode sample codebases. Added production IDE context contract and corrected sequencing so dynamic chat/file integration lands before RAG/embeddings.

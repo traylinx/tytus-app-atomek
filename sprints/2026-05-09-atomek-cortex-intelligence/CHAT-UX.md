@@ -13,16 +13,17 @@ Observed problem: Atomek has a chat surface, but it does not yet feel like an in
 
 ## Required outcome
 
-Before deeper Cortex/RAG work, the chat must become operationally trustworthy:
+Before deeper Cortex/RAG work, the chat must become operationally trustworthy and dynamically connected to the workbench files/editor state:
 
 1. User sees the assistant response update live while it is generated.
 2. Transcript follows new messages while the user is at the bottom.
 3. If the user scrolls up intentionally, Atomek preserves that position and shows a clear “Jump to latest” control.
 4. File-edit prompts produce a concrete preview/apply flow, not only explanatory text.
-5. Attached files/context are visible and removable.
-6. The composer is clean: text input, context chips, attach controls, send/stop. Routing/model/settings live outside the main typing lane.
-7. Model/provider controls remain dynamic through global AIL config. No hardcoded model IDs.
-8. Juli3ta is not modified; it is only a UX reference for clean local/remote/model mapping.
+5. Attached files/context are visible, inspectable, revealable in Monaco, and removable.
+6. Active selection/active file/open editors are context choices, not hidden forced attachments.
+7. The composer is clean: text input, context chips, attach controls, send/stop. Routing/model/settings live outside the main typing lane.
+8. Model/provider controls remain dynamic through global AIL config. No hardcoded model IDs.
+9. Juli3ta is not modified; it is only a UX reference for clean local/remote/model mapping.
 
 ## Work items
 
@@ -55,9 +56,10 @@ For prompts like “change author to X”, “edit this file”, “replace Y wi
 - Show a clear post-apply state: `Applied to editor — save file to persist`.
 - If the AI responds with prose only, offer `Generate patch from this request` instead of pretending the file changed.
 
-### D. Context chip controls
+### D. Dynamic context chip controls
 
-- Represent active file, open editors, and manually attached files as chips.
+- Back chips with `ChatContextStore`, not static display markup.
+- Represent active selection, active file, open editors, selected files, memory hits, and future index hits as chips.
 - Every manually attached chip gets an `x` remove action.
 - Active-file auto-context can be toggled off for the current message.
 - Add a context scope selector:
@@ -65,7 +67,8 @@ For prompts like “change author to X”, “edit this file”, “replace Y wi
   - `Active file`
   - `Open editors`
   - `Indexed project` once indexing exists
-- Show exact context count and paths in a popover; no hidden sticky attachments.
+- Show exact context count, paths, ranges, dirty/stale state, and estimated chars/tokens in a popover; no hidden sticky attachments.
+- Click a file/range chip to reveal the referenced editor/range in Monaco.
 
 ### E. Composer cleanup
 

@@ -1,5 +1,16 @@
 # UAT — Acceptance Checks
 
+## Dynamic chat/file context
+
+- [ ] Active file appears as removable context only when the current scope includes it.
+- [ ] Active selection can be attached and is sent before full-file context.
+- [ ] Removing the active-file chip disables that context for the next message.
+- [ ] `No context` sends no file bodies.
+- [ ] `Open editors` sends only the current open editors within budget.
+- [ ] Context chip click reveals the file/range in Monaco.
+- [ ] Context preview shows path/range/version/dirty or stale state.
+- [ ] Changing editor content increments document version/hash used for context and edit conflict checks.
+
 ## Chat UX
 
 - [ ] Transcript follows the latest message while user is at the bottom.
@@ -10,6 +21,7 @@
 - [ ] Active-file context can be disabled for a message.
 - [ ] Composer primary lane contains only context/attach, input, send/stop.
 - [ ] Edit request against open file opens preview/apply and modifies Monaco buffer after apply.
+- [ ] AI returning prose for an edit request shows `Generate patch`; it does not claim the file changed.
 
 ## Chat and routing
 

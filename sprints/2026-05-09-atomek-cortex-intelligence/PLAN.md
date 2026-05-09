@@ -1,10 +1,11 @@
-# Plan — Executable Phases
+# Plan — Production-Ready Executable Phases
 
 ## Phase 0 — Baseline audit
 
 - [ ] Verify current Atomek version/commit.
 - [ ] Verify no hardcoded model IDs/tools.
-- [ ] Verify current host.ai capabilities available in runtime.
+- [ ] Verify current `host.ai` capabilities available in runtime.
+- [ ] Verify current chat/file data flow in `WorkbenchShell.tsx`, `useConversation.ts`, and `contextBuilder.ts`.
 - [ ] Document whether embedding host API exists.
 
 Gate:
@@ -12,19 +13,41 @@ Gate:
 ```bash
 cd /Users/sebastian/Projects/tytus-apps/tytus-app-atomek
 npm run typecheck
+! grep -R "minimax\|m2\.1\|m2\.7\|web_search" src --exclude-dir=node_modules
+! grep -R '"tools"[[:space:]]*:' src --exclude-dir=node_modules
 ```
 
-## Phase 1 — Chat UX repair
+## Phase 1 — IDE context spine
 
-Fix the core chat surface before building deeper Cortex retrieval. Details live in [`CHAT-UX.md`](./CHAT-UX.md).
+Build the dynamic connection between files, editor state, and chat before polishing chat UI. Details live in [`IDE-CONTEXT-CONTRACT.md`](./IDE-CONTEXT-CONTRACT.md).
+
+- [ ] Add `DocumentRegistry` for file/editor identity, URI/path, version, dirty state, language, active editor, and selection/range snapshots.
+- [ ] Increment document version/hash when Monaco content changes.
+- [ ] Track active editor and active selection/cursor changes.
+- [ ] Add `ChatContextStore` for explicit attachments plus implicit context policy.
+- [ ] Add context attachment types: active selection, active file, open editors, selected files, memory hit, future index hit.
+- [ ] Add context chip actions: remove, reveal file/range, inspect chars/tokens/stale version.
+- [ ] Refactor `buildAiContext()` so it uses per-request attachments/scope, not unconditional active/open files.
+- [ ] Keep no-context and active-context modes available per message.
+
+Gate:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+## Phase 2 — Chat UX repair
+
+Fix the chat surface so it behaves like an IDE-integrated assistant. Details live in [`CHAT-UX.md`](./CHAT-UX.md).
 
 - [ ] Add transcript follow mode and `Jump to latest`.
 - [ ] Make stream deltas visibly update the active assistant message.
 - [ ] Preserve scroll position when user intentionally reads older messages.
-- [ ] Add removable context chips and per-message context scope.
+- [ ] Render context chips from `ChatContextStore`, with remove/reveal/inspect.
 - [ ] Clean composer controls; move `Auto` / `Plan` out of the primary input lane.
-- [ ] Make edit-intent prompts open preview/apply when possible.
-- [ ] Keep model/routing controls dynamic through global AIL aliases.
+- [ ] Keep routing/model controls dynamic through global AIL aliases.
+- [ ] Add keyboard UX: Enter send, Shift+Enter newline, Escape stop/cancel where safe.
 
 Gate:
 
@@ -33,16 +56,37 @@ npm run typecheck
 npm run build
 ```
 
-## Phase 2 — Project index without embeddings
+## Phase 3 — Workspace edit pipeline
 
-Implement keyword/project index first so UX and chunking exist without waiting on host embeddings.
+Make edit prompts turn into actual interactive file changes.
 
-- [ ] Add chunker for open files.
+- [ ] Add `editIntent` detection for common edit/update/change/replace prompts.
+- [ ] When edit intent is detected, include strict diff/replacement instructions using current context attachments.
+- [ ] Extract existing patch/replacement parsing from `WorkbenchShell.tsx` into `workbench/edits/`.
+- [ ] Introduce `WorkspaceEditCandidate` with file id/path/base version/base hash/proposed content/skipped paths.
+- [ ] Preview single-file and multi-file edits automatically when parseable.
+- [ ] Apply through `WorkbenchEditService` with version/hash conflict checks.
+- [ ] Update Monaco buffers and mark files dirty; save remains explicit.
+- [ ] If AI returns prose only, show `Generate patch` CTA; never imply file changed.
+
+Gate:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+## Phase 4 — Project index without embeddings
+
+Implement keyword/project index on top of the context spine so workspace context exists without waiting on host embeddings.
+
+- [ ] Add chunker for open files and opened folder files.
 - [ ] Add index store abstraction.
 - [ ] Add keyword retrieval over indexed chunks.
 - [ ] Add “Index open files” / “Refresh index” UI.
 - [ ] Add status count: files/chunks/index freshness.
-- [ ] Add project context into chat requests.
+- [ ] Add project context as removable `index-hit` chips before send.
+- [ ] Respect binary/vendor/large-file skips.
 
 Gate:
 
@@ -51,9 +95,9 @@ npm run typecheck
 npm run build
 ```
 
-## Phase 3 — Embedding capability discovery
+## Phase 5 — Embedding capability discovery
 
-- [ ] Inspect TytusOS host.ai for embedding API.
+- [ ] Inspect TytusOS `host.ai` for embedding API.
 - [ ] If missing, design/add host API in TytusOS: `embedText` and optional model discovery capability.
 - [ ] Route embeddings through global AIL config/aliases.
 - [ ] No hardcoded embedding model in Atomek.
@@ -67,13 +111,13 @@ npm run typecheck --workspace app
 npm run test --workspace app -- src/runtime/ai/conversation-service.test.ts src/runtime/host-impl.test.ts
 ```
 
-## Phase 4 — Semantic retrieval
+## Phase 6 — Semantic retrieval
 
-- [ ] Embed chunks.
+- [ ] Embed chunks through dynamic AIL embedding alias/provider.
 - [ ] Persist vectors app-scoped.
 - [ ] Add cosine search.
 - [ ] Combine keyword + vector rankings.
-- [ ] Show retrieved context in chat UI for transparency.
+- [ ] Show retrieved context as removable chips with file paths/snippets/scores.
 
 Gate:
 
@@ -83,13 +127,14 @@ npm run typecheck
 npm run build
 ```
 
-## Phase 5 — Agentic edit loop v1
+## Phase 7 — Agentic edit/check loop v1
 
-- [ ] Add “Ask project” prompt mode.
+- [ ] Add “Ask project” prompt mode using indexed context.
 - [ ] Add “Generate patch” action.
-- [ ] Reuse preview/apply patch UI.
+- [ ] Reuse workspace edit preview/apply pipeline.
 - [ ] Add “Apply and mark unsaved” with save warning.
 - [ ] Add manual check command capture until host command runner exists.
+- [ ] If host command runner lands, run checks and feed failures back into follow-up prompt.
 
 Gate:
 
@@ -99,11 +144,23 @@ npm run build
 npm run release:check
 ```
 
-## Phase 6 — Release
+## Phase 8 — Release + live QA
 
+- [ ] Add/enable tests for context builder/store, patch parser, edit service, transcript follow mode.
+- [ ] Run all gates.
 - [ ] Bump Atomek version.
 - [ ] Build and release-check.
 - [ ] Commit/tag/push Atomek.
 - [ ] Update app catalog.
 - [ ] If TytusOS touched, update/vendored local runtime separately.
-- [ ] Live QA in Tytus.
+- [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
+
+Release gates:
+
+```bash
+npm run typecheck
+npm run build
+npm run release:check
+! grep -R "minimax\|m2\.1\|m2\.7\|web_search" src --exclude-dir=node_modules
+! grep -R '"tools"[[:space:]]*:' src --exclude-dir=node_modules
+```

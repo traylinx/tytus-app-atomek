@@ -13,9 +13,33 @@ Today, Atomek memory search is FTS5/BM25 only. No vectors.
 
 ## Proposed architecture
 
-### 0. Chat UX foundation
+### 0. IDE context foundation
 
-Before retrieval/indexing work, harden the chat component:
+Before retrieval/indexing work, build the production spine described in [`IDE-CONTEXT-CONTRACT.md`](./IDE-CONTEXT-CONTRACT.md):
+
+```text
+Monaco/File state
+  -> DocumentRegistry
+  -> ChatContextStore
+  -> ContextBuilder
+  -> useConversation
+  -> Chat renderer
+  -> WorkbenchEditService
+  -> Monaco/File state
+```
+
+Core requirements:
+
+- Track document identity, version, dirty state, active editor, and selection/ranges.
+- Represent context as explicit/removable attachments plus configurable implicit context.
+- Build request context from selected attachments/scope, not unconditional active/open files.
+- Attach selection/range before whole file when the user has selected code.
+- Reveal context chips in the editor and show stale/version warnings.
+- Move edit parsing/application into a service that can detect conflicts and update Monaco buffers.
+
+### 1. Chat UX foundation
+
+Then harden the chat component:
 
 ```text
 ChatPane
