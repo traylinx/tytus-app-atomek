@@ -1013,6 +1013,7 @@ export function WorkbenchShell({ host }: Props) {
             hasFsAccess={hasFileSystemAccessApi()}
             attachSkillToChat={attachSkillToChat}
             saveLocalJobOutput={saveLocalJobOutput}
+            activeFile={activeFile}
           />
           <div className="workbench-primary-resizer" onPointerDown={beginPrimaryResize} title="Resize Explorer" />
         </div>
@@ -1256,11 +1257,12 @@ function PrimarySidebar(props: {
   hasFsAccess: boolean;
   attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>;
   saveLocalJobOutput: (title: string, body: string) => void;
+  activeFile: WorkbenchFile | null;
 }) {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
   if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
   if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
-  if (props.activity === 'computer' || props.activity === 'extensions') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} />;
+  if (props.activity === 'computer' || props.activity === 'extensions') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
 
@@ -2403,14 +2405,72 @@ function WorkspacePatchReviewDialog({ patch, onApply, onOpenAsFiles, onClose }: 
 }
 
 
-function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }: { host: HostClient; setStatus: (status: string) => void; attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>; saveLocalJobOutput: (title: string, body: string) => void }) {
+function clipForLocalAgent(value: string, max = 9_000): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}\n\n[Atomek clipped ${value.length - max} chars for local agent context]`;
+}
+
+function buildLocalAgentContext(activeFile: WorkbenchFile | null, openEditors: WorkbenchFile[]): string {
+  const lines: string[] = [
+    'Atomek local agent context:',
+    '- You are being launched from Atomek, the TytusOS workspace/chat app.',
+    '- Do not write files directly. Return findings, markdown, unified diffs, or fenced replacement blocks. Atomek previews edits before applying.',
+  ];
+  if (activeFile) {
+    lines.push('', `Active file: ${activeFile.path}`, `Language: ${activeFile.language}`, `Dirty: ${activeFile.dirty ? 'yes' : 'no'}`, '', 'Active file content:', '```' + activeFile.language, clipForLocalAgent(activeFile.content), '```');
+  } else if (openEditors.length > 0) {
+    lines.push('', `Open editors (${openEditors.length}):`);
+    for (const file of openEditors.slice(0, 8)) lines.push(`- ${file.path} (${file.language}, ${file.content.length} chars${file.dirty ? ', dirty' : ''})`);
+  } else {
+    lines.push('', 'No file is open. Ask clarifying questions only if the prompt cannot be answered safely.');
+  }
+  return lines.join('\n');
+}
+
+function cwdForLocalAgent(activeFile: WorkbenchFile | null): string | undefined {
+  if (!activeFile?.path.startsWith('/')) return undefined;
+  const slash = activeFile.path.lastIndexOf('/');
+  return slash > 0 ? activeFile.path.slice(0, slash) : undefined;
+}
+
+function actionLabelForTool(tool: AtomekLocalTool): string {
+  if (tool.kind === 'terminal') return 'Open Terminal';
+  return `Open ${tool.label}`;
+}
+
+function backgroundJobLabelForTool(tool: AtomekLocalTool, runningToolId: string | null): string {
+  if (runningToolId === tool.id) return `${tool.label} running…`;
+  return `Ask ${tool.label}`;
+}
+
+function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput, activeFile, openEditors }: { host: HostClient; setStatus: (status: string) => void; attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>; saveLocalJobOutput: (title: string, body: string) => void; activeFile: WorkbenchFile | null; openEditors: WorkbenchFile[] }) {
   const [tools, setTools] = useState<AtomekLocalTool[]>([]);
   const [skills, setSkills] = useState<AtomekSkillSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [jobPrompt, setJobPrompt] = useState('Inspect this workspace/task and return actionable findings. If you propose edits, output a unified diff that Atomek can preview.');
+  const [jobPrompt, setJobPrompt] = useState('Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.');
   const [runningToolId, setRunningToolId] = useState<string | null>(null);
   const [jobLog, setJobLog] = useState('');
+  const dirtyCount = openEditors.filter((file) => file.dirty).length;
+  const contextSummary = activeFile
+    ? `${activeFile.path} · ${activeFile.language} · ${activeFile.content.length.toLocaleString()} chars${activeFile.dirty ? ' · dirty' : ''}`
+    : openEditors.length > 0
+      ? `${openEditors.length} open editor${openEditors.length === 1 ? '' : 's'}${dirtyCount ? ` · ${dirtyCount} dirty` : ''}`
+      : 'No active file — jobs run with only your typed prompt.';
+  const jobPresets = useMemo(() => [
+    {
+      label: 'Review active file',
+      prompt: 'Review the active file for bugs, missing edge cases, confusing UX, and production risks. Return prioritized findings with exact file/line references when possible.',
+    },
+    {
+      label: 'Plan patch',
+      prompt: 'Propose the smallest safe patch for the active Atomek context. Output a unified diff only if you are confident; otherwise list the exact files/functions to change.',
+    },
+    {
+      label: 'Explain architecture',
+      prompt: 'Explain how the active file/context fits into the TytusOS/Atomek architecture. Point out any integration seams that do not make sense.',
+    },
+  ], []);
 
   const load = useCallback(async () => {
     if (!host.local?.listTools && !host.skills?.list) {
@@ -2452,12 +2512,17 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
       return;
     }
     try {
-      await host.local.openTerminal({ toolId: tool.id, command: tool.command });
-      setStatus(`Opened ${tool.label} in Tytus Terminal`);
+      await host.local.openTerminal({
+        toolId: tool.id,
+        command: tool.command,
+        cwd: cwdForLocalAgent(activeFile),
+        prompt: `Opened from Atomek. ${contextSummary}`,
+      });
+      setStatus(`Opened ${tool.label} interactively in Tytus Terminal`);
     } catch (err) {
       setStatus(`Terminal launch failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [host.local, setStatus]);
+  }, [activeFile, contextSummary, host.local, setStatus]);
 
   const runLocalJob = useCallback(async (tool: AtomekLocalTool) => {
     if (!host.local?.runJob || !host.local?.streamJob) {
@@ -2475,7 +2540,8 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
       const job = await host.local.runJob({
         toolId: tool.id,
         prompt,
-        context: 'Atomek Computer / Agents panel. Return text or unified diff; do not write files directly.',
+        cwd: cwdForLocalAgent(activeFile),
+        context: buildLocalAgentContext(activeFile, openEditors),
       });
       const lines: string[] = [];
       host.local.streamJob(job.id, {
@@ -2511,7 +2577,7 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
       setRunningToolId(null);
       setStatus(`Local job failed to start: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [host.local, jobPrompt, saveLocalJobOutput, setStatus]);
+  }, [activeFile, host.local, jobPrompt, openEditors, saveLocalJobOutput, setStatus]);
 
   return (
     <aside className="workbench-sidebar">
@@ -2520,8 +2586,8 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
         <div className="workbench-computer-hero">
           <Bot size={18} />
           <div>
-            <strong>Tytus controls the computer</strong>
-            <p className="workbench-muted">Atomek discovers local tools, app skills, and terminal launchers through the same-origin Tytus bridge. No raw browser shell. No hardcoded models.</p>
+            <strong>Computer cockpit</strong>
+            <p className="workbench-muted">Use installed local agents and app skills against the active Atomek file/context. Tytus launches only allowlisted tools through the same-origin bridge. No raw browser shell. No hardcoded models.</p>
           </div>
         </div>
         <button className="workbench-button-subtle workbench-computer-refresh" onClick={() => { void load(); }} disabled={loading}>
@@ -2529,7 +2595,18 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
         </button>
         {error && <div className="workbench-inline-error">{error}</div>}
 
-        <div className="workbench-section-title">LOCAL JOB PROMPT</div>
+        <div className="workbench-section-title">ACTIVE CONTEXT</div>
+        <div className="workbench-computer-context-card">
+          <strong>{contextSummary}</strong>
+          <span>{activeFile ? 'Local agents receive clipped active-file content and must return previewable edits.' : 'Open a file to give local agents useful context.'}</span>
+        </div>
+
+        <div className="workbench-section-title">TASK FOR LOCAL AGENT</div>
+        <div className="workbench-computer-presets">
+          {jobPresets.map((preset) => (
+            <button key={preset.label} className="workbench-button-subtle" onClick={() => setJobPrompt(preset.prompt)}>{preset.label}</button>
+          ))}
+        </div>
         <textarea
           className="workbench-computer-job-prompt"
           value={jobPrompt}
@@ -2538,7 +2615,7 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
         />
         {jobLog ? <pre className="workbench-computer-job-log">{jobLog}</pre> : null}
 
-        <div className="workbench-section-title">LOCAL TOOLS</div>
+        <div className="workbench-section-title">LOCAL AGENTS & TOOLS</div>
         <div className="workbench-computer-list">
           {tools.length === 0 && !loading ? <p className="workbench-muted">No local tools reported yet.</p> : null}
           {tools.map((tool) => (
@@ -2551,14 +2628,16 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
                 <span className={`workbench-computer-pill ${tool.status}`}>{tool.status}</span>
               </div>
               {tool.description ? <p className="workbench-muted">{tool.description}</p> : null}
-              <button className="workbench-button-subtle" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'}>
-                Open in Terminal
-              </button>
-              {tool.kind === 'ai-cli' ? (
-                <button className="workbench-button-subtle" onClick={() => { void runLocalJob(tool); }} disabled={tool.status !== 'available' || runningToolId !== null}>
-                  {runningToolId === tool.id ? 'Running…' : 'Run local job'}
+              <div className="workbench-computer-actions">
+                <button className="workbench-button-subtle" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'} title="Launch this tool in the real Tytus terminal with current Atomek context prefilled.">
+                  {actionLabelForTool(tool)}
                 </button>
-              ) : null}
+                {tool.kind === 'ai-cli' ? (
+                  <button className="workbench-button-subtle" onClick={() => { void runLocalJob(tool); }} disabled={tool.status !== 'available' || runningToolId !== null} title="Run this local agent headlessly and stream output back into Atomek Outputs. It cannot write files directly.">
+                    {backgroundJobLabelForTool(tool, runningToolId)}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -2581,8 +2660,8 @@ function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }
                   {skill.triggers.slice(0, 4).map((trigger) => <span key={trigger}>{trigger}</span>)}
                 </div>
               ) : null}
-              <button className="workbench-button-subtle" onClick={() => { void attachSkillToChat(skill); }} disabled={skill.status === 'missing'}>
-                Attach to chat
+              <button className="workbench-button-subtle" onClick={() => { void attachSkillToChat(skill); }} disabled={skill.status === 'missing'} title="Insert this skill's instructions into chat so Atomek can use the app/tool correctly.">
+                Use in chat
               </button>
             </div>
           ))}

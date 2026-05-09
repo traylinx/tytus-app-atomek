@@ -1307,6 +1307,44 @@ button { font: inherit; }
   margin-bottom: 12px;
 }
 .workbench-computer-list { display: grid; gap: 8px; margin: 8px 0 14px; }
+.workbench-computer-context-card {
+  border: 1px solid rgba(124, 77, 255, 0.28);
+  background: rgba(124, 77, 255, 0.08);
+  border-radius: var(--tytus-radius-sm, 8px);
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  min-width: 0;
+}
+.workbench-computer-context-card strong,
+.workbench-computer-context-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workbench-computer-context-card span {
+  color: var(--workbench-muted);
+  font-size: 11px;
+}
+.workbench-computer-presets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.workbench-computer-presets .workbench-button-subtle {
+  justify-content: flex-start;
+  text-align: left;
+}
+.workbench-computer-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.workbench-computer-actions .workbench-button-subtle {
+  justify-content: center;
+}
+
 .workbench-computer-job-prompt {
   width: 100%;
   min-height: 92px;
