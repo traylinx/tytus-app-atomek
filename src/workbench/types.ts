@@ -1,4 +1,4 @@
-export type ActivityView = 'explorer' | 'search' | 'source-control' | 'run' | 'extensions';
+export type ActivityView = 'explorer' | 'search' | 'source-control' | 'run' | 'computer' | 'extensions';
 export type SecondaryTab = 'chat' | 'outputs';
 
 export type ChatGatewayPreference = 'auto' | 'remote' | 'local';

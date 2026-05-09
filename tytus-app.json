@@ -2,10 +2,10 @@
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
   "id": "atomek",
   "name": "Atomek",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "icon": "Sparkles",
   "category": "Productivity",
-  "description": "Atomek — Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, markdown preview, and AI edit previews.",
+  "description": "Atomek \u2014 Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, AI edit previews, and Tytus computer/agent controller.",
   "window": {
     "defaultSize": {
       "width": 1200,
@@ -28,7 +28,7 @@
     "ai.artifacts"
   ],
   "entry": {
-    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.5/dist/index.js"
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.6/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [
@@ -67,6 +67,53 @@
       {
         "extension": ".html",
         "mimeType": "text/html"
+      }
+    ],
+    "agentSkills": [
+      {
+        "id": "atomek.inspect-project",
+        "title": "Inspect Atomek workspace",
+        "description": "Inspect open files, selected content, project index, and Cortex context safely.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.inspect-project.md",
+        "triggers": [
+          "inspect",
+          "project",
+          "workspace",
+          "files",
+          "context"
+        ]
+      },
+      {
+        "id": "atomek.generate-patch-preview",
+        "title": "Generate Atomek patch preview",
+        "description": "Generate diff/replacement output that Atomek can convert into preview edits before applying.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.generate-patch-preview.md",
+        "triggers": [
+          "patch",
+          "edit",
+          "preview",
+          "diff",
+          "apply"
+        ]
+      },
+      {
+        "id": "atomek.local-agent-job",
+        "title": "Run local agent job",
+        "description": "Run allowlisted local AI CLIs through Tytus tray and stream output back into Atomek.",
+        "driver": "local-job",
+        "skillUrl": "skills/atomek.local-agent-job.md",
+        "triggers": [
+          "agent",
+          "job",
+          "local",
+          "codex",
+          "claude",
+          "opencode",
+          "pi",
+          "kimi"
+        ]
       }
     ]
   }

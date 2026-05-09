@@ -1,0 +1,42 @@
+{
+  "id": "2026-05-09-atomek-computer-controller",
+  "title": "Atomek Computer Controller",
+  "status": "COMPLETE",
+  "created": "2026-05-09",
+  "repos": [
+    "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-os",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-cli",
+    "/Users/sebastian/Projects/tytus-apps/tytus-app-catalog"
+  ],
+  "merged_draft_folders": [
+    "2026-05-09-atomek-local-agent-runtime",
+    "2026-05-09-agentic-app-skills"
+  ],
+  "phases": [
+    "contracts-and-discovery-endpoints",
+    "atomek-computer-skills-panel",
+    "terminal-launch-with-context",
+    "headless-local-job-runner",
+    "patch-artifact-integration",
+    "first-party-app-skills-release"
+  ],
+  "completed": "2026-05-09",
+  "releaseVersion": "0.4.6",
+  "implementedEndpoints": [
+    "GET /api/local/tools",
+    "POST /api/local/jobs",
+    "GET /api/skills",
+    "GET /api/skills/:id",
+    "POST /api/skills/resolve"
+  ],
+  "gates": [
+    "tytus-app-atomek npm run typecheck",
+    "tytus-app-atomek npm run build",
+    "tytus-app-atomek npm run verify:cortex",
+    "tytus-app-atomek npm run release:check",
+    "tytus-os npm run typecheck",
+    "tytus-os targeted vitest",
+    "tytus-cli cargo check -p tytus-tray"
+  ]
+}
