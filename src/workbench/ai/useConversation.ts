@@ -13,6 +13,7 @@ type ConversationOpts = {
 
 const WORKSPACE_KEY = 'atomek:default';
 const MAX_MEMORY_CHARS = 3_000;
+const THREAD_TITLE_OVERRIDES_KEY = 'tytus.atomek.threadTitleOverrides';
 
 const fallbackStatus: AiStatus = {
   available: false,
@@ -69,6 +70,47 @@ const memoryContextPart = (hits: AiMemoryHit[]): AiContextPart | null => {
       clip(hit.body, 900),
     ].join('\n')).join('\n\n---\n\n'),
   };
+};
+
+const readThreadTitleOverrides = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(THREAD_TITLE_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .filter(([, value]) => typeof value === 'string' && value.trim())
+        .map(([key, value]) => [key, String(value)]),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const writeThreadTitleOverride = (threadId: string, title: string): void => {
+  try {
+    const overrides = readThreadTitleOverrides();
+    overrides[threadId] = title;
+    localStorage.setItem(THREAD_TITLE_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch {
+    // Local-only compatibility fallback; ignore storage failures.
+  }
+};
+
+const deleteThreadTitleOverride = (threadId: string): void => {
+  try {
+    const overrides = readThreadTitleOverrides();
+    delete overrides[threadId];
+    localStorage.setItem(THREAD_TITLE_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch {
+    // Local-only compatibility fallback; ignore storage failures.
+  }
+};
+
+const applyThreadTitleOverrides = (items: AiThread[]): AiThread[] => {
+  const overrides = readThreadTitleOverrides();
+  return items.map((item) => overrides[item.id] ? { ...item, title: overrides[item.id] } : item);
 };
 
 export function useConversation({ host, activeFile, openEditors, chatSettings, setStatus }: ConversationOpts) {
@@ -131,7 +173,7 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
   const loadThread = useCallback(async () => {
     if (!ai) return;
     try {
-      const existing = await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' });
+      const existing = applyThreadTitleOverrides(await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' }));
       const selected = existing[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
       if (!mounted.current) return;
       setThreads(existing[0] ? existing : [selected]);
@@ -181,19 +223,27 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
     const nextTitle = title.trim();
     if (!nextTitle) return;
     try {
-      const updated = await ai.updateThread({ threadId, title: nextTitle });
+      const updateThread = (ai as typeof ai & { updateThread?: (input: { threadId: string; title?: string }) => Promise<AiThread> }).updateThread;
+      const existing = threads.find((item) => item.id === threadId) ?? thread;
+      const updated = typeof updateThread === 'function'
+        ? await updateThread({ threadId, title: nextTitle })
+        : { ...(existing ?? await ensureThread()), id: threadId, title: nextTitle, updatedAt: Date.now() } as AiThread;
+      if (typeof updateThread !== 'function') writeThreadTitleOverride(threadId, nextTitle);
       setThreads((current) => current.map((item) => item.id === updated.id ? updated : item));
       setThread((current) => current?.id === updated.id ? updated : current);
-      setStatus(`Renamed chat: ${updated.title}`);
+      setStatus(typeof updateThread === 'function'
+        ? `Renamed chat: ${updated.title}`
+        : `Renamed chat locally: ${updated.title}`);
     } catch (err) {
       setStatus(`Rename chat failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [ai, setStatus]);
+  }, [ai, ensureThread, setStatus, thread, threads]);
 
   const deleteThread = useCallback(async (threadId: string) => {
     if (!ai) return;
     try {
       await ai.deleteThread(threadId);
+      deleteThreadTitleOverride(threadId);
       const remaining = threads.filter((item) => item.id !== threadId);
       setThreads(remaining);
       if (thread?.id === threadId) {
@@ -321,7 +371,7 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
           }
         }
       }
-      const refreshedThreads = await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' }).catch(() => [] as AiThread[]);
+      const refreshedThreads = applyThreadTitleOverrides(await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' }).catch(() => [] as AiThread[]));
       if (mounted.current && refreshedThreads.length > 0) setThreads(refreshedThreads);
       void refreshStatus();
       return finalAssistant;
