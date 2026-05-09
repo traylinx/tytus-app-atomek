@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AiArtifact, AiContextPart, AiMemoryHit, AiMessage, AiStatus, AiThread, HostClient } from '@tytus/host-api';
-import type { ChatAiSettings, ChatMessage, OutputArtifact, WorkbenchFile } from '../types';
-import { buildAiContext } from './contextBuilder';
+import type { ChatAiSettings, ChatMessage, OutputArtifact } from '../types';
 
 type ConversationOpts = {
   host: HostClient;
-  activeFile: WorkbenchFile | null;
-  openEditors: readonly WorkbenchFile[];
+  requestContext: readonly AiContextPart[];
   chatSettings: ChatAiSettings;
   setStatus: (status: string) => void;
 };
@@ -113,7 +111,7 @@ const applyThreadTitleOverrides = (items: AiThread[]): AiThread[] => {
   return items.map((item) => overrides[item.id] ? { ...item, title: overrides[item.id] } : item);
 };
 
-export function useConversation({ host, activeFile, openEditors, chatSettings, setStatus }: ConversationOpts) {
+export function useConversation({ host, requestContext, chatSettings, setStatus }: ConversationOpts) {
   const ai = host.ai;
   const [thread, setThread] = useState<AiThread | null>(null);
   const [threads, setThreads] = useState<AiThread[]>([]);
@@ -124,8 +122,6 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
-
-  const context = useMemo(() => buildAiContext(activeFile, openEditors), [activeFile, openEditors]);
 
   const refreshStatus = useCallback(async () => {
     if (!ai) {
@@ -332,14 +328,14 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
       if (!activeThread) return null;
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
-      const requestContext = memoryPart ? [...context, memoryPart] : context;
+      const contextParts = memoryPart ? [...requestContext, memoryPart] : [...requestContext];
       let assistantId: string | null = null;
       for await (const event of ai.sendMessage({
         threadId: activeThread.id,
         body,
         gatewayPreference: chatSettings.gatewayPreference,
         model: chatSettings.model.trim() || undefined,
-        context: requestContext,
+        context: contextParts,
         signal: controller.signal,
       })) {
         if (event.type === 'message_created') {
@@ -350,9 +346,20 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
         }
         if (event.type === 'token') {
           assistantId = event.messageId;
-          setMessages((current) => current.map((m) =>
-            m.id === event.messageId ? { ...m, body: event.body, status: 'streaming' } : m,
-          ));
+          setMessages((current) => {
+            if (current.some((m) => m.id === event.messageId)) {
+              return current.map((m) =>
+                m.id === event.messageId ? { ...m, body: event.body, status: 'streaming' } : m,
+              );
+            }
+            return [...current, {
+              id: event.messageId,
+              role: 'assistant',
+              body: event.body,
+              status: 'streaming',
+              createdAt: Date.now(),
+            }];
+          });
         }
         if (event.type === 'message_updated' || event.type === 'done') {
           const chat = toChatMessage(event.message);
@@ -365,9 +372,12 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
           const stopped = controller.signal.aborted;
           setStatus(stopped ? 'AI response stopped' : `AI failed: ${event.error}`);
           if (assistantId) {
-            setMessages((current) => current.map((m) =>
-              m.id === assistantId ? { ...m, status: 'error', error: event.error, body: stopped ? 'Stopped by user.' : event.error } : m,
-            ));
+            setMessages((current) => current.map((m) => {
+              if (m.id !== assistantId) return m;
+              return stopped
+                ? { ...m, status: 'complete', error: undefined, body: m.body || 'Stopped by user.' }
+                : { ...m, status: 'error', error: event.error, body: event.error };
+            }));
           }
         }
       }
@@ -386,7 +396,7 @@ export function useConversation({ host, activeFile, openEditors, chatSettings, s
       if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
     }
-  }, [ai, chatSettings.gatewayPreference, chatSettings.model, context, ensureThread, recall, refreshStatus, setStatus]);
+  }, [ai, chatSettings.gatewayPreference, chatSettings.model, ensureThread, recall, refreshStatus, requestContext, setStatus]);
 
   const stopChat = useCallback(() => {
     abortRef.current?.abort();

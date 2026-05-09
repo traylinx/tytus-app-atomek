@@ -2,11 +2,11 @@
 
 ## Phase 0 — Baseline audit
 
-- [ ] Verify current Atomek version/commit.
-- [ ] Verify no hardcoded model IDs/tools.
-- [ ] Verify current `host.ai` capabilities available in runtime.
-- [ ] Verify current chat/file data flow in `WorkbenchShell.tsx`, `useConversation.ts`, and `contextBuilder.ts`.
-- [ ] Document whether embedding host API exists.
+- [x] Verify current Atomek version/commit.
+- [x] Verify no hardcoded model IDs/tools.
+- [x] Verify current `host.ai` capabilities available in runtime.
+- [x] Verify current chat/file data flow in `WorkbenchShell.tsx`, `useConversation.ts`, and `contextBuilder.ts`.
+- [x] Document whether embedding host API exists.
 
 Gate:
 
@@ -21,14 +21,14 @@ npm run typecheck
 
 Build the dynamic connection between files, editor state, and chat before polishing chat UI. Details live in [`IDE-CONTEXT-CONTRACT.md`](./IDE-CONTEXT-CONTRACT.md).
 
-- [ ] Add `DocumentRegistry` for file/editor identity, URI/path, version, dirty state, language, active editor, and selection/range snapshots.
-- [ ] Increment document version/hash when Monaco content changes.
-- [ ] Track active editor and active selection/cursor changes.
-- [ ] Add `ChatContextStore` for explicit attachments plus implicit context policy.
-- [ ] Add context attachment types: active selection, active file, open editors, selected files, memory hit, future index hit.
-- [ ] Add context chip actions: remove, reveal file/range, inspect chars/tokens/stale version.
-- [ ] Refactor `buildAiContext()` so it uses per-request attachments/scope, not unconditional active/open files.
-- [ ] Keep no-context and active-context modes available per message.
+- [x] Add `DocumentRegistry` for file/editor identity, URI/path, version, dirty state, language, active editor, and selection/range snapshots.
+- [x] Increment document version/hash when Monaco content changes.
+- [x] Track active editor and active selection/cursor changes.
+- [x] Add `ChatContextStore` for explicit attachments plus implicit context policy.
+- [x] Add context attachment types: active selection, active file, open editors, selected files, memory hit, future index hit.
+- [x] Add context chip actions: remove, reveal file/range, inspect chars/tokens/stale version.
+- [x] Refactor `buildAiContext()` so it uses per-request attachments/scope, not unconditional active/open files.
+- [x] Keep no-context and active-context modes available per message.
 
 Gate:
 
@@ -41,13 +41,13 @@ npm run build
 
 Fix the chat surface so it behaves like an IDE-integrated assistant. Details live in [`CHAT-UX.md`](./CHAT-UX.md).
 
-- [ ] Add transcript follow mode and `Jump to latest`.
-- [ ] Make stream deltas visibly update the active assistant message.
-- [ ] Preserve scroll position when user intentionally reads older messages.
-- [ ] Render context chips from `ChatContextStore`, with remove/reveal/inspect.
+- [x] Add transcript follow mode and `Jump to latest`.
+- [x] Make stream deltas visibly update the active assistant message.
+- [x] Preserve scroll position when user intentionally reads older messages.
+- [x] Render context chips from `ChatContextStore`, with remove/reveal/inspect.
 - [ ] Clean composer controls; move `Auto` / `Plan` out of the primary input lane.
-- [ ] Keep routing/model controls dynamic through global AIL aliases.
-- [ ] Add keyboard UX: Enter send, Shift+Enter newline, Escape stop/cancel where safe.
+- [x] Keep routing/model controls dynamic through global AIL aliases.
+- [x] Add keyboard UX: Enter send, Shift+Enter newline, Escape stop/cancel where safe.
 
 Gate:
 
@@ -60,11 +60,11 @@ npm run build
 
 Make edit prompts turn into actual interactive file changes.
 
-- [ ] Add `editIntent` detection for common edit/update/change/replace prompts.
+- [x] Add `editIntent` detection for common edit/update/change/replace prompts.
 - [ ] When edit intent is detected, include strict diff/replacement instructions using current context attachments.
 - [ ] Extract existing patch/replacement parsing from `WorkbenchShell.tsx` into `workbench/edits/`.
 - [ ] Introduce `WorkspaceEditCandidate` with file id/path/base version/base hash/proposed content/skipped paths.
-- [ ] Preview single-file and multi-file edits automatically when parseable.
+- [x] Preview single-file and multi-file edits automatically when parseable.
 - [ ] Apply through `WorkbenchEditService` with version/hash conflict checks.
 - [ ] Update Monaco buffers and mark files dirty; save remains explicit.
 - [ ] If AI returns prose only, show `Generate patch` CTA; never imply file changed.

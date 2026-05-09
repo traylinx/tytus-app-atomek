@@ -73,3 +73,10 @@ export type OutputArtifact = {
 };
 
 export type CursorPosition = { lineNumber: number; column: number };
+
+export type WorkbenchRange = {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+};

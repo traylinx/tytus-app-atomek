@@ -1,5 +1,5 @@
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { AiThread, HostClient } from '@tytus/host-api';
 import {
@@ -32,8 +32,12 @@ import {
 import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder } from '../types';
+import type { ActivityView, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
+import { buildDocumentRegistry } from '../context/documentRegistry';
+import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
+import type { ChatContextAttachment, ChatContextScope, ChatContextState } from '../context/chatContextStore';
+import { buildAiContext } from '../context/contextBuilder';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
 
@@ -97,6 +101,10 @@ export function WorkbenchShell({ host }: Props) {
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState<CursorPosition>({ lineNumber: 1, column: 1 });
+  const [activeSelection, setActiveSelection] = useState<WorkbenchRange | null>(null);
+  const [documentVersions, setDocumentVersions] = useState<Record<string, number>>({});
+  const [chatContextScope, setChatContextScope] = useState<ChatContextScope>(DEFAULT_CHAT_CONTEXT_SCOPE);
+  const [removedContextAttachmentIds, setRemovedContextAttachmentIds] = useState<string[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
@@ -112,7 +120,14 @@ export function WorkbenchShell({ host }: Props) {
 
   const openEditors = openEditorIds.map((id) => files.find((file) => file.id === id)).filter(Boolean) as WorkbenchFile[];
   const activeFile = activeFileId ? files.find((file) => file.id === activeFileId) ?? null : null;
-  const ai = useConversation({ host, activeFile, openEditors, chatSettings, setStatus });
+  const documentRegistry = useMemo(() => buildDocumentRegistry({ files, openEditorIds, activeFileId, versions: documentVersions, activeSelection }), [activeFileId, activeSelection, documentVersions, files, openEditorIds]);
+  const chatContextState = useMemo<ChatContextState>(() => ({
+    scope: chatContextScope,
+    removedAttachmentIds: removedContextAttachmentIds,
+    selectedFileIds: [],
+  }), [chatContextScope, removedContextAttachmentIds]);
+  const builtChatContext = useMemo(() => buildAiContext(documentRegistry, files, chatContextState), [chatContextState, documentRegistry, files]);
+  const ai = useConversation({ host, requestContext: builtChatContext.parts, chatSettings, setStatus });
   const combinedOutputs = useMemo(
     () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
     [ai.artifacts, outputs],
@@ -125,6 +140,27 @@ export function WorkbenchShell({ host }: Props) {
     return files.filter((file) => file.path.toLowerCase().includes(needle));
   }, [files, query]);
 
+  useEffect(() => {
+    setDocumentVersions((current) => {
+      const next: Record<string, number> = {};
+      for (const file of files) next[file.id] = current[file.id] ?? 1;
+      return next;
+    });
+  }, [files]);
+
+  useEffect(() => {
+    setRemovedContextAttachmentIds([]);
+  }, [activeFileId, chatContextScope, openEditorIds]);
+
+  const removeContextAttachment = useCallback((attachment: ChatContextAttachment) => {
+    setRemovedContextAttachmentIds((ids) => ids.includes(attachment.id) ? ids : [...ids, attachment.id]);
+    setStatus(`Removed chat context: ${attachment.label}`);
+  }, []);
+
+
+  const bumpDocumentVersion = useCallback((fileId: string) => {
+    setDocumentVersions((current) => ({ ...current, [fileId]: (current[fileId] ?? 1) + 1 }));
+  }, []);
 
   const beginSecondaryResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -172,6 +208,14 @@ export function WorkbenchShell({ host }: Props) {
     setCursor({ lineNumber: lineNumber ?? 1, column: 1 });
   }, []);
 
+  const revealContextAttachment = useCallback((attachment: ChatContextAttachment) => {
+    if (!attachment.fileId) return;
+    const target = files.find((file) => file.id === attachment.fileId);
+    if (!target) return;
+    openWorkbenchFile(target, attachment.range?.startLineNumber ?? 1);
+    setStatus(`Revealed context: ${attachment.label}`);
+  }, [files, openWorkbenchFile]);
+
   const handleOpenFile = useCallback(async () => {
     if (!confirmDiscardDirty(dirtyFiles, 'open new files')) return;
     try {
@@ -204,8 +248,15 @@ export function WorkbenchShell({ host }: Props) {
 
   const updateActiveFile = useCallback((content: string) => {
     if (!activeFileId) return;
-    setFiles((current) => current.map((file) => file.id === activeFileId ? { ...file, content, dirty: content !== file.content || file.dirty } : file));
-  }, [activeFileId]);
+    let changed = false;
+    setFiles((current) => current.map((file) => {
+      if (file.id !== activeFileId) return file;
+      if (file.content === content) return file;
+      changed = true;
+      return { ...file, content, dirty: true };
+    }));
+    if (changed) bumpDocumentVersion(activeFileId);
+  }, [activeFileId, bumpDocumentVersion]);
 
   const saveActiveFile = useCallback(async () => {
     if (!activeFile) return;
@@ -254,7 +305,10 @@ export function WorkbenchShell({ host }: Props) {
     }
     setOpenEditorIds((ids) => {
       const next = ids.filter((editorId) => editorId !== id);
-      if (activeFileId === id) setActiveFileId(next.at(-1) ?? null);
+      if (activeFileId === id) {
+        setActiveFileId(next.at(-1) ?? null);
+        setActiveSelection(null);
+      }
       return next;
     });
   }, [activeFileId, files]);
@@ -323,13 +377,6 @@ export function WorkbenchShell({ host }: Props) {
     }
     setStatus('Browser security requires permission again — use Open File or Open Folder to reopen local content.');
   }, [files, openWorkbenchFile]);
-
-  const askAgent = useCallback(() => {
-    const prompt = chatInput.trim();
-    if (!prompt) return;
-    setChatInput('');
-    void ai.askAgent(prompt);
-  }, [ai, chatInput]);
 
   const askAiWithPrompt = useCallback((prompt: string) => {
     setSecondaryVisible(true);
@@ -402,28 +449,28 @@ export function WorkbenchShell({ host }: Props) {
     setStatus(`Opened ${output.title} as editable file`);
   }, [files, openWorkbenchFile]);
 
-  const previewEditFromText = useCallback((sourceTitle: string, body: string) => {
+  const previewEditFromText = useCallback((sourceTitle: string, body: string): boolean => {
     const workspacePatch = extractWorkspacePatch(body, files, sourceTitle);
     if (workspacePatch.edits.length > 1) {
       setPendingWorkspacePatch(workspacePatch);
       setPendingEdit(null);
       setStatus(`Previewing AI workspace patch for ${workspacePatch.edits.length} files`);
-      return;
+      return true;
     }
     if (workspacePatch.edits.length === 1) {
       setPendingEdit(workspacePatch.edits[0]);
       setPendingWorkspacePatch(null);
       setStatus(`Previewing AI patch for ${workspacePatch.edits[0].fileName}`);
-      return;
+      return true;
     }
     if (!activeFile) {
       setStatus('Open a file before previewing an AI edit, or ask Atomek for a git-style diff against opened files.');
-      return;
+      return false;
     }
     const extracted = extractEditableSuggestion(body, activeFile);
     if (!extracted) {
       setStatus('No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again.');
-      return;
+      return false;
     }
     setPendingWorkspacePatch(null);
     setPendingEdit({
@@ -436,7 +483,20 @@ export function WorkbenchShell({ host }: Props) {
       stats: diffStats(activeFile.content, extracted.content),
     });
     setStatus(`Previewing AI edit for ${activeFile.name}`);
+    return true;
   }, [activeFile, files]);
+
+  const askAgent = useCallback(() => {
+    const prompt = chatInput.trim();
+    if (!prompt) return;
+    setChatInput('');
+    const shouldAutoPreviewEdit = looksLikeEditPrompt(prompt);
+    void ai.askAgent(prompt).then((message) => {
+      if (!shouldAutoPreviewEdit || !message || message.status === 'error') return;
+      const ok = previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek edit', message.body);
+      if (!ok) setStatus('Edit request answered without a patch. Use Generate patch / Edit to request an applicable diff.');
+    });
+  }, [ai, chatInput, previewEditFromText]);
 
   const applyPendingEdit = useCallback(() => {
     if (!pendingEdit) return;
@@ -451,10 +511,11 @@ export function WorkbenchShell({ host }: Props) {
       if (!proceed) return;
     }
     setFiles((currentFiles) => currentFiles.map((file) => file.id === pendingEdit.fileId ? { ...file, content: pendingEdit.proposedContent, dirty: true } : file));
+    bumpDocumentVersion(pendingEdit.fileId);
     setAiDirtyNotice(`AI edit applied to ${current.name}. Save All to persist it to disk.`);
     setPendingEdit(null);
     setStatus(`Applied AI edit to ${current.name} — unsaved`);
-  }, [files, pendingEdit]);
+  }, [bumpDocumentVersion, files, pendingEdit]);
 
   const openPendingEditAsFile = useCallback(() => {
     if (!pendingEdit) return;
@@ -489,10 +550,11 @@ export function WorkbenchShell({ host }: Props) {
       const edit = editsById.get(file.id);
       return edit ? { ...file, content: edit.proposedContent, dirty: true } : file;
     }));
+    editsById.forEach((_, fileId) => bumpDocumentVersion(fileId));
     setAiDirtyNotice(`AI workspace patch applied to ${editsById.size} file${editsById.size === 1 ? '' : 's'}. Save All to persist changes.`);
     setPendingWorkspacePatch(null);
     setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'} — unsaved`);
-  }, [files, pendingWorkspacePatch]);
+  }, [bumpDocumentVersion, files, pendingWorkspacePatch]);
 
   const openWorkspacePatchAsFiles = useCallback(() => {
     if (!pendingWorkspacePatch) return;
@@ -641,6 +703,7 @@ export function WorkbenchShell({ host }: Props) {
                       revealLine={revealLine}
                       onChange={updateActiveFile}
                       onCursorChange={setCursor}
+                      onSelectionChange={setActiveSelection}
                       onSave={() => { void saveActiveFile(); }}
                     />
                   </Suspense>
@@ -706,6 +769,11 @@ export function WorkbenchShell({ host }: Props) {
           deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
           host={host}
           activeFile={activeFile}
+          contextScope={chatContextScope}
+          setContextScope={setChatContextScope}
+          contextAttachments={builtChatContext.attachments}
+          removeContextAttachment={removeContextAttachment}
+          revealContextAttachment={revealContextAttachment}
           onResizeStart={beginSecondaryResize}
           onClose={() => setSecondaryVisible(false)}
         />
@@ -1181,6 +1249,11 @@ function SecondarySidebar(props: {
   deleteArtifact: (id: string) => void;
   host: HostClient;
   activeFile: WorkbenchFile | null;
+  contextScope: ChatContextScope;
+  setContextScope: (scope: ChatContextScope) => void;
+  contextAttachments: ChatContextAttachment[];
+  removeContextAttachment: (attachment: ChatContextAttachment) => void;
+  revealContextAttachment: (attachment: ChatContextAttachment) => void;
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onClose: () => void;
 }) {
@@ -1221,12 +1294,50 @@ function ChatPane(props: {
   runQuickPrompt: (kind: QuickPromptKind) => void;
   workspaceFileCount: number;
   activeFile: WorkbenchFile | null;
+  contextScope: ChatContextScope;
+  setContextScope: (scope: ChatContextScope) => void;
+  contextAttachments: ChatContextAttachment[];
+  removeContextAttachment: (attachment: ChatContextAttachment) => void;
+  revealContextAttachment: (attachment: ChatContextAttachment) => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   chatSettings: ChatAiSettings;
   openSettings: () => void;
   busy: boolean;
   memoryHitCount: number;
 }) {
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const [stickToLatest, setStickToLatest] = useState(true);
+  const [hasHiddenNewOutput, setHasHiddenNewOutput] = useState(false);
+  const transcriptSignal = useMemo(() => props.chatMessages.map((message) => `${message.id}:${message.status ?? ''}:${message.body.length}`).join('|'), [props.chatMessages]);
+
+  useEffect(() => {
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+    if (stickToLatest) {
+      transcript.scrollTop = transcript.scrollHeight;
+      setHasHiddenNewOutput(false);
+    } else {
+      setHasHiddenNewOutput(true);
+    }
+  }, [stickToLatest, transcriptSignal]);
+
+  const handleTranscriptScroll = useCallback(() => {
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+    const distanceFromBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight;
+    const atBottom = distanceFromBottom < 48;
+    setStickToLatest(atBottom);
+    if (atBottom) setHasHiddenNewOutput(false);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+    transcript.scrollTop = transcript.scrollHeight;
+    setStickToLatest(true);
+    setHasHiddenNewOutput(false);
+  }, []);
+
   return (
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-threadbar">
@@ -1263,7 +1374,7 @@ function ChatPane(props: {
           Delete
         </button>
       </div>
-      <div className="workbench-chat-transcript">
+      <div ref={transcriptRef} className="workbench-chat-transcript" onScroll={handleTranscriptScroll}>
         {props.chatMessages.length === 0 ? (
           <div className="workbench-chat-empty">
             <div>
@@ -1296,17 +1407,38 @@ function ChatPane(props: {
             ) : null}
           </div>
         ))}
+        {hasHiddenNewOutput ? <button className="workbench-chat-jump" onClick={jumpToLatest}>Jump to latest</button> : null}
       </div>
       <div className="workbench-chat-composer">
         <div className="workbench-chat-tip">
           <span>Context</span>
-          <strong>{props.activeFile ? props.activeFile.name : 'No active file'}</strong>
+          <strong>{contextScopeLabel(props.contextScope)}</strong>
           <em>{chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount)}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
-            <button title="Add context"><Plus size={15} /></button>
-            <span className="workbench-chat-chip"><Paperclip size={13} /> {props.activeFile?.name ?? 'Open editors'}</span>
+            <select
+              className="workbench-chat-context-select"
+              value={props.contextScope}
+              onChange={(event) => props.setContextScope(event.target.value as ChatContextScope)}
+              disabled={props.busy}
+              title="Context scope for next message"
+            >
+              <option value="none">No context</option>
+              <option value="active-selection">Selection</option>
+              <option value="active-file">Active file</option>
+              <option value="open-editors">Open editors</option>
+            </select>
+            {props.contextAttachments.length === 0 ? (
+              <span className="workbench-chat-chip muted"><Paperclip size={13} /> No file context</span>
+            ) : props.contextAttachments.map((attachment) => (
+              <span key={attachment.id} className="workbench-chat-chip" title={[attachment.path, attachment.range ? `${attachment.range.startLineNumber}:${attachment.range.startColumn}-${attachment.range.endLineNumber}:${attachment.range.endColumn}` : null, attachment.dirty ? 'dirty' : null].filter(Boolean).join(' · ')}>
+                <button className="workbench-chat-chip-open" onClick={() => props.revealContextAttachment(attachment)} disabled={!attachment.fileId} title="Reveal context"><Paperclip size={13} /></button>
+                {attachment.label}
+                {attachment.dirty ? <small>dirty</small> : null}
+                {attachment.removable ? <button className="workbench-chat-chip-remove" onClick={() => props.removeContextAttachment(attachment)} title="Remove context"><X size={11} /></button> : null}
+              </span>
+            ))}
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>Explain</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>Improve</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>Edit</button>
@@ -1370,6 +1502,11 @@ function looksEditable(body: string): boolean {
     || /^diff --git /m.test(body)
     || /^--- .+\n\+\+\+ /m.test(body)
     || /```[\w.+-]*\s*\n[\s\S]{80,}```/.test(body);
+}
+
+function looksLikeEditPrompt(prompt: string): boolean {
+  return /(change|edit|modify|replace|update|rename|fix|rewrite|apply)/i.test(prompt)
+    && /(file|code|author|title|line|function|component|content|text|this|it)/i.test(prompt);
 }
 
 function AtomekSettingsDialog(props: {

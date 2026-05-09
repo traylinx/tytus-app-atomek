@@ -2,7 +2,7 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "PRODUCTION_READY_SPRINT_READY_TO_EXECUTE",
+  "status": "PHASE_1_2_PARTIAL_3_IMPLEMENTED",
   "currentVersionAtCreation": "0.3.9",
   "hardRules": [
     "no hardcoded model IDs",
@@ -51,5 +51,16 @@
     "ChatTranscript supports streaming follow mode and jump-to-latest",
     "WorkbenchEditService previews/applies workspace edits with conflict checks",
     "AIL global aliases own chat and embedding models"
+  ],
+  "implementedPhases": [
+    "baseline-audit",
+    "ide-context-spine",
+    "chat-ux-repair",
+    "workspace-edit-pipeline-partial"
+  ],
+  "knownRemaining": [
+    "composer still needs deeper cleanup of Plan/Auto placement",
+    "patch parser/edit service extraction remains in later Phase 3 hardening",
+    "project index, embeddings, semantic retrieval, agentic check loop not started"
   ]
 }

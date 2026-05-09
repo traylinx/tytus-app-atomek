@@ -6,13 +6,14 @@ import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
 import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 import { registerTytusMonacoTheme } from './monacoTheme';
-import type { CursorPosition, WorkbenchFile } from '../types';
+import type { CursorPosition, WorkbenchFile, WorkbenchRange } from '../types';
 
 type Props = {
   file: WorkbenchFile;
   revealLine?: number | null;
   onChange: (content: string) => void;
   onCursorChange: (position: CursorPosition) => void;
+  onSelectionChange: (range: WorkbenchRange | null) => void;
   onSave: () => void;
 };
 
@@ -26,7 +27,7 @@ self.MonacoEnvironment = {
   },
 };
 
-export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChange, onSave }: Props) {
+export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChange, onSelectionChange, onSave }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -54,10 +55,20 @@ export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChan
     editorRef.current = editor;
     const changeSub = editor.onDidChangeModelContent(() => onChange(editor.getValue()));
     const cursorSub = editor.onDidChangeCursorPosition((event) => onCursorChange(event.position));
+    const selectionSub = editor.onDidChangeCursorSelection((event) => {
+      const selection = event.selection;
+      onSelectionChange(selection.isEmpty() ? null : {
+        startLineNumber: selection.startLineNumber,
+        startColumn: selection.startColumn,
+        endLineNumber: selection.endLineNumber,
+        endColumn: selection.endColumn,
+      });
+    });
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, onSave);
     return () => {
       changeSub.dispose();
       cursorSub.dispose();
+      selectionSub.dispose();
       editor.dispose();
     };
   }, []);
