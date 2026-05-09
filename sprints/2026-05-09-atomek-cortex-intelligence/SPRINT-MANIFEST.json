@@ -1,0 +1,22 @@
+{
+  "id": "atomek-cortex-intelligence-2026-05-09",
+  "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
+  "createdAt": "2026-05-09",
+  "status": "READY_TO_EXECUTE",
+  "currentVersionAtCreation": "0.3.9",
+  "hardRules": [
+    "no hardcoded model IDs",
+    "no provider-specific tool hardcodes",
+    "use global AIL config and aliases",
+    "do not modify Juli3ta",
+    "keep Atomek standalone unless host API is truly required"
+  ],
+  "phases": [
+    "baseline-audit",
+    "project-index-without-embeddings",
+    "embedding-capability-discovery",
+    "semantic-retrieval",
+    "agentic-edit-loop-v1",
+    "release"
+  ]
+}
