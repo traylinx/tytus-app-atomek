@@ -53,6 +53,7 @@ export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChan
       wordWrap: 'off',
     });
     editorRef.current = editor;
+    requestAnimationFrame(() => editor.layout());
     const changeSub = editor.onDidChangeModelContent(() => onChange(editor.getValue()));
     const cursorSub = editor.onDidChangeCursorPosition((event) => onCursorChange(event.position));
     const selectionSub = editor.onDidChangeCursorSelection((event) => {
@@ -83,6 +84,7 @@ export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChan
     monaco.editor.setModelLanguage(model, file.language);
     editor.setModel(model);
     modelRef.current = model;
+    requestAnimationFrame(() => editor.layout());
     editor.focus();
   }, [file.id, file.language, file.path]);
 

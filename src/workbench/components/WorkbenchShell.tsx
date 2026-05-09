@@ -1267,6 +1267,26 @@ function PrimarySidebar(props: {
 function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activity'>) {
   const noFolder = !props.folder;
   const tree = useMemo(() => buildFileTree(props.files, props.folder?.name), [props.files, props.folder?.name]);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const dirs = collectTreeDirPaths(tree);
+    setExpandedDirs((current) => {
+      const next = new Set(current);
+      dirs.forEach((dir) => next.add(dir));
+      return next;
+    });
+  }, [tree]);
+
+  const toggleDir = useCallback((path: string) => {
+    setExpandedDirs((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
   return (
     <aside className="workbench-sidebar">
       <div className="workbench-sidebar-title">EXPLORER</div>
@@ -1292,7 +1312,7 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
               <FileRow key={file.id} file={file} active={file.id === props.activeFileId} onOpen={() => props.openWorkbenchFile(file)} />
             ))}
             <div className="workbench-section-title"><ChevronDown size={12} /> {props.folder?.name ?? 'Workspace'}</div>
-            {tree.length === 0 ? <p className="workbench-muted">No readable text files found.</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile)}
+            {tree.length === 0 ? <p className="workbench-muted">No readable text files found.</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile, expandedDirs, toggleDir)}
           </>
         )}
         <div className="workbench-section-title">Recent</div>
@@ -1345,19 +1365,32 @@ function buildFileTree(files: WorkbenchFile[], basePath?: string): TreeNode[] {
   return sortNodes(roots);
 }
 
-function renderTreeNodes(nodes: TreeNode[], activeFileId: string | null, openWorkbenchFile: (file: WorkbenchFile) => void, depth = 0): ReactNode {
+function collectTreeDirPaths(nodes: TreeNode[]): string[] {
+  return nodes.flatMap((node) => node.file ? [] : [node.path, ...collectTreeDirPaths(node.children)]);
+}
+
+function renderTreeNodes(
+  nodes: TreeNode[],
+  activeFileId: string | null,
+  openWorkbenchFile: (file: WorkbenchFile) => void,
+  expandedDirs: Set<string>,
+  toggleDir: (path: string) => void,
+  depth = 0,
+): ReactNode {
   return nodes.map((node) => {
     if (node.file) {
       return <FileRow key={node.file.id} file={node.file} active={node.file.id === activeFileId} onOpen={() => openWorkbenchFile(node.file as WorkbenchFile)} depth={depth} label={node.name} />;
     }
+    const expanded = expandedDirs.has(node.path);
     return (
       <div key={node.path}>
-        <div className="workbench-folder-row" style={{ '--workbench-depth': depth } as CSSProperties}>
-          <ChevronDown size={12} />
-          <FolderOpen size={14} />
+        <button className="workbench-folder-row" style={{ '--workbench-depth': depth } as CSSProperties} onClick={() => toggleDir(node.path)} title={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}>
+          {expanded ? <ChevronDown size={12} /> : <ChevronDown className="workbench-chevron-collapsed" size={12} />}
+          {expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
           <span className="workbench-row-name">{node.name}</span>
-        </div>
-        {renderTreeNodes(node.children, activeFileId, openWorkbenchFile, depth + 1)}
+          <span className="workbench-row-meta">{node.children.length}</span>
+        </button>
+        {expanded ? renderTreeNodes(node.children, activeFileId, openWorkbenchFile, expandedDirs, toggleDir, depth + 1) : null}
       </div>
     );
   });
