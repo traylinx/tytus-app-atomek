@@ -3,7 +3,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { AiContextPart, AiThread, HostClient } from '@tytus/host-api';
 import {
-  Blocks,
   Bot,
   Bug,
   ChevronDown,
@@ -1226,7 +1225,6 @@ function ActivityBar({ active, setActive, openSettings, settingsActive }: { acti
       <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
       <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
       <ActivityButton icon={<Bot size={25} />} label="Computer / Agents" active={active === 'computer'} onClick={() => setActive('computer')} />
-      <ActivityButton icon={<Blocks size={25} />} label="Skills / Apps" active={active === 'extensions'} onClick={() => setActive('extensions')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
       <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
@@ -1262,7 +1260,7 @@ function PrimarySidebar(props: {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
   if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
   if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
-  if (props.activity === 'computer' || props.activity === 'extensions') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
+  if (props.activity === 'computer') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
 

@@ -41,7 +41,7 @@ var Da = {
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Ha = wn(
+const Ba = wn(
   ({
     color: e = "currentColor",
     size: t = 24,
@@ -76,9 +76,9 @@ const Ha = wn(
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const O = (e, t) => {
+const F = (e, t) => {
   const n = wn(
-    ({ className: a, ...o }, i) => Pt(Ha, {
+    ({ className: a, ...o }, i) => Pt(Ba, {
       ref: i,
       iconNode: t,
       className: vn(
@@ -97,37 +97,21 @@ const O = (e, t) => {
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Ba = [
-  [
-    "path",
-    {
-      d: "M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2",
-      key: "1ah6g2"
-    }
-  ],
-  ["rect", { x: "14", y: "2", width: "8", height: "8", rx: "1", key: "88lufb" }]
-], Wa = O("blocks", Ba);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const Va = [
+const Ha = [
   ["path", { d: "M12 8V4H8", key: "hb8ula" }],
   ["rect", { width: "16", height: "12", x: "4", y: "8", rx: "2", key: "enze0r" }],
   ["path", { d: "M2 14h2", key: "vft8re" }],
   ["path", { d: "M20 14h2", key: "4cs60a" }],
   ["path", { d: "M15 13v2", key: "1xurst" }],
   ["path", { d: "M9 13v2", key: "rq6x2g" }]
-], zt = O("bot", Va);
+], zt = F("bot", Ha);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Ua = [
+const Wa = [
   ["path", { d: "M12 20v-9", key: "1qisl0" }],
   ["path", { d: "M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z", key: "uouzyp" }],
   ["path", { d: "M14.12 3.88 16 2", key: "qol33r" }],
@@ -139,21 +123,32 @@ const Ua = [
   ["path", { d: "M6 13H2", key: "82j7cp" }],
   ["path", { d: "m8 2 1.88 1.88", key: "fmnt4t" }],
   ["path", { d: "M9 7.13V6a3 3 0 1 1 6 0v1.13", key: "1vgav8" }]
-], Cn = O("bug", Ua);
+], Cn = F("bug", Wa);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const qa = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]], Ka = O("check", qa);
+const Va = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]], Ua = F("check", Va);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Ja = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]], Lt = O("chevron-down", Ja);
+const qa = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]], Lt = F("chevron-down", qa);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Ka = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["circle", { cx: "12", cy: "10", r: "3", key: "ilqhr7" }],
+  ["path", { d: "M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662", key: "154egf" }]
+], Ja = F("circle-user", Ka);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -161,20 +156,20 @@ const Ja = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]], Lt = O("chevron-dow
  * See the LICENSE file in the root directory of this source tree.
  */
 const Xa = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["circle", { cx: "12", cy: "10", r: "3", key: "ilqhr7" }],
-  ["path", { d: "M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662", key: "154egf" }]
-], Ga = O("circle-user", Xa);
+  ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
+  ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
+], Tt = F("copy", Xa);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Ya = [
-  ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
-  ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
-], Tt = O("copy", Ya);
+const Ga = [
+  ["circle", { cx: "12", cy: "12", r: "1", key: "41hilf" }],
+  ["circle", { cx: "19", cy: "12", r: "1", key: "1wjl8i" }],
+  ["circle", { cx: "5", cy: "12", r: "1", key: "1pcz8c" }]
+], Ya = F("ellipsis", Ga);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -182,17 +177,6 @@ const Ya = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const Qa = [
-  ["circle", { cx: "12", cy: "12", r: "1", key: "41hilf" }],
-  ["circle", { cx: "19", cy: "12", r: "1", key: "1wjl8i" }],
-  ["circle", { cx: "5", cy: "12", r: "1", key: "1pcz8c" }]
-], Za = O("ellipsis", Qa);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const er = [
   [
     "path",
     {
@@ -201,14 +185,14 @@ const er = [
     }
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
-], Rt = O("eye", er);
+], Rt = F("eye", Qa);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const tr = [
+const Za = [
   [
     "path",
     {
@@ -219,14 +203,14 @@ const tr = [
   ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
   ["path", { d: "m5 16-3 3 3 3", key: "331omg" }],
   ["path", { d: "m9 22 3-3-3-3", key: "lsp7cz" }]
-], xn = O("file-code-corner", tr);
+], xn = F("file-code-corner", Za);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const nr = [
+const er = [
   [
     "path",
     {
@@ -237,14 +221,14 @@ const nr = [
   ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
   ["path", { d: "M14 19h6", key: "bvotb8" }],
   ["path", { d: "M17 16v6", key: "18yu1i" }]
-], _t = O("file-plus-corner", nr);
+], _t = F("file-plus-corner", er);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const ar = [
+const tr = [
   [
     "path",
     {
@@ -255,7 +239,38 @@ const ar = [
   ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
   ["circle", { cx: "11.5", cy: "14.5", r: "2.5", key: "1bq0ko" }],
   ["path", { d: "M13.3 16.3 15 18", key: "2quom7" }]
-], at = O("file-search", ar);
+], at = F("file-search", tr);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const nr = [
+  [
+    "path",
+    {
+      d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
+      key: "1oefj6"
+    }
+  ],
+  ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }]
+], An = F("file", nr);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const ar = [
+  [
+    "path",
+    {
+      d: "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
+      key: "usdka0"
+    }
+  ]
+], jt = F("folder-open", ar);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -266,27 +281,11 @@ const rr = [
   [
     "path",
     {
-      d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
-      key: "1oefj6"
-    }
-  ],
-  ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }]
-], An = O("file", rr);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const or = [
-  [
-    "path",
-    {
-      d: "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
-      key: "usdka0"
+      d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
+      key: "1kt360"
     }
   ]
-], jt = O("folder-open", or);
+], or = F("folder", rr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -294,33 +293,18 @@ const or = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const ir = [
-  [
-    "path",
-    {
-      d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
-      key: "1kt360"
-    }
-  ]
-], cr = O("folder", ir);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const sr = [
   ["line", { x1: "6", x2: "6", y1: "3", y2: "15", key: "17qcm7" }],
   ["circle", { cx: "18", cy: "6", r: "3", key: "1h7g24" }],
   ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
   ["path", { d: "M18 9a9 9 0 0 1-9 9", key: "n2h4wq" }]
-], $n = O("git-branch", sr);
+], $n = F("git-branch", ir);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const lr = [
+const cr = [
   [
     "path",
     {
@@ -331,7 +315,17 @@ const lr = [
   ["path", { d: "M7 11h10", key: "1twpyw" }],
   ["path", { d: "M7 15h6", key: "d9of3u" }],
   ["path", { d: "M7 7h8", key: "af5zfr" }]
-], dr = O("message-square-text", lr);
+], sr = F("message-square-text", cr);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const lr = [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
+  ["path", { d: "M15 3v18", key: "14nvp0" }]
+], dr = F("panel-right", lr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -339,16 +333,6 @@ const lr = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const hr = [
-  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
-  ["path", { d: "M15 3v18", key: "14nvp0" }]
-], ur = O("panel-right", hr);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const mr = [
   [
     "path",
     {
@@ -356,7 +340,17 @@ const mr = [
       key: "1miecu"
     }
   ]
-], on = O("paperclip", mr);
+], on = F("paperclip", hr);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const ur = [
+  ["path", { d: "M5 12h14", key: "1ays0h" }],
+  ["path", { d: "M12 5v14", key: "s699le" }]
+], mr = F("plus", ur);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -364,21 +358,21 @@ const mr = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const pr = [
-  ["path", { d: "M5 12h14", key: "1ays0h" }],
-  ["path", { d: "M12 5v14", key: "s699le" }]
-], fr = O("plus", pr);
+  ["path", { d: "M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "14sxne" }],
+  ["path", { d: "M3 3v5h5", key: "1xhq8a" }],
+  ["path", { d: "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16", key: "1hlbsb" }],
+  ["path", { d: "M16 16h5v5", key: "ccwih5" }]
+], tt = F("refresh-ccw", pr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const br = [
-  ["path", { d: "M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "14sxne" }],
-  ["path", { d: "M3 3v5h5", key: "1xhq8a" }],
-  ["path", { d: "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16", key: "1hlbsb" }],
-  ["path", { d: "M16 16h5v5", key: "ccwih5" }]
-], tt = O("refresh-ccw", br);
+const fr = [
+  ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
+  ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
+], br = F("search", fr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -386,9 +380,15 @@ const br = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const gr = [
-  ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
-  ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
-], kr = O("search", gr);
+  [
+    "path",
+    {
+      d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
+      key: "1ffxy3"
+    }
+  ],
+  ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
+], kr = F("send", gr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -399,12 +399,12 @@ const yr = [
   [
     "path",
     {
-      d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
-      key: "1ffxy3"
+      d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915",
+      key: "1i5ecw"
     }
   ],
-  ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
-], wr = O("send", yr);
+  ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
+], wr = F("settings", yr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -412,22 +412,6 @@ const yr = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const vr = [
-  [
-    "path",
-    {
-      d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915",
-      key: "1i5ecw"
-    }
-  ],
-  ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
-], Cr = O("settings", vr);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const xr = [
   ["path", { d: "M10 5H3", key: "1qgfaw" }],
   ["path", { d: "M12 19H3", key: "yhmn1j" }],
   ["path", { d: "M14 3v4", key: "1sua03" }],
@@ -437,7 +421,16 @@ const xr = [
   ["path", { d: "M21 5h-7", key: "1oszz2" }],
   ["path", { d: "M8 10v4", key: "tgpxqk" }],
   ["path", { d: "M8 12H3", key: "a7s4jb" }]
-], Nn = O("sliders-horizontal", xr);
+], Nn = F("sliders-horizontal", vr);
+/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Cr = [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
+], xr = F("square", Cr);
 /**
  * @license lucide-react v0.562.0 - ISC
  *
@@ -445,18 +438,9 @@ const xr = [
  * See the LICENSE file in the root directory of this source tree.
  */
 const Ar = [
-  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
-], $r = O("square", Ar);
-/**
- * @license lucide-react v0.562.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const Nr = [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
-], ue = O("x", Nr), Sr = {
+], ue = F("x", Ar), $r = {
   md: "markdown",
   markdown: "markdown",
   json: "json",
@@ -486,7 +470,7 @@ const Nr = [
 };
 function Sn(e) {
   const t = e.split(".").pop()?.toLowerCase() ?? "";
-  return Sr[t] ?? "text";
+  return $r[t] ?? "text";
 }
 function In(e) {
   return {
@@ -509,23 +493,23 @@ function Mn(e, t) {
   const n = e.split(".").pop()?.toLowerCase() ?? "";
   return !(/* @__PURE__ */ new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "mp3", "wav", "flac", "mp4", "mov", "zip", "gz", "tar", "pdf", "dmg", "sqlite", "db"])).has(n);
 }
-const Ir = /* @__PURE__ */ new Set([".git", "node_modules", "dist", "build", ".next", ".turbo", "coverage", ".cache"]);
-function Mr() {
+const Nr = /* @__PURE__ */ new Set([".git", "node_modules", "dist", "build", ".next", ".turbo", "coverage", ".cache"]);
+function Sr() {
   const e = Dt();
   return !!(e?.showOpenFilePicker && e.showDirectoryPicker);
 }
-async function Pr() {
+async function Ir() {
   const e = Dt()?.showOpenFilePicker;
   if (!e) return Tn(!1);
   const t = await e({ multiple: !0 }), n = await Promise.all(t.map((a) => Pn(a, a.name, "local-file")));
-  return Ht(n.filter(Boolean));
+  return Bt(n.filter(Boolean));
 }
-async function Lr() {
+async function Mr() {
   const e = Dt()?.showDirectoryPicker;
   if (!e)
     return { name: "Browser fallback folder", files: await Tn(!0) };
   const t = await e({ mode: "readwrite" }), n = [];
-  return await Ln(t, t.name, n, 0, 320), { name: t.name, handle: t, files: Ht(n) };
+  return await Ln(t, t.name, n, 0, 320), { name: t.name, handle: t, files: Bt(n) };
 }
 function Dt() {
   const e = window;
@@ -560,7 +544,7 @@ async function Ln(e, t, n, a, o) {
     for await (const i of e.values()) {
       if (n.length >= o) break;
       if (i.kind === "directory") {
-        if (Ir.has(i.name)) continue;
+        if (Nr.has(i.name)) continue;
         await Ln(i, `${t}/${i.name}`, n, a + 1, o);
         continue;
       }
@@ -585,17 +569,17 @@ function Tn(e) {
           source: e ? "local-folder" : "local-file"
         } : null;
       }));
-      n.remove(), t(Ht(o.filter(Boolean)));
+      n.remove(), t(Bt(o.filter(Boolean)));
     }, document.body.append(n), n.click();
   });
 }
 async function xt(e) {
   if (!e.handle?.createWritable)
-    return Tr(e), { ...e, dirty: !1 };
+    return Pr(e), { ...e, dirty: !1 };
   const t = await e.handle.createWritable();
   return await t.write(e.content), await t.close(), { ...e, dirty: !1 };
 }
-function Tr(e) {
+function Pr(e) {
   const t = new Blob([e.content], { type: "text/plain;charset=utf-8" }), n = URL.createObjectURL(t), a = document.createElement("a");
   a.href = n, a.download = e.name, a.click(), URL.revokeObjectURL(n);
 }
@@ -604,7 +588,7 @@ function En(e) {
   for (let n = 0; n < e.length; n += 1) t = t * 31 + e.charCodeAt(n) | 0;
   return `${e.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${Math.abs(t)}`;
 }
-function Ht(e) {
+function Bt(e) {
   return [...e].sort((t, n) => t.path.localeCompare(n.path));
 }
 function On(e) {
@@ -624,12 +608,12 @@ function On(e) {
   }), t = t.replace(/^(?!<[a-z])(.+)$/gim, '<p style="line-height:1.6;margin:12px 0;color:var(--text-primary)">$1</p>'), t = t.replace(/\n+/g, `
 `), t;
 }
-const Me = "atomek:default", Er = 3e3, Bt = "tytus.atomek.threadTitleOverrides", cn = {
+const Me = "atomek:default", Lr = 3e3, Ht = "tytus.atomek.threadTitleOverrides", cn = {
   available: !1,
   source: "none",
   label: "Tytus AI unavailable",
   reason: "host.ai is not available in this Tytus build."
-}, He = (e) => e.role !== "user" && e.role !== "assistant" ? null : {
+}, Be = (e) => e.role !== "user" && e.role !== "assistant" ? null : {
   id: e.id,
   role: e.role,
   body: e.body,
@@ -637,25 +621,25 @@ const Me = "atomek:default", Er = 3e3, Bt = "tytus.atomek.threadTitleOverrides",
   gatewayLabel: e.gatewayLabel ?? void 0,
   error: e.error ?? void 0,
   createdAt: e.createdAt
-}, Or = (e, t = Er) => e.length <= t ? e : `${e.slice(0, t)}
+}, Tr = (e, t = Lr) => e.length <= t ? e : `${e.slice(0, t)}
 
 [...clipped ${e.length - t} chars...]`, sn = (e, t) => {
   const n = e.split(`
 `).map((a) => a.replace(/^#+\s*/, "").trim()).find(Boolean);
   return n ? n.length > 80 ? `${n.slice(0, 77)}...` : n : t;
-}, Fr = (e) => ["briefing", "action-list", "quiz", "plan", "storyboard", "report", "local-draft", "markdown", "memory"].includes(e) ? e : "report", ln = (e) => ({
+}, Er = (e) => ["briefing", "action-list", "quiz", "plan", "storyboard", "report", "local-draft", "markdown", "memory"].includes(e) ? e : "report", ln = (e) => ({
   id: e.id,
   title: e.title,
-  kind: Fr(e.kind),
+  kind: Er(e.kind),
   body: e.body,
   createdAt: e.createdAt,
   source: "ai"
-}), zr = (e) => e.length === 0 ? null : {
+}), Or = (e) => e.length === 0 ? null : {
   kind: "workspace",
   title: "Relevant Atomek memory",
   text: e.map((t, n) => [
     `Memory ${n + 1}: ${t.title}`,
-    Or(t.body, 900)
+    Tr(t.body, 900)
   ].join(`
 `)).join(`
 
@@ -664,7 +648,7 @@ const Me = "atomek:default", Er = 3e3, Bt = "tytus.atomek.threadTitleOverrides",
 `)
 }, Wt = () => {
   try {
-    const e = localStorage.getItem(Bt);
+    const e = localStorage.getItem(Ht);
     if (!e) return {};
     const t = JSON.parse(e);
     return !t || typeof t != "object" ? {} : Object.fromEntries(
@@ -673,32 +657,32 @@ const Me = "atomek:default", Er = 3e3, Bt = "tytus.atomek.threadTitleOverrides",
   } catch {
     return {};
   }
-}, Rr = (e, t) => {
+}, Fr = (e, t) => {
   try {
     const n = Wt();
-    n[e] = t, localStorage.setItem(Bt, JSON.stringify(n));
+    n[e] = t, localStorage.setItem(Ht, JSON.stringify(n));
   } catch {
   }
-}, _r = (e) => {
+}, zr = (e) => {
   try {
     const t = Wt();
-    delete t[e], localStorage.setItem(Bt, JSON.stringify(t));
+    delete t[e], localStorage.setItem(Ht, JSON.stringify(t));
   } catch {
   }
 }, dn = (e) => {
   const t = Wt();
   return e.map((n) => t[n.id] ? { ...n, title: t[n.id] } : n);
 };
-function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
-  const o = e.ai, [i, s] = C(null), [l, m] = C([]), [f, p] = C([]), [u, g] = C([]), [S, I] = C([]), [z, B] = C(cn), [ae, q] = C(!1), W = Le(!0), M = Le(null), E = y(async () => {
+function Rr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
+  const o = e.ai, [i, s] = C(null), [l, m] = C([]), [f, p] = C([]), [u, g] = C([]), [S, I] = C([]), [z, H] = C(cn), [ae, q] = C(!1), W = Le(!0), M = Le(null), E = y(async () => {
     if (!o) {
-      B(cn);
+      H(cn);
       return;
     }
     try {
-      B(await o.status());
+      H(await o.status());
     } catch (A) {
-      B({
+      H({
         available: !1,
         source: "none",
         label: "Tytus AI unavailable",
@@ -719,8 +703,8 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
       try {
         const x = await o.listMessages(A);
         if (!W.current) return;
-        const P = l.find((F) => F.id === A) ?? null;
-        P && s(P), p(x.map(He).filter(Boolean)), I([]), await Q(A);
+        const P = l.find((O) => O.id === A) ?? null;
+        P && s(P), p(x.map(Be).filter(Boolean)), I([]), await Q(A);
       } catch (x) {
         a(`Load chat failed: ${x instanceof Error ? x.message : String(x)}`);
       }
@@ -732,7 +716,7 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
         m(A[0] ? A : [x]), s(x);
         const P = await o.listMessages(x.id);
         if (!W.current) return;
-        p(P.map(He).filter(Boolean)), await Q(x.id);
+        p(P.map(Be).filter(Boolean)), await Q(x.id);
       } catch (A) {
         a(`AI chat unavailable: ${A instanceof Error ? A.message : String(A)}`);
       }
@@ -754,21 +738,21 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
     const P = x.trim();
     if (P)
       try {
-        const F = o.updateThread, V = l.find((Z) => Z.id === A) ?? i, _ = typeof F == "function" ? await F({ threadId: A, title: P }) : { ...V ?? await re(), id: A, title: P, updatedAt: Date.now() };
-        typeof F != "function" && Rr(A, P), m((Z) => Z.map((we) => we.id === _.id ? _ : we)), s((Z) => Z?.id === _.id ? _ : Z), a(typeof F == "function" ? `Renamed chat: ${_.title}` : `Renamed chat locally: ${_.title}`);
-      } catch (F) {
-        a(`Rename chat failed: ${F instanceof Error ? F.message : String(F)}`);
+        const O = o.updateThread, V = l.find((Z) => Z.id === A) ?? i, _ = typeof O == "function" ? await O({ threadId: A, title: P }) : { ...V ?? await re(), id: A, title: P, updatedAt: Date.now() };
+        typeof O != "function" && Fr(A, P), m((Z) => Z.map((ye) => ye.id === _.id ? _ : ye)), s((Z) => Z?.id === _.id ? _ : Z), a(typeof O == "function" ? `Renamed chat: ${_.title}` : `Renamed chat locally: ${_.title}`);
+      } catch (O) {
+        a(`Rename chat failed: ${O instanceof Error ? O.message : String(O)}`);
       }
   }, [o, re, a, i, l]), T = y(async (A) => {
     if (o)
       try {
-        await o.deleteThread(A), _r(A);
+        await o.deleteThread(A), zr(A);
         const x = l.filter((P) => P.id !== A);
         if (m(x), i?.id === A) {
           const P = x[0] ?? await o.createThread({ workspaceKey: Me, title: "Atomek chat" });
           s(P), m((V) => V.some((_) => _.id === P.id) ? V : [P, ...V]);
-          const F = await o.listMessages(P.id);
-          p(F.map(He).filter(Boolean)), await Q(P.id);
+          const O = await o.listMessages(P.id);
+          p(O.map(Be).filter(Boolean)), await Q(P.id);
         }
         a("Deleted AI chat");
       } catch (x) {
@@ -785,8 +769,8 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
         title: A.title?.trim() || sn(A.body, "Atomek artifact"),
         kind: A.kind ?? "markdown",
         body: A.body
-      }), F = ln(P);
-      return g((V) => [F, ...V.filter((_) => _.id !== F.id)]), a(`Saved AI artifact: ${F.title}`), F;
+      }), O = ln(P);
+      return g((V) => [O, ...V.filter((_) => _.id !== O.id)]), a(`Saved AI artifact: ${O.title}`), O;
     } catch (x) {
       return a(`Save artifact failed: ${x instanceof Error ? x.message : String(x)}`), null;
     }
@@ -797,7 +781,7 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
       } catch (x) {
         a(`Delete artifact failed: ${x instanceof Error ? x.message : String(x)}`);
       }
-  }, [o, a]), H = y(async (A) => {
+  }, [o, a]), B = y(async (A) => {
     if (!o) return null;
     try {
       const x = await o.writeMemory({
@@ -808,7 +792,7 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
           messageId: A.messageId ?? null
         }
       });
-      return I((P) => [x, ...P.filter((F) => F.id !== x.id)].slice(0, 5)), a(`Remembered: ${x.title}`), x;
+      return I((P) => [x, ...P.filter((O) => O.id !== x.id)].slice(0, 5)), a(`Remembered: ${x.title}`), x;
     } catch (x) {
       return a(`Remember failed: ${x instanceof Error ? x.message : String(x)}`), null;
     }
@@ -820,14 +804,14 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
     const P = A.trim();
     if (!P || !o) return null;
     q(!0);
-    let F = null;
+    let O = null;
     const V = new AbortController();
     M.current = V;
     try {
       const _ = await re();
       if (!_) return null;
-      const Z = await ce(P).catch(() => []), we = zr(Z), Ee = x.requestContext ?? t, Ve = we ? [...Ee, we] : [...Ee];
-      let ve = null;
+      const Z = await ce(P).catch(() => []), ye = Or(Z), Ee = x.requestContext ?? t, Ve = ye ? [...Ee, ye] : [...Ee];
+      let we = null;
       for await (const D of o.sendMessage({
         threadId: _.id,
         body: P,
@@ -837,11 +821,11 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
         signal: V.signal
       })) {
         if (D.type === "message_created") {
-          const j = He(D.message);
+          const j = Be(D.message);
           if (!j) continue;
-          j.role === "assistant" && (ve = j.id), p((ee) => [...ee.filter((te) => te.id !== j.id), j]);
+          j.role === "assistant" && (we = j.id), p((ee) => [...ee.filter((te) => te.id !== j.id), j]);
         }
-        if (D.type === "token" && (ve = D.messageId, p((j) => j.some((ee) => ee.id === D.messageId) ? j.map(
+        if (D.type === "token" && (we = D.messageId, p((j) => j.some((ee) => ee.id === D.messageId) ? j.map(
           (ee) => ee.id === D.messageId ? { ...ee, body: D.body, status: "streaming" } : ee
         ) : [...j, {
           id: D.messageId,
@@ -850,19 +834,19 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
           status: "streaming",
           createdAt: Date.now()
         }])), D.type === "message_updated" || D.type === "done") {
-          const j = He(D.message);
+          const j = Be(D.message);
           if (!j) continue;
-          j.role === "assistant" && (F = j), p((ee) => ee.map((te) => te.id === j.id ? j : te)), j.gatewayLabel && a(`AI answered via ${j.gatewayLabel}`);
+          j.role === "assistant" && (O = j), p((ee) => ee.map((te) => te.id === j.id ? j : te)), j.gatewayLabel && a(`AI answered via ${j.gatewayLabel}`);
         }
         if (D.type === "run_failed") {
           const j = V.signal.aborted;
-          a(j ? "AI response stopped" : `AI failed: ${D.error}`), ve && p((ee) => ee.map((te) => te.id !== ve ? te : j ? { ...te, status: "complete", error: void 0, body: te.body || "Stopped by user." } : { ...te, status: "error", error: D.error, body: D.error }));
+          a(j ? "AI response stopped" : `AI failed: ${D.error}`), we && p((ee) => ee.map((te) => te.id !== we ? te : j ? { ...te, status: "complete", error: void 0, body: te.body || "Stopped by user." } : { ...te, status: "error", error: D.error, body: D.error }));
         }
       }
       const fe = dn(await o.listThreads({ workspaceKey: Me, status: "active" }).catch(() => []));
-      return W.current && fe.length > 0 && m(fe), E(), F;
+      return W.current && fe.length > 0 && m(fe), E(), O;
     } catch (_) {
-      return _ instanceof DOMException && _.name === "AbortError" ? (a("AI response stopped"), F) : (a(`AI failed: ${_ instanceof Error ? _.message : String(_)}`), null);
+      return _ instanceof DOMException && _.name === "AbortError" ? (a("AI response stopped"), O) : (a(`AI failed: ${_ instanceof Error ? _.message : String(_)}`), null);
     } finally {
       M.current === V && (M.current = null), q(!1);
     }
@@ -883,28 +867,28 @@ function jr({ host: e, requestContext: t, chatSettings: n, setStatus: a }) {
     deleteThread: T,
     newChat: w,
     recall: ce,
-    remember: H,
+    remember: B,
     renameThread: v,
     selectThread: pe,
     stopChat: it
   };
 }
-const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
+const _r = (e) => `tytus-workbench:///${encodeURI(e.path)}`, jr = (e) => {
   let t = 2166136261;
   for (let n = 0; n < e.length; n += 1)
     t ^= e.charCodeAt(n), t = Math.imul(t, 16777619);
   return (t >>> 0).toString(16).padStart(8, "0");
-}, Br = ({ files: e, openEditorIds: t, activeFileId: n, versions: a, activeSelection: o }) => {
+}, Dr = ({ files: e, openEditorIds: t, activeFileId: n, versions: a, activeSelection: o }) => {
   const i = new Set(t), s = e.map((l) => {
     const m = l.id === n;
     return {
       id: l.id,
-      uri: Dr(l),
+      uri: _r(l),
       path: l.path,
       name: l.name,
       language: l.language,
       version: a[l.id] ?? 1,
-      contentHash: Hr(l.content),
+      contentHash: jr(l.content),
       dirty: l.dirty,
       source: l.source,
       selection: m && o ? o : void 0,
@@ -919,7 +903,7 @@ const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
     activeDocumentId: n,
     openDocumentIds: t.filter((l) => s.some((m) => m.id === l))
   };
-}, Wr = "active-file", Vr = (e) => e === "none" ? "No context" : e === "active-selection" ? "Active selection" : e === "active-file" ? "Active file" : e === "open-editors" ? "Open editors" : e === "selected-files" ? "Selected files" : "Indexed project", Ur = (e, t = "file") => `${t}:${e.id}`, qr = (e, t) => [
+}, Br = "active-file", Hr = (e) => e === "none" ? "No context" : e === "active-selection" ? "Active selection" : e === "active-file" ? "Active file" : e === "open-editors" ? "Open editors" : e === "selected-files" ? "Selected files" : "Indexed project", Wr = (e, t = "file") => `${t}:${e.id}`, Vr = (e, t) => [
   "selection",
   e.id,
   t.startLineNumber,
@@ -927,7 +911,7 @@ const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
   t.endLineNumber,
   t.endColumn
 ].join(":"), Qe = (e, t, n) => ({
-  id: Ur(e),
+  id: Wr(e),
   kind: "file",
   label: n ? `${n}: ${e.name}` : e.name,
   fileId: e.id,
@@ -939,8 +923,8 @@ const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
   includeBody: !0,
   removable: !0,
   implicit: t
-}), Kr = (e, t, n) => ({
-  id: qr(e, t),
+}), Ur = (e, t, n) => ({
+  id: Vr(e, t),
   kind: "selection",
   label: `Selection: ${e.name}:${t.startLineNumber}-${t.endLineNumber}`,
   fileId: e.id,
@@ -953,17 +937,17 @@ const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
   includeBody: !0,
   removable: !0,
   implicit: n
-}), Jr = (e, t) => {
+}), qr = (e, t) => {
   const n = new Set(t.removedAttachmentIds), a = e.activeDocumentId ? e.byId.get(e.activeDocumentId) ?? null : null;
   let o = [];
-  return t.scope === "active-selection" ? a?.selection ? o = [Kr(a, a.selection, !0)] : a && (o = [Qe(a, !0, "Active file")]) : t.scope === "active-file" ? a && (o = [Qe(a, !0, "Active file")]) : t.scope === "open-editors" ? o = e.openDocumentIds.map((i) => e.byId.get(i)).filter(Boolean).map((i) => Qe(i, !0, "Open editor")) : t.scope === "selected-files" && (o = t.selectedFileIds.map((i) => e.byId.get(i)).filter(Boolean).map((i) => Qe(i, !1, "Selected file"))), Xr(o).filter((i) => !n.has(i.id));
-}, Xr = (e) => {
+  return t.scope === "active-selection" ? a?.selection ? o = [Ur(a, a.selection, !0)] : a && (o = [Qe(a, !0, "Active file")]) : t.scope === "active-file" ? a && (o = [Qe(a, !0, "Active file")]) : t.scope === "open-editors" ? o = e.openDocumentIds.map((i) => e.byId.get(i)).filter(Boolean).map((i) => Qe(i, !0, "Open editor")) : t.scope === "selected-files" && (o = t.selectedFileIds.map((i) => e.byId.get(i)).filter(Boolean).map((i) => Qe(i, !1, "Selected file"))), Kr(o).filter((i) => !n.has(i.id));
+}, Kr = (e) => {
   const t = /* @__PURE__ */ new Set();
   return e.filter((n) => t.has(n.id) ? !1 : (t.add(n.id), !0));
-}, Gr = 4e3, Yr = 8e3, Qr = 4e3, Zr = (e, t) => e.length <= t ? e : `${e.slice(0, t)}
+}, Jr = 4e3, Xr = 8e3, Gr = 4e3, Yr = (e, t) => e.length <= t ? e : `${e.slice(0, t)}
 
-[...clipped ${e.length - t} chars...]`, eo = (e, t, n) => {
-  const a = Jr(e, n), o = [], i = new Map(t.map((s) => [s.id, s]));
+[...clipped ${e.length - t} chars...]`, Qr = (e, t, n) => {
+  const a = qr(e, n), o = [], i = new Map(t.map((s) => [s.id, s]));
   for (const s of a) {
     if (!s.fileId) continue;
     const l = i.get(s.fileId), m = e.byId.get(s.fileId);
@@ -976,13 +960,13 @@ const Dr = (e) => `tytus-workbench:///${encodeURI(e.path)}`, Hr = (e) => {
       `Dirty: ${m.dirty ? "yes" : "no"}`,
       s.range ? `Range: ${hn(s.range)}` : null
     ].filter(Boolean).join(`
-`), p = s.kind === "selection" && s.range ? to(l.content, s.range) : l.content, u = s.kind === "selection" ? Gr : s.label.startsWith("Open editor") ? Qr : Yr;
+`), p = s.kind === "selection" && s.range ? Zr(l.content, s.range) : l.content, u = s.kind === "selection" ? Jr : s.label.startsWith("Open editor") ? Gr : Xr;
     o.push({
       kind: s.kind === "selection" ? "selection" : "file",
       title: s.kind === "selection" ? `Active selection: ${l.path}` : s.label,
       text: `${f}
 
-${Zr(p, u)}`
+${Yr(p, u)}`
     });
   }
   return a.length > 0 && o.push({
@@ -998,12 +982,12 @@ ${Zr(p, u)}`
 `)).join(`
 `)
   }), { parts: o, attachments: a };
-}, to = (e, t) => {
+}, Zr = (e, t) => {
   const n = e.split(`
 `), a = Math.max(1, t.startLineNumber), o = Math.max(a, t.endLineNumber), i = n.slice(a - 1, o);
   return i.length === 0 ? "" : i.length === 1 ? i[0].slice(Math.max(0, t.startColumn - 1), Math.max(0, t.endColumn - 1)) : (i[0] = i[0].slice(Math.max(0, t.startColumn - 1)), i[i.length - 1] = i[i.length - 1].slice(0, Math.max(0, t.endColumn - 1)), i.join(`
 `));
-}, hn = (e) => `${e.startLineNumber}:${e.startColumn}-${e.endLineNumber}:${e.endColumn}`, un = 75e4, no = 2800, ao = 240, ro = 80, oo = /* @__PURE__ */ new Set([
+}, hn = (e) => `${e.startLineNumber}:${e.startColumn}-${e.endLineNumber}:${e.endColumn}`, un = 75e4, eo = 2800, to = 240, no = 80, ao = /* @__PURE__ */ new Set([
   ".git",
   ".hg",
   ".svn",
@@ -1021,7 +1005,7 @@ ${Zr(p, u)}`
   "coverage",
   ".vite",
   ".DS_Store"
-]), io = /* @__PURE__ */ new Set([
+]), ro = /* @__PURE__ */ new Set([
   "png",
   "jpg",
   "jpeg",
@@ -1072,7 +1056,7 @@ ${Zr(p, u)}`
   e.map((t) => `${t.id}\0${t.path}\0${t.language}\0${t.dirty ? "1" : "0"}\0${Ae(t.content)}`).sort().join("")
 ), Et = (e, t = {}) => {
   const n = e.size ?? e.content.length;
-  return n === 0 || e.content.length === 0 ? "empty" : n > (t.maxFileBytes ?? un) || e.content.length > (t.maxFileBytes ?? un) ? "huge" : !t.includeDirty && e.dirty ? null : mo(e.path) ? "vendor" : po(e) ? "binary" : null;
+  return n === 0 || e.content.length === 0 ? "empty" : n > (t.maxFileBytes ?? un) || e.content.length > (t.maxFileBytes ?? un) ? "huge" : !t.includeDirty && e.dirty ? null : ho(e.path) ? "vendor" : uo(e) ? "binary" : null;
 }, mn = (e, t = {}) => {
   const n = Date.now(), a = [], o = [], i = [];
   for (const s of e) {
@@ -1081,7 +1065,7 @@ ${Zr(p, u)}`
       o.push({ fileId: s.id, name: s.name, path: s.path, language: s.language, reason: m, size: l });
       continue;
     }
-    const f = Ae(s.content), p = co(s, f, n, t);
+    const f = Ae(s.content), p = oo(s, f, n, t);
     i.push(...p), a.push({
       fileId: s.id,
       name: s.name,
@@ -1095,7 +1079,7 @@ ${Zr(p, u)}`
       indexedAt: n
     });
   }
-  return so({
+  return io({
     indexedAt: n,
     signature: Fn(e),
     files: a,
@@ -1104,13 +1088,13 @@ ${Zr(p, u)}`
     byFileId: new Map(a.map((s) => [s.fileId, s])),
     byChunkId: new Map(i.map((s) => [s.id, s]))
   });
-}, co = (e, t = Ae(e.content), n = Date.now(), a = {}) => {
-  const o = Math.max(500, a.maxChunkChars ?? no), i = Math.min(Math.max(0, a.chunkOverlapChars ?? ao), Math.floor(o / 2)), s = Math.max(1, a.maxChunksPerFile ?? ro), l = ho(e.content), m = [];
+}, oo = (e, t = Ae(e.content), n = Date.now(), a = {}) => {
+  const o = Math.max(500, a.maxChunkChars ?? eo), i = Math.min(Math.max(0, a.chunkOverlapChars ?? to), Math.floor(o / 2)), s = Math.max(1, a.maxChunksPerFile ?? no), l = so(e.content), m = [];
   let f = 0, p = 0;
   for (; f < e.content.length && m.length < s; ) {
-    const u = lo(e.content, f, Math.min(e.content.length, f + o)), g = e.content.slice(f, u).trim();
+    const u = co(e.content, f, Math.min(e.content.length, f + o)), g = e.content.slice(f, u).trim();
     if (g.length > 0) {
-      const S = uo(l, f, u);
+      const S = lo(l, f, u);
       m.push({
         id: `${e.id}:${t}:${p}:${S.startLineNumber}-${S.endLineNumber}`,
         fileId: e.id,
@@ -1133,12 +1117,12 @@ ${Zr(p, u)}`
     f = Math.max(f + 1, u - i);
   }
   return m;
-}, so = (e) => ({
+}, io = (e) => ({
   ...e,
   files: Object.freeze([...e.files]),
   skipped: Object.freeze([...e.skipped]),
   chunks: Object.freeze([...e.chunks])
-}), lo = (e, t, n) => {
+}), co = (e, t, n) => {
   if (n >= e.length) return e.length;
   const a = Math.max(t + 1, n - 500), o = e.lastIndexOf(`
 `, n);
@@ -1147,13 +1131,13 @@ ${Zr(p, u)}`
   if (i >= a) return i + 1;
   const s = e.lastIndexOf(" ", n);
   return s >= a ? s + 1 : n;
-}, ho = (e) => {
+}, so = (e) => {
   const t = [0];
   for (let n = 0; n < e.length; n += 1)
     e[n] === `
 ` && t.push(n + 1);
   return t;
-}, uo = (e, t, n) => {
+}, lo = (e, t, n) => {
   const a = pn(e, t), o = pn(e, Math.max(t, n - 1));
   return {
     startLineNumber: a + 1,
@@ -1169,9 +1153,9 @@ ${Zr(p, u)}`
     e[o] > t ? a = o - 1 : n = o + 1;
   }
   return 0;
-}, mo = (e) => e.split(/[\\/]+/).filter(Boolean).some((t) => oo.has(t)), po = (e) => {
+}, ho = (e) => e.split(/[\\/]+/).filter(Boolean).some((t) => ao.has(t)), uo = (e) => {
   const t = e.name.includes(".") ? e.name.split(".").pop()?.toLowerCase() : void 0;
-  if (t && io.has(t) || e.content.includes("\0")) return !0;
+  if (t && ro.has(t) || e.content.includes("\0")) return !0;
   const n = e.content.slice(0, 4096);
   if (!n) return !1;
   let a = 0;
@@ -1181,7 +1165,7 @@ ${Zr(p, u)}`
   }
   return a / n.length > 0.08;
 };
-class fo {
+class mo {
   snapshot;
   options;
   constructor(t = [], n = {}) {
@@ -1200,13 +1184,13 @@ class fo {
     return this.refresh(t, n);
   }
   staleReport(t) {
-    return bo(this.snapshot, t, this.options);
+    return po(this.snapshot, t, this.options);
   }
   isStale(t) {
     return this.staleReport(t).stale;
   }
 }
-const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
+const Pe = (e = [], t = {}) => new mo(e, t), po = (e, t, n = {}) => {
   const a = new Map(t.map((l) => [l.id, l])), o = e.byFileId, i = [];
   for (const l of e.files) {
     const m = a.get(l.fileId);
@@ -1225,22 +1209,22 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     !o.has(l.id) && !Et(l, n) && i.push({ fileId: l.id, path: l.path, status: "new", currentHash: Ae(l.content) });
   const s = e.signature !== Fn(t);
   return { stale: i.length > 0, signatureChanged: s, files: i };
-}, go = 8, ko = 12e3, zn = (e, t, n = {}, a) => {
-  const o = vo(t);
+}, fo = 8, bo = 12e3, zn = (e, t, n = {}, a) => {
+  const o = yo(t);
   if (o.length === 0) return [];
-  const i = new Set(a?.files.map((p) => p.fileId) ?? []), s = e.chunks.filter((p) => n.includeDirty !== !1 || !p.dirty).map((p) => Co(p, o)).filter((p) => p.score >= (n.minScore ?? 1)).sort((p, u) => u.score - p.score || p.chunk.path.localeCompare(u.chunk.path) || p.chunk.ordinal - u.chunk.ordinal), l = [], m = /* @__PURE__ */ new Set();
-  let f = n.maxChars ?? ko;
+  const i = new Set(a?.files.map((p) => p.fileId) ?? []), s = e.chunks.filter((p) => n.includeDirty !== !1 || !p.dirty).map((p) => wo(p, o)).filter((p) => p.score >= (n.minScore ?? 1)).sort((p, u) => u.score - p.score || p.chunk.path.localeCompare(u.chunk.path) || p.chunk.ordinal - u.chunk.ordinal), l = [], m = /* @__PURE__ */ new Set();
+  let f = n.maxChars ?? bo;
   for (const p of s) {
-    if (l.length >= (n.limit ?? go) || f <= 0) break;
+    if (l.length >= (n.limit ?? fo) || f <= 0) break;
     const u = `${p.chunk.fileId}:${p.chunk.ordinal}`;
     if (m.has(u)) continue;
     m.add(u);
     const g = p.chunk.text.length > f ? `${p.chunk.text.slice(0, Math.max(0, f - 28))}
 [...context clipped...]` : p.chunk.text;
-    l.push(yo(p, g, i.has(p.chunk.fileId))), f -= g.length;
+    l.push(go(p, g, i.has(p.chunk.fileId))), f -= g.length;
   }
   return l;
-}, yo = (e, t = e.chunk.text, n = !1) => {
+}, go = (e, t = e.chunk.text, n = !1) => {
   const { chunk: a, score: o, matchedTerms: i } = e;
   return {
     id: `index-hit:${a.id}`,
@@ -1259,10 +1243,10 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     stale: n,
     charCount: t.length,
     text: t,
-    snippet: xo(a.text, i),
+    snippet: vo(a.text, i),
     score: o
   };
-}, wo = (e) => [
+}, ko = (e) => [
   `Path: ${e.path}`,
   `Language: ${e.language}`,
   `Range: ${e.range.startLineNumber}:${e.range.startColumn}-${e.range.endLineNumber}:${e.range.endColumn}`,
@@ -1272,9 +1256,9 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
   "",
   e.text
 ].filter((t) => t !== null).join(`
-`), vo = (e) => Array.from(new Set(
+`), yo = (e) => Array.from(new Set(
   e.toLowerCase().split(/[^a-z0-9_.$/-]+/i).map((t) => t.trim()).filter((t) => t.length >= 2)
-)), Co = (e, t) => {
+)), wo = (e, t) => {
   const n = e.text.toLowerCase(), a = e.path.toLowerCase(), o = e.name.toLowerCase(), i = e.language.toLowerCase();
   let s = 0;
   const l = [];
@@ -1288,10 +1272,10 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
   for (; a !== -1; )
     n += 1, a = e.indexOf(t, a + t.length);
   return n;
-}, xo = (e, t) => {
+}, vo = (e, t) => {
   const n = e.toLowerCase(), a = t.map((m) => n.indexOf(m)).filter((m) => m >= 0).sort((m, f) => m - f)[0] ?? 0, o = Math.max(0, a - 120), i = Math.min(e.length, a + 260), s = o > 0 ? "…" : "", l = i < e.length ? "…" : "";
   return `${s}${e.slice(o, i).replace(/\s+/g, " ").trim()}${l}`;
-}, Ao = (e, t = {}) => {
+}, Co = (e, t = {}) => {
   const { autoRefresh: n = !1, ...a } = t, o = Le(e), i = Le(null);
   i.current || (i.current = Pe(e, a));
   const [s, l] = C(() => i.current?.getSnapshot() ?? Pe(e, a).getSnapshot());
@@ -1311,11 +1295,11 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     return zn(I.getSnapshot(), g, S, I.staleReport(o.current));
   }, []);
   return { snapshot: s, staleReport: p, isStale: p.stale, refresh: m, update: f, retrieve: u };
-}, $o = "tytus.atomek.semanticVector:v1", Rn = "__gateway_default__", _n = (e) => e?.trim() || Rn, No = (e) => {
+}, xo = "tytus.atomek.semanticVector:v1", Rn = "__gateway_default__", _n = (e) => e?.trim() || Rn, Ao = (e) => {
   const t = _n(e);
   return t === Rn ? "gateway default" : t;
 }, jn = (e, t, n) => [
-  $o,
+  xo,
   encodeURIComponent(e || "unknown-app"),
   encodeURIComponent(t),
   encodeURIComponent(n.id),
@@ -1326,7 +1310,7 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
   } catch {
     return !1;
   }
-}, So = (e, t, n) => {
+}, $o = (e, t, n) => {
   if (!Dn()) return null;
   try {
     const a = jn(e, t, n), o = window.localStorage.getItem(a);
@@ -1347,7 +1331,7 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
   } catch {
     return null;
   }
-}, Io = (e) => {
+}, No = (e) => {
   if (!Dn()) return null;
   try {
     const t = jn(e.appId, e.modelAlias, { id: e.chunkId, hash: e.contentHash }), n = { ...e, key: t };
@@ -1355,64 +1339,64 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
   } catch {
     return null;
   }
-}, Be = 8, Mo = 12e3, Po = 180, Lo = async (e, t, n, a, o = {}, i, s) => {
-  const l = zn(t, n, { ...o, limit: Math.max(o.limit ?? Be, 16) }, i), m = e.ai;
+}, He = 8, So = 12e3, Io = 180, Mo = async (e, t, n, a, o = {}, i, s) => {
+  const l = zn(t, n, { ...o, limit: Math.max(o.limit ?? He, 16) }, i), m = e.ai;
   if (typeof m?.embedText != "function")
-    return { hits: l.slice(0, o.limit ?? Be), mode: "keyword", reason: "Semantic index unavailable — using keyword retrieval.", embeddedChunks: 0 };
+    return { hits: l.slice(0, o.limit ?? He), mode: "keyword", reason: "Semantic index unavailable — using keyword retrieval.", embeddedChunks: 0 };
   try {
     const f = _n(a.embeddingModel), p = await m.embedText({
       input: n,
       gatewayPreference: a.gatewayPreference,
       model: a.embeddingModel.trim() || void 0,
       signal: s
-    }), u = Hn(p.embedding);
+    }), u = Bn(p.embedding);
     if (!u) throw new Error("host.ai.embedText returned no embedding vector");
-    const g = new Map(l.map((M) => [M.chunkId, M])), S = _o(n), I = /* @__PURE__ */ new Map();
-    t.chunks.filter((M) => o.includeDirty !== !1 || !M.dirty).slice(0, Po).forEach((M) => I.set(M.id, M)), l.forEach((M) => {
+    const g = new Map(l.map((M) => [M.chunkId, M])), S = zo(n), I = /* @__PURE__ */ new Map();
+    t.chunks.filter((M) => o.includeDirty !== !1 || !M.dirty).slice(0, Io).forEach((M) => I.set(M.id, M)), l.forEach((M) => {
       const E = t.byChunkId.get(M.chunkId);
       E && I.set(E.id, E);
     });
-    const z = Array.from(I.values()), B = [];
+    const z = Array.from(I.values()), H = [];
     let ae = 0;
     for (const M of z) {
       s?.aborted;
-      const E = So(e.appId, f, M) ?? await Eo(m, e.appId, f, M, a, s);
+      const E = $o(e.appId, f, M) ?? await Lo(m, e.appId, f, M, a, s);
       if (!E) continue;
       E.updatedAt > Date.now() - 1e3 && (ae += 1);
-      const Q = zo(u, E.vector);
+      const Q = Oo(u, E.vector);
       if (!Number.isFinite(Q)) continue;
-      const K = g.get(M.id)?.score ?? jo(M, S), re = Ro(K) * 0.42 + Math.max(0, Q) * 0.58;
-      B.push({ chunk: M, keywordScore: K, vectorScore: Q, score: re, matchedTerms: S.filter((w) => M.text.toLowerCase().includes(w)) });
+      const K = g.get(M.id)?.score ?? Ro(M, S), re = Fo(K) * 0.42 + Math.max(0, Q) * 0.58;
+      H.push({ chunk: M, keywordScore: K, vectorScore: Q, score: re, matchedTerms: S.filter((w) => M.text.toLowerCase().includes(w)) });
     }
-    if (B.length === 0) return { hits: l.slice(0, o.limit ?? Be), mode: "vector-fallback", reason: "Semantic retrieval produced no vectors — using keyword retrieval.", embeddedChunks: ae };
-    const q = new Set(i?.files.map((M) => M.fileId) ?? []), W = B.sort((M, E) => E.score - M.score || E.keywordScore - M.keywordScore || M.chunk.path.localeCompare(E.chunk.path) || M.chunk.ordinal - E.chunk.ordinal).slice(0, Math.max(o.limit ?? Be, 1)).map((M) => Oo(M, q.has(M.chunk.fileId)));
+    if (H.length === 0) return { hits: l.slice(0, o.limit ?? He), mode: "vector-fallback", reason: "Semantic retrieval produced no vectors — using keyword retrieval.", embeddedChunks: ae };
+    const q = new Set(i?.files.map((M) => M.fileId) ?? []), W = H.sort((M, E) => E.score - M.score || E.keywordScore - M.keywordScore || M.chunk.path.localeCompare(E.chunk.path) || M.chunk.ordinal - E.chunk.ordinal).slice(0, Math.max(o.limit ?? He, 1)).map((M) => To(M, q.has(M.chunk.fileId)));
     return {
-      hits: Fo(W, o.maxChars ?? Mo),
+      hits: Eo(W, o.maxChars ?? So),
       mode: "hybrid",
-      reason: `Hybrid retrieval used ${No(a.embeddingModel)} embeddings + keyword ranking.`,
+      reason: `Hybrid retrieval used ${Ao(a.embeddingModel)} embeddings + keyword ranking.`,
       embeddedChunks: ae
     };
   } catch (f) {
     return {
-      hits: l.slice(0, o.limit ?? Be),
+      hits: l.slice(0, o.limit ?? He),
       mode: "vector-fallback",
       reason: `Semantic retrieval failed (${f instanceof Error ? f.message : String(f)}) — using keyword retrieval.`,
       embeddedChunks: 0
     };
   }
-}, To = (e) => e.map((t) => ({
+}, Po = (e) => e.map((t) => ({
   kind: "workspace",
   title: `Indexed project context — ${t.label}`,
-  text: wo(t)
-})), Eo = async (e, t, n, a, o, i) => {
+  text: ko(t)
+})), Lo = async (e, t, n, a, o, i) => {
   if (typeof e.embedText != "function") return null;
   const s = await e.embedText({
     input: a.text,
     gatewayPreference: o.gatewayPreference,
     model: o.embeddingModel.trim() || void 0,
     signal: i
-  }), l = Hn(s.embedding);
-  return l ? Io({
+  }), l = Bn(s.embedding);
+  return l ? No({
     appId: t,
     chunkId: a.id,
     contentHash: a.hash,
@@ -1423,7 +1407,7 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     vector: l,
     updatedAt: Date.now()
   }) : null;
-}, Oo = (e, t = !1) => {
+}, To = (e, t = !1) => {
   const n = `${e.chunk.path}:${e.chunk.range.startLineNumber}-${e.chunk.range.endLineNumber}`;
   return {
     id: `index-hit:${e.chunk.id}`,
@@ -1442,12 +1426,12 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     stale: t,
     charCount: e.chunk.text.length,
     text: e.chunk.text,
-    snippet: Do(e.chunk.text, e.matchedTerms),
+    snippet: _o(e.chunk.text, e.matchedTerms),
     score: e.score,
     keywordScore: e.keywordScore,
     vectorScore: e.vectorScore
   };
-}, Fo = (e, t) => {
+}, Eo = (e, t) => {
   let n = t;
   const a = [];
   for (const o of e) {
@@ -1457,50 +1441,50 @@ const Pe = (e = [], t = {}) => new fo(e, t), bo = (e, t, n = {}) => {
     a.push({ ...o, text: i, charCount: i.length }), n -= i.length;
   }
   return a;
-}, Hn = (e) => {
+}, Bn = (e) => {
   if (!Array.isArray(e) || e.length === 0) return null;
   const t = e.map(Number).filter((n) => Number.isFinite(n));
   return t.length === e.length ? t : null;
-}, zo = (e, t) => {
+}, Oo = (e, t) => {
   const n = Math.min(e.length, t.length);
   if (n === 0) return 0;
   let a = 0, o = 0, i = 0;
   for (let s = 0; s < n; s += 1)
     a += e[s] * t[s], o += e[s] * e[s], i += t[s] * t[s];
   return o === 0 || i === 0 ? 0 : a / (Math.sqrt(o) * Math.sqrt(i));
-}, Ro = (e) => Math.min(1, Math.max(0, e / 24)), _o = (e) => Array.from(new Set(
+}, Fo = (e) => Math.min(1, Math.max(0, e / 24)), zo = (e) => Array.from(new Set(
   e.toLowerCase().split(/[^a-z0-9_.$/-]+/i).map((t) => t.trim()).filter((t) => t.length >= 2)
-)), jo = (e, t) => {
+)), Ro = (e, t) => {
   const n = `${e.path}
 ${e.name}
 ${e.language}
 ${e.text}`.toLowerCase();
   return t.reduce((a, o) => a + (n.includes(o) ? 1 : 0), 0);
-}, Do = (e, t) => {
+}, _o = (e, t) => {
   const n = e.toLowerCase(), a = t.map((s) => n.indexOf(s)).filter((s) => s >= 0).sort((s, l) => s - l)[0] ?? 0, o = Math.max(0, a - 120), i = Math.min(e.length, a + 260);
   return `${o > 0 ? "…" : ""}${e.slice(o, i).replace(/\s+/g, " ").trim()}${i < e.length ? "…" : ""}`;
-}, Ho = /```([^\n`]*)\n([\s\S]*?)```/g, Bo = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
+}, jo = /```([^\n`]*)\n([\s\S]*?)```/g, Do = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
 function Vt(e) {
-  return Array.from(e.matchAll(Ho)).map((t) => Bn(t[1] ?? "", Ko(t[2] ?? ""))).filter((t) => t.content.trim().length > 0);
+  return Array.from(e.matchAll(jo)).map((t) => Hn(t[1] ?? "", Uo(t[2] ?? ""))).filter((t) => t.content.trim().length > 0);
 }
-function Bn(e, t) {
+function Hn(e, t) {
   const n = e.trim().split(/[\s,]+/).filter(Boolean), a = {}, o = [];
   for (const i of n) {
     const s = i.match(/^([a-z0-9_-]+)=(.+)$/i);
-    s ? a[s[1].toLowerCase()] = Xo(s[2]) : o.push(i.toLowerCase());
+    s ? a[s[1].toLowerCase()] = Ko(s[2]) : o.push(i.toLowerCase());
   }
   return { lang: e.trim().toLowerCase(), flags: o, attrs: a, content: t };
 }
 function le(e, t) {
-  return (typeof e == "string" ? Bn(e, "").flags : e.flags).includes(t.toLowerCase());
+  return (typeof e == "string" ? Hn(e, "").flags : e.flags).includes(t.toLowerCase());
 }
 function Wn(e) {
-  return [...Vt(e).filter((a) => le(a, "diff") || le(a, "patch")).map((a) => a.content), e].filter((a, o, i) => Wo(a) && i.findIndex((s) => s === a) === o);
+  return [...Vt(e).filter((a) => le(a, "diff") || le(a, "patch")).map((a) => a.content), e].filter((a, o, i) => Bo(a) && i.findIndex((s) => s === a) === o);
 }
-function Wo(e) {
+function Bo(e) {
   return /^@@\s+-\d+/m.test(e) || /^diff --git\s+/m.test(e) || /^---\s+/m.test(e);
 }
-function Vo(e) {
+function Ho(e) {
   const t = Vn(e);
   if (!/^@@\s+-\d+/m.test(t)) return [];
   const n = t.split(`
@@ -1524,18 +1508,18 @@ function me(e) {
   return e.trim().replace(/^['"]|['"]$/g, "").replace(/\\/g, "/").replace(/^[ab]\//, "").replace(/^\.\//, "");
 }
 function Ot(e) {
-  return Vt(e).filter((t) => Uo(t)).map((t) => ({
-    content: Jo(t.content),
+  return Vt(e).filter((t) => Wo(t)).map((t) => ({
+    content: qo(t.content),
     label: `replacement block (${t.lang || "plain"})`,
     lang: t.lang,
-    path: qo(t),
+    path: Vo(t),
     attrs: t.attrs
   }));
 }
-function Uo(e) {
+function Wo(e) {
   return le(e, "atomek-replace") || le(e, "atomek-full") || le(e, "full-replacement") || le(e, "full") || le(e, "replace");
 }
-function qo(e) {
+function Vo(e) {
   const t = e.attrs.path || e.attrs.file || e.attrs.target;
   if (t) return me(t);
   const n = e.content.split(`
@@ -1553,7 +1537,7 @@ function Ft(e, t) {
 `), o = [];
   let i = 0, s = !1;
   for (let l = 0; l < a.length; l += 1) {
-    const m = a[l].match(Bo);
+    const m = a[l].match(Do);
     if (!m) continue;
     s = !0;
     const f = Number(m[1]), p = Math.max(0, f - 1);
@@ -1587,10 +1571,10 @@ function Ft(e, t) {
   return s ? (o.push(...n.slice(i)), o.join(`
 `)) : null;
 }
-function Ko(e) {
+function Uo(e) {
   return e.replace(/^\n+/, "").replace(/\n+$/, "");
 }
-function Jo(e) {
+function qo(e) {
   const t = e.split(`
 `);
   let n = 0;
@@ -1604,13 +1588,13 @@ function Vn(e) {
 `).replace(/\r/g, `
 `);
 }
-function Xo(e) {
+function Ko(e) {
   return e.replace(/^['"]|['"]$/g, "");
 }
-function Go(e) {
+function Jo(e) {
   const { body: t, files: n, sourceTitle: a, activeFile: o = null, versions: i = {} } = e, s = /* @__PURE__ */ new Map(), l = [];
   for (const p of Wn(t))
-    for (const u of Vo(p)) {
+    for (const u of Ho(p)) {
       if (!u.path) {
         if (o) {
           const I = Ft(o.content, u.raw);
@@ -1666,7 +1650,7 @@ function Go(e) {
   }
   const m = Ot(t).some((p) => p.path);
   if (s.size === 0 && o && !m) {
-    const p = Yo(t, o);
+    const p = Xo(t, o);
     p && p.content !== o.content && s.set(o.id, Ze({
       file: o,
       proposedContent: p.content,
@@ -1680,18 +1664,18 @@ function Go(e) {
     sourceTitle: a,
     edits: f,
     skipped: Array.from(new Set(l)),
-    stats: Zo(f.map((p) => p.stats)),
+    stats: Yo(f.map((p) => p.stats)),
     kind: f.length === 0 ? "empty" : f.length === 1 ? "single-file" : "multi-file"
   };
 }
-function Yo(e, t) {
+function Xo(e, t) {
   for (const m of Wn(e)) {
     const f = Ft(t.content, m);
     if (f) return { content: f, label: "unified diff patch" };
   }
   const n = Vt(e);
   if (n.length === 0) return null;
-  const a = ti(t), o = Ot(e)[0];
+  const a = Zo(t), o = Ot(e)[0];
   if (o) return { content: o.content, label: o.label };
   const i = n.find((m) => a.some((f) => le(m, f)) && !le(m, "diff") && !le(m, "patch"));
   if (i) return { content: i.content, label: `matched ${i.lang || t.language} block` };
@@ -1706,7 +1690,7 @@ function fn(e, t) {
   const s = e.find((l) => l.name === a || me(l.path).endsWith(`/${a}`));
   return s ? { file: s, normalizedPatchPath: n, confidence: "basename" } : null;
 }
-function Qo(e, t) {
+function Go(e, t) {
   const n = e.split(`
 `), a = t.split(`
 `), o = Math.max(n.length, a.length);
@@ -1715,21 +1699,21 @@ function Qo(e, t) {
     n[m] !== a[m] && (n[m] === void 0 ? i += 1 : a[m] === void 0 ? s += 1 : l += 1);
   return { added: i, removed: s, changed: l };
 }
-function Zo(e) {
+function Yo(e) {
   return e.reduce((t, n) => ({
     added: t.added + n.added,
     removed: t.removed + n.removed,
     changed: t.changed + n.changed
   }), { added: 0, removed: 0, changed: 0 });
 }
-function ei(e) {
+function Qo(e) {
   let t = 2166136261;
   for (let n = 0; n < e.length; n += 1)
     t ^= e.charCodeAt(n), t = Math.imul(t, 16777619);
   return (t >>> 0).toString(16).padStart(8, "0");
 }
 function Ze(e) {
-  const t = ei(e.file.content);
+  const t = Qo(e.file.content);
   return {
     fileId: e.file.id,
     fileName: e.file.name,
@@ -1738,7 +1722,7 @@ function Ze(e) {
     proposedContent: e.proposedContent,
     sourceTitle: e.sourceTitle,
     extractionLabel: e.extractionLabel,
-    stats: Qo(e.file.content, e.proposedContent),
+    stats: Go(e.file.content, e.proposedContent),
     base: {
       version: e.versions[e.file.id],
       contentHash: t
@@ -1754,7 +1738,7 @@ function Ze(e) {
     }
   };
 }
-function ti(e) {
+function Zo(e) {
   const t = e.name.split(".").pop()?.toLowerCase() ?? "";
   return Array.from(new Set([
     e.language,
@@ -1766,35 +1750,35 @@ function ti(e) {
     e.language === "yaml" ? "yml" : ""
   ].filter(Boolean)));
 }
-const rt = (e) => typeof e == "object" && e !== null, ni = (e) => rt(e.ai) ? e.ai : null, ai = (e) => {
+const rt = (e) => typeof e == "object" && e !== null, ei = (e) => rt(e.ai) ? e.ai : null, ti = (e) => {
   if (!rt(e)) return null;
   const t = e.id;
   return typeof t == "string" && t.trim() ? t : null;
-}, ri = (e) => {
-  const t = ai(e);
+}, ni = (e) => {
+  const t = ti(e);
   return !t || !rt(e) ? null : { ...e, id: t };
-}, he = (e) => typeof e == "string" ? /\bembeddings?\b|text-embedding/i.test(e) : Array.isArray(e) ? e.some(he) : rt(e) ? Object.values(e).some(he) : !1, oi = async (e, t) => {
-  const n = ni(e);
+}, he = (e) => typeof e == "string" ? /\bembeddings?\b|text-embedding/i.test(e) : Array.isArray(e) ? e.some(he) : rt(e) ? Object.values(e).some(he) : !1, ai = async (e, t) => {
+  const n = ei(e);
   if (typeof n?.listModels != "function") return [];
   const a = await n.listModels(t);
-  return Array.isArray(a) ? a.map(ri).filter((o) => !!o) : [];
-}, ii = (e) => (e.embedding ?? e.embeddings ?? e.supportsEmbedding ?? e.supportsEmbeddings) === !0 ? !0 : he(e.capability) || he(e.capabilities) || he(e.modality) || he(e.modalities) || he(e.task) || he(e.tasks) || he(e.type) || he(e.kind), Un = (e) => typeof e == "object" && e !== null, ci = (e) => Un(e.ai) ? e.ai : null, qn = (e) => typeof ci(e)?.embedText == "function", si = async (e, t) => qn(e) ? (await oi(e, t)).filter(ii) : [], li = (e) => Un(e.ai) ? qn(e) ? null : "host.ai.embedText is not exposed by this Tytus build." : "host.ai is not available in this Tytus build.", di = ["typecheck", "test", "lint", "build", "release:check", "verify", "verify:cortex"], hi = [
+  return Array.isArray(a) ? a.map(ni).filter((o) => !!o) : [];
+}, ri = (e) => (e.embedding ?? e.embeddings ?? e.supportsEmbedding ?? e.supportsEmbeddings) === !0 ? !0 : he(e.capability) || he(e.capabilities) || he(e.modality) || he(e.modalities) || he(e.task) || he(e.tasks) || he(e.type) || he(e.kind), Un = (e) => typeof e == "object" && e !== null, oi = (e) => Un(e.ai) ? e.ai : null, qn = (e) => typeof oi(e)?.embedText == "function", ii = async (e, t) => qn(e) ? (await ai(e, t)).filter(ri) : [], ci = (e) => Un(e.ai) ? qn(e) ? null : "host.ai.embedText is not exposed by this Tytus build." : "host.ai is not available in this Tytus build.", si = ["typecheck", "test", "lint", "build", "release:check", "verify", "verify:cortex"], li = [
   ["package-lock.json", "npm"],
   ["pnpm-lock.yaml", "pnpm"],
   ["yarn.lock", "yarn"],
   ["bun.lockb", "bun"],
   ["bun.lock", "bun"]
 ];
-function ui(e, t) {
+function di(e, t) {
   return {
     id: `manual-check-${Date.now()}`,
     reason: t,
-    commands: gi(e),
+    commands: fi(e),
     results: [],
     createdAt: Date.now()
   };
 }
-function mi(e, t) {
+function hi(e, t) {
   const n = Kn(t);
   return !n || e.commands.some((a) => a.command === n) ? e : {
     ...e,
@@ -1809,7 +1793,7 @@ function mi(e, t) {
     ]
   };
 }
-function pi(e, t, n, a) {
+function ui(e, t, n, a) {
   const o = Kn(t);
   return o ? {
     ...e,
@@ -1824,12 +1808,12 @@ function pi(e, t, n, a) {
     ]
   } : e;
 }
-function fi(e) {
+function mi(e) {
   const t = e.results.length > 0 ? e.results.map((a, o) => [
     `Check ${o + 1}: ${a.command}`,
     `Status: ${a.status}`,
     "Output:",
-    xi(a.output || "(no output pasted)", "text")
+    vi(a.output || "(no output pasted)", "text")
   ].join(`
 `)).join(`
 
@@ -1852,18 +1836,18 @@ function fi(e) {
   ].join(`
 `);
 }
-function bi(e) {
+function pi(e) {
   const t = e.results.at(-1);
   return t ? t.status : "pending";
 }
-function gi(e) {
+function fi(e) {
   const t = e.filter((a) => a.name === "package.json" || a.path.endsWith("/package.json")), n = [];
   for (const a of t) {
-    const o = ki(a.content);
+    const o = bi(a.content);
     if (!o?.scripts) continue;
-    const i = Jn(a.path), s = yi(e, i, o);
+    const i = Jn(a.path), s = gi(e, i, o);
     if (!s) continue;
-    const l = Object.keys(o.scripts).filter((f) => typeof o.scripts?.[f] == "string"), m = wi(l);
+    const l = Object.keys(o.scripts).filter((f) => typeof o.scripts?.[f] == "string"), m = ki(l);
     for (const f of m) {
       const p = `${s} run ${f}`;
       n.push({
@@ -1875,9 +1859,9 @@ function gi(e) {
       });
     }
   }
-  return vi(n).slice(0, 6);
+  return yi(n).slice(0, 6);
 }
-function ki(e) {
+function bi(e) {
   try {
     const t = JSON.parse(e);
     return t && typeof t == "object" ? t : null;
@@ -1885,20 +1869,20 @@ function ki(e) {
     return null;
   }
 }
-function yi(e, t, n) {
+function gi(e, t, n) {
   if (typeof n.packageManager == "string") {
     const a = n.packageManager.split("@")[0]?.trim();
     if (a) return a;
   }
-  for (const [a, o] of hi)
-    if (e.some((i) => Ci(i.path) === a && Jn(i.path) === t)) return o;
+  for (const [a, o] of li)
+    if (e.some((i) => wi(i.path) === a && Jn(i.path) === t)) return o;
   return null;
 }
-function wi(e) {
-  const t = di.filter((a) => e.includes(a)), n = e.filter((a) => !t.includes(a)).filter((a) => /(^|:)(check|typecheck|test|lint|verify|build)(:|$)/i.test(a)).sort((a, o) => a.localeCompare(o));
+function ki(e) {
+  const t = si.filter((a) => e.includes(a)), n = e.filter((a) => !t.includes(a)).filter((a) => /(^|:)(check|typecheck|test|lint|verify|build)(:|$)/i.test(a)).sort((a, o) => a.localeCompare(o));
   return [...t, ...n];
 }
-function vi(e) {
+function yi(e) {
   const t = /* @__PURE__ */ new Set();
   return e.filter((n) => {
     const a = n.command;
@@ -1912,7 +1896,7 @@ function Jn(e) {
   const t = e.lastIndexOf("/");
   return t > 0 ? e.slice(0, t) : "";
 }
-function Ci(e) {
+function wi(e) {
   const t = e.lastIndexOf("/");
   return t >= 0 ? e.slice(t + 1) : e;
 }
@@ -1921,12 +1905,12 @@ function Xn(e) {
   for (let n = 0; n < e.length; n += 1) t = t * 31 + e.charCodeAt(n) | 0;
   return `check-${Math.abs(t)}`;
 }
-function xi(e, t) {
+function vi(e, t) {
   return `\`\`\`${t}
 ${e.replace(/\`\`\`/g, "``\\`")}
 \`\`\``;
 }
-const Ai = Fa(() => import("./WorkbenchMonacoEditor-DbnEHW95.js").then((e) => e.W).then((e) => ({ default: e.WorkbenchMonacoEditor }))), $i = {
+const Ci = Fa(() => import("./WorkbenchMonacoEditor-DbnEHW95.js").then((e) => e.W).then((e) => ({ default: e.WorkbenchMonacoEditor }))), xi = {
   id: "welcome",
   name: "Welcome",
   path: "Welcome",
@@ -1938,15 +1922,15 @@ const Ai = Fa(() => import("./WorkbenchMonacoEditor-DbnEHW95.js").then((e) => e.
   gatewayPreference: "auto",
   model: "",
   embeddingModel: ""
-}, Ni = 48;
+}, Ai = 48;
 function et(e, t, n) {
   return Math.round(Math.max(t, Math.min(n, e)));
 }
 function Nt(e) {
-  const t = Math.max(e || 1400, 760), n = Math.max(0, t - Ni), a = n < 1180, o = a ? 200 : 240, i = a ? 300 : 340, s = a ? 420 : 560, l = Math.max(o, Math.min(a ? 340 : 420, Math.floor(n * 0.28))), m = Math.min(300, l), f = Math.floor(n * (a ? 0.34 : 0.36)), p = n - m - s, u = Math.max(i, Math.min(a ? 500 : 640, f, p));
+  const t = Math.max(e || 1400, 760), n = Math.max(0, t - Ai), a = n < 1180, o = a ? 200 : 240, i = a ? 300 : 340, s = a ? 420 : 560, l = Math.max(o, Math.min(a ? 340 : 420, Math.floor(n * 0.28))), m = Math.min(300, l), f = Math.floor(n * (a ? 0.34 : 0.36)), p = n - m - s, u = Math.max(i, Math.min(a ? 500 : 640, f, p));
   return { primaryMin: o, primaryMax: l, secondaryMin: i, secondaryMax: u };
 }
-function Si(e) {
+function $i(e) {
   const t = [], n = /```([^\n`]*)\n?([\s\S]*?)```/g;
   let a = 0, o = 0, i;
   for (; (i = n.exec(e)) !== null; ) {
@@ -1975,12 +1959,12 @@ async function ot(e) {
     return document.body.removeChild(t), n;
   }
 }
-function Ii({ host: e }) {
-  const t = Le(null), [n, a] = C(0), o = Y(() => ic(), []), [i, s] = C("explorer"), [l, m] = C(o.primaryVisible), [f, p] = C(o.primaryWidth), [u, g] = C("chat"), [S, I] = C(o.secondaryVisible), [z, B] = C(o.secondaryWidth), [ae, q] = C(!1), [W, M] = C("problems"), [E, Q] = C(o.markdownPreviewVisible), [pe, K] = C(!1), [re, w] = C(null), [v, T] = C([]), [J, ie] = C([]), [H, ce] = C(null), [Te, it] = C(""), [A, x] = C({ lineNumber: 1, column: 1 }), [P, F] = C(null), [V, _] = C({}), [Z, we] = C(Wr), [Ee, Ve] = C([]), [ve, fe] = C([]), [D, j] = C(null), [ee, te] = C(""), [aa, ct] = C(!1), [ra, oa] = C(""), [qt, Ue] = C([]), [X, $e] = C(null), [be, Oe] = C(null), [Kt, Jt] = C(!1), [Ce, ia] = C(() => cc()), [Xt, Fe] = C(null), [Ne, st] = C(null), [lt, dt] = C(""), [ht, ut] = C(""), [qe, Ke] = C(""), [Je, Gt] = C("failed"), [ca, Yt] = C(null), [sa, $] = C("Ready"), [ze, la] = C(() => oc()), se = J.map((c) => v.find((d) => d.id === c)).filter(Boolean), N = H ? v.find((c) => c.id === H) ?? null : null, Qt = Y(() => Br({ files: v, openEditorIds: J, activeFileId: H, versions: V, activeSelection: P }), [H, P, V, v, J]), Zt = Y(() => ({
+function Ni({ host: e }) {
+  const t = Le(null), [n, a] = C(0), o = Y(() => rc(), []), [i, s] = C("explorer"), [l, m] = C(o.primaryVisible), [f, p] = C(o.primaryWidth), [u, g] = C("chat"), [S, I] = C(o.secondaryVisible), [z, H] = C(o.secondaryWidth), [ae, q] = C(!1), [W, M] = C("problems"), [E, Q] = C(o.markdownPreviewVisible), [pe, K] = C(!1), [re, w] = C(null), [v, T] = C([]), [J, ie] = C([]), [B, ce] = C(null), [Te, it] = C(""), [A, x] = C({ lineNumber: 1, column: 1 }), [P, O] = C(null), [V, _] = C({}), [Z, ye] = C(Br), [Ee, Ve] = C([]), [we, fe] = C([]), [D, j] = C(null), [ee, te] = C(""), [aa, ct] = C(!1), [ra, oa] = C(""), [qt, Ue] = C([]), [X, $e] = C(null), [be, Oe] = C(null), [Kt, Jt] = C(!1), [ve, ia] = C(() => oc()), [Xt, Fe] = C(null), [Ne, st] = C(null), [lt, dt] = C(""), [ht, ut] = C(""), [qe, Ke] = C(""), [Je, Gt] = C("failed"), [ca, Yt] = C(null), [sa, $] = C("Ready"), [ze, la] = C(() => ac()), se = J.map((c) => v.find((d) => d.id === c)).filter(Boolean), N = B ? v.find((c) => c.id === B) ?? null : null, Qt = Y(() => Dr({ files: v, openEditorIds: J, activeFileId: B, versions: V, activeSelection: P }), [B, P, V, v, J]), Zt = Y(() => ({
     scope: Z,
     removedAttachmentIds: Ee,
     selectedFileIds: []
-  }), [Z, Ee]), Re = Y(() => eo(Qt, v, Zt), [Zt, Qt, v]), ge = Ao(v, { autoRefresh: !0, includeDirty: !0 }), en = Y(() => ve.map((c) => ({
+  }), [Z, Ee]), Re = Y(() => Qr(Qt, v, Zt), [Zt, Qt, v]), ge = Co(v, { autoRefresh: !0, includeDirty: !0 }), en = Y(() => we.map((c) => ({
     id: c.id,
     kind: "index-hit",
     label: c.label,
@@ -1995,7 +1979,7 @@ function Ii({ host: e }) {
     keywordScore: c.keywordScore,
     vectorScore: c.vectorScore,
     snippet: c.snippet
-  })), [ve]), da = Y(() => [...Re.attachments, ...en], [Re.attachments, en]), L = jr({ host: e, requestContext: Re.parts, chatSettings: Ce, setStatus: $ }), xe = Y(
+  })), [we]), da = Y(() => [...Re.attachments, ...en], [Re.attachments, en]), L = Rr({ host: e, requestContext: Re.parts, chatSettings: ve, setStatus: $ }), Ce = Y(
     () => [...L.artifacts, ...qt].sort((c, d) => d.createdAt - c.createdAt),
     [L.artifacts, qt]
   ), Xe = Kt && !N, mt = !N && !Xe && !pe, ne = Y(() => v.filter((c) => c.dirty), [v]), ha = Y(() => {
@@ -2010,7 +1994,7 @@ function Ii({ host: e }) {
     });
   }, [v]), U(() => {
     Ve([]), fe([]);
-  }, [H, Z, J]), U(() => {
+  }, [B, Z, J]), U(() => {
     fe([]);
   }, [v]);
   const ua = y((c) => {
@@ -2029,7 +2013,7 @@ function Ii({ host: e }) {
     c.preventDefault(), c.currentTarget.setPointerCapture?.(c.pointerId);
     const d = Nt(n), b = c.clientX, k = z, R = (De) => {
       const Ct = k + (b - De.clientX);
-      B(et(Ct, d.secondaryMin, d.secondaryMax));
+      H(et(Ct, d.secondaryMin, d.secondaryMax));
     }, de = () => {
       window.removeEventListener("pointermove", R), window.removeEventListener("pointerup", de);
     };
@@ -2055,25 +2039,25 @@ function Ii({ host: e }) {
   }, [v, G]), _e = y(async () => {
     if (St(ne, "open new files"))
       try {
-        const c = await Pr();
+        const c = await Ir();
         if (c.length === 0) return;
-        T((d) => nc(d, c)), c.forEach((d) => Ye({ name: d.name, path: d.path, at: Date.now() })), G(c[0]), $(`Opened ${c.length} local file${c.length === 1 ? "" : "s"}`);
+        T((d) => ec(d, c)), c.forEach((d) => Ye({ name: d.name, path: d.path, at: Date.now() })), G(c[0]), $(`Opened ${c.length} local file${c.length === 1 ? "" : "s"}`);
       } catch (c) {
         c.name !== "AbortError" && $(`Open file failed: ${c.message}`);
       }
   }, [ne, G, Ye]), pt = y(async () => {
     if (St(ne, "open another folder"))
       try {
-        const c = await Lr();
+        const c = await Mr();
         w(c), T(c.files), ie([]), ce(null), K(!1), Ye({ name: c.name, path: c.name, at: Date.now() }), $(`${c.handle ? "Opened local folder" : "Opened browser fallback folder"} ${c.name} (${c.files.length} text files indexed)`);
       } catch (c) {
         c.name !== "AbortError" && $(`Open folder failed: ${c.message}`);
       }
   }, [ne, Ye]), ba = y((c) => {
-    if (!H) return;
+    if (!B) return;
     let d = !1;
-    T((b) => b.map((k) => k.id !== H || k.content === c ? k : (d = !0, { ...k, content: c, dirty: !0 }))), d && Se(H);
-  }, [H, Se]), ft = y(async () => {
+    T((b) => b.map((k) => k.id !== B || k.content === c ? k : (d = !0, { ...k, content: c, dirty: !0 }))), d && Se(B);
+  }, [B, Se]), ft = y(async () => {
     if (N)
       try {
         const c = await xt(N);
@@ -2106,9 +2090,9 @@ function Ii({ host: e }) {
     }
     ie((b) => {
       const k = b.filter((R) => R !== c);
-      return H === c && (ce(k.at(-1) ?? null), F(null)), k;
+      return B === c && (ce(k.at(-1) ?? null), O(null)), k;
     });
-  }, [H, v]), ka = y(() => {
+  }, [B, v]), ka = y(() => {
     St(ne, "close all editors") && (ie([]), ce(null), Yt(null), K(!1), $("Closed all editors"));
   }, [ne]), gt = y(() => {
     const c = v.filter((b) => b.name.startsWith("Untitled")).length + 1, d = {
@@ -2126,19 +2110,19 @@ function Ii({ host: e }) {
     const d = [...Re.parts];
     if (Z !== "indexed-project")
       return fe([]), d;
-    const b = await Lo(
+    const b = await Mo(
       e,
       ge.snapshot,
       c,
-      Ce,
+      ve,
       { limit: 8, maxChars: 12e3, includeDirty: !0 },
       ge.staleReport
     ), k = b.hits;
     return fe(k), k.length === 0 ? ($(ge.snapshot.chunks.length === 0 ? "Project index is empty — open a folder with readable files first" : "Project index found no matching context for this prompt"), d) : (b.mode !== "hybrid" && b.reason ? $(b.reason) : $(`${k.length} project context hit${k.length === 1 ? "" : "s"} · ${b.reason ?? "hybrid retrieval"}`), [
       ...d,
-      ...To(k)
+      ...Po(k)
     ]);
-  }, [Re.parts, Z, Ce, e, ge]), kt = y(() => {
+  }, [Re.parts, Z, ve, e, ge]), kt = y(() => {
     if (!N && se.length === 0) {
       $("Open a file before asking Atomek to synthesize an AI artifact");
       return;
@@ -2275,7 +2259,7 @@ function Ii({ host: e }) {
     };
     Ue((de) => [R, ...de]), q(!0), M("output"), $(`Captured manual check: ${d}`);
   }, []), Ie = y((c, d) => {
-    const b = Go({
+    const b = Jo({
       body: d,
       files: v,
       sourceTitle: c,
@@ -2283,7 +2267,7 @@ function Ii({ host: e }) {
       versions: V
     }), k = {
       sourceTitle: b.sourceTitle,
-      edits: b.edits.map(ac),
+      edits: b.edits.map(tc),
       skipped: b.skipped
     };
     return b.edits.length > 1 ? (Oe(k), $e(null), $(`Previewing AI workspace patch for ${b.edits.length} files`), !0) : b.edits.length === 1 ? ($e(k.edits[0]), Oe(null), $(`Previewing AI patch for ${k.edits[0].fileName}`), !0) : ($(b.skipped.length > 0 ? `No applicable edit found. ${b.skipped.slice(0, 2).join(" · ")}` : "No fenced replacement block or applicable unified diff found. Ask Atomek for an edit again."), !1);
@@ -2301,7 +2285,7 @@ function Ii({ host: e }) {
     const c = ee.trim();
     if (!c) return;
     te("");
-    const d = Ui(c);
+    const d = Wi(c);
     (async () => {
       const b = await ke(c), k = await L.askAgent(c, { requestContext: b });
       if (!d || !k || k.status === "error") return;
@@ -2309,9 +2293,9 @@ function Ii({ host: e }) {
 `).find(Boolean)?.replace(/^#+\s*/, "").slice(0, 80) || "Atomek edit", k.body) || $("Edit request answered without a patch. Use Generate patch / Edit to request an applicable diff.");
     })();
   }, [L, ke, ee, Ie]), Na = y(() => {
-    D && (j(null), oe(qi(D)));
+    D && (j(null), oe(Vi(D)));
   }, [oe, D]), je = y((c) => {
-    const d = ui(v, c);
+    const d = di(v, c);
     st(d);
     const b = d.commands[0]?.command ?? "";
     Ke(b), dt(""), ut(""), Gt("failed"), q(!0), M("terminal"), $(d.commands.length > 0 ? `Manual check ready: copy ${d.commands[0].command}` : "Manual check ready: enter a check command to copy");
@@ -2320,7 +2304,7 @@ function Ii({ host: e }) {
   }, []), Ia = y(() => {
     st((c) => {
       if (!c) return c;
-      const d = mi(c, lt), b = d.commands.at(-1)?.command ?? "";
+      const d = hi(c, lt), b = d.commands.at(-1)?.command ?? "";
       return b && Ke(b), d;
     }), dt("");
   }, [lt]), Ma = y(() => {
@@ -2329,9 +2313,9 @@ function Ii({ host: e }) {
       return;
     }
     const c = qe.trim();
-    st((d) => d && pi(d, c, Je, ht)), ut(""), $(`Captured manual check result: ${c} (${Je})`);
+    st((d) => d && ui(d, c, Je, ht)), ut(""), $(`Captured manual check result: ${c} (${Je})`);
   }, [ht, qe, Ne, Je]), Pa = y(() => {
-    Ne && oe(fi(Ne));
+    Ne && oe(mi(Ne));
   }, [oe, Ne]), La = y(() => {
     if (!X) return;
     const c = v.find((d) => d.id === X.fileId);
@@ -2398,10 +2382,10 @@ function Ii({ host: e }) {
   }, [oe]);
   return U(() => {
     const c = (d) => {
-      (d.metaKey || d.ctrlKey) && (d.key.toLowerCase() === "o" && (d.preventDefault(), _e()), d.key.toLowerCase() === "s" && (d.preventDefault(), ft()), d.key.toLowerCase() === "w" && (d.preventDefault(), H && bt(H)), d.key.toLowerCase() === "b" && (d.preventDefault(), m((k) => !k)), d.shiftKey && d.key.toLowerCase() === "f" && (d.preventDefault(), s("search"), m(!0)), (d.key.toLowerCase() === "k" || d.key.toLowerCase() === "p") && (d.preventDefault(), ct(!0)));
+      (d.metaKey || d.ctrlKey) && (d.key.toLowerCase() === "o" && (d.preventDefault(), _e()), d.key.toLowerCase() === "s" && (d.preventDefault(), ft()), d.key.toLowerCase() === "w" && (d.preventDefault(), B && bt(B)), d.key.toLowerCase() === "b" && (d.preventDefault(), m((k) => !k)), d.shiftKey && d.key.toLowerCase() === "f" && (d.preventDefault(), s("search"), m(!0)), (d.key.toLowerCase() === "k" || d.key.toLowerCase() === "p") && (d.preventDefault(), ct(!0)));
     };
     return window.addEventListener("keydown", c), () => window.removeEventListener("keydown", c);
-  }, [H, bt, _e, ft]), U(() => {
+  }, [B, bt, _e, ft]), U(() => {
     const c = (d) => {
       ne.length !== 0 && (d.preventDefault(), d.returnValue = "");
     };
@@ -2418,13 +2402,13 @@ function Ii({ host: e }) {
   }, []), U(() => {
     if (!n) return;
     const c = Nt(n);
-    p((d) => et(d, c.primaryMin, c.primaryMax)), B((d) => et(d, c.secondaryMin, c.secondaryMax));
+    p((d) => et(d, c.primaryMin, c.primaryMax)), H((d) => et(d, c.secondaryMin, c.secondaryMax));
   }, [n]), U(() => {
     const c = { primaryVisible: l, primaryWidth: f, secondaryVisible: S, secondaryWidth: z, markdownPreviewVisible: E };
     localStorage.setItem(Yn, JSON.stringify(c));
   }, [E, l, f, S, z]), U(() => {
-    localStorage.setItem(Qn, JSON.stringify(Ce));
-  }, [Ce]), /* @__PURE__ */ h(
+    localStorage.setItem(Qn, JSON.stringify(ve));
+  }, [ve]), /* @__PURE__ */ h(
     "div",
     {
       ref: t,
@@ -2432,19 +2416,19 @@ function Ii({ host: e }) {
       "data-app": "workbench-vscode-base",
       style: { "--workbench-primary-width": `${f}px`, "--workbench-secondary-width": `${z}px` },
       children: [
-        /* @__PURE__ */ r(Mi, { active: i, setActive: (c) => {
+        /* @__PURE__ */ r(Si, { active: i, setActive: (c) => {
           s(c), m(!0);
         }, openSettings: Ge, settingsActive: Xe }),
         l && /* @__PURE__ */ h("div", { className: "workbench-primary-region", children: [
           /* @__PURE__ */ r(
-            Pi,
+            Ii,
             {
               host: e,
               activity: i,
               folder: re,
               files: i === "search" ? v : ha,
               openEditors: se,
-              activeFileId: H,
+              activeFileId: B,
               query: Te,
               setQuery: it,
               openFile: _e,
@@ -2454,7 +2438,7 @@ function Ii({ host: e }) {
               recent: ze,
               reopenRecent: yt,
               setStatus: $,
-              hasFsAccess: Mr(),
+              hasFsAccess: Sr(),
               attachSkillToChat: ya,
               saveLocalJobOutput: Aa,
               activeFile: N
@@ -2466,10 +2450,10 @@ function Ii({ host: e }) {
           /* @__PURE__ */ r("button", { className: "workbench-command-center", onClick: () => ct(!0), children: "Workspace" }),
           /* @__PURE__ */ h("section", { className: "workbench-editor-stack", children: [
             /* @__PURE__ */ r(
-              Oi,
+              Ti,
               {
                 openEditors: se,
-                activeFileId: H,
+                activeFileId: B,
                 showWelcome: mt,
                 settingsOpen: Kt,
                 settingsActive: Xe,
@@ -2488,7 +2472,7 @@ function Ii({ host: e }) {
                 togglePreview: () => Q((c) => !c)
               }
             ),
-            /* @__PURE__ */ r(Ei, { file: N, folder: re, showWelcome: mt }),
+            /* @__PURE__ */ r(Li, { file: N, folder: re, showWelcome: mt }),
             Xt && ne.length > 0 ? /* @__PURE__ */ h("div", { className: "workbench-ai-dirty-banner", children: [
               /* @__PURE__ */ r("span", { children: Xt }),
               /* @__PURE__ */ r("button", { onClick: () => {
@@ -2498,39 +2482,39 @@ function Ii({ host: e }) {
             ] }) : null,
             /* @__PURE__ */ r("div", { className: "workbench-editor-content", children: N ? /* @__PURE__ */ h("div", { className: N.language === "markdown" && E ? "workbench-editor-split" : "workbench-editor-single", children: [
               /* @__PURE__ */ r("div", { className: "workbench-editor-pane", children: /* @__PURE__ */ r(za, { fallback: /* @__PURE__ */ r("div", { className: "workbench-empty-pane", children: "Loading editor…" }), children: /* @__PURE__ */ r(
-                Ai,
+                Ci,
                 {
                   file: N,
                   revealLine: ca,
                   onChange: ba,
                   onCursorChange: x,
-                  onSelectionChange: F,
+                  onSelectionChange: O,
                   onSave: () => {
                     ft();
                   }
                 },
                 N.id
               ) }) }),
-              N.language === "markdown" && E && /* @__PURE__ */ r(ji, { content: N.content })
+              N.language === "markdown" && E && /* @__PURE__ */ r(Ri, { content: N.content })
             ] }) : Xe ? /* @__PURE__ */ r(
-              Ki,
+              Ui,
               {
                 host: e,
-                chatSettings: Ce,
+                chatSettings: ve,
                 onChange: ia,
                 onClose: tn
               }
-            ) : mt ? /* @__PURE__ */ r(Fi, { openFile: _e, openFolder: pt, newFile: gt, recent: ze, reopenRecent: yt, setStatus: $ }) : /* @__PURE__ */ h("div", { className: "workbench-no-editor", children: [
+            ) : mt ? /* @__PURE__ */ r(Ei, { openFile: _e, openFolder: pt, newFile: gt, recent: ze, reopenRecent: yt, setStatus: $ }) : /* @__PURE__ */ h("div", { className: "workbench-no-editor", children: [
               /* @__PURE__ */ r(at, { size: 34 }),
               /* @__PURE__ */ r("p", { children: "No editor open" }),
               /* @__PURE__ */ r("button", { className: "workbench-button-subtle", onClick: () => K(!1), children: "Show Welcome" })
             ] }) }),
             ae && /* @__PURE__ */ r(
-              Hi,
+              ji,
               {
                 tab: W,
                 setTab: M,
-                outputs: xe,
+                outputs: Ce,
                 clearOutputs: () => Ue([]),
                 deleteArtifact: (c) => {
                   L.deleteArtifact(c);
@@ -2557,7 +2541,7 @@ function Ii({ host: e }) {
           ] })
         ] }),
         S && /* @__PURE__ */ r(
-          Bi,
+          Di,
           {
             tab: u,
             setTab: g,
@@ -2590,11 +2574,11 @@ function Ii({ host: e }) {
             generatePatchPrompt: Na,
             workspaceFileCount: v.length,
             aiStatus: L.aiStatus,
-            chatSettings: Ce,
+            chatSettings: ve,
             openSettings: Ge,
             busy: L.busy,
             memoryHitCount: L.memoryHits.length,
-            outputs: xe,
+            outputs: Ce,
             runAiSynthesis: kt,
             captureManualCheck: vt,
             openOutputAsFile: wt,
@@ -2607,7 +2591,7 @@ function Ii({ host: e }) {
             host: e,
             activeFile: N,
             contextScope: Z,
-            setContextScope: we,
+            setContextScope: ye,
             contextAttachments: da,
             removeContextAttachment: ua,
             revealContextAttachment: fa,
@@ -2622,7 +2606,7 @@ function Ii({ host: e }) {
           }
         ),
         aa && /* @__PURE__ */ r(
-          _i,
+          zi,
           {
             query: ra,
             setQuery: oa,
@@ -2660,14 +2644,14 @@ function Ii({ host: e }) {
               { label: "AI: Plan Workspace Work", detail: se.length > 0 ? "Use open editors as bounded context" : "Open files first", run: () => oe("Create an implementation plan from the open editor context. Be specific and sequence the work."), disabled: se.length === 0 },
               { label: "AI: Save Active File as Artifact", detail: N ? "Persist active file in host.ai artifacts" : "Open a file first", run: xa, disabled: !N },
               { label: "AI: Capture Manual Check Output", detail: "Paste check output as an auditable local artifact; no shell execution", run: vt },
-              { label: "AI: Open Latest Artifact as File", detail: xe[0] ? `Create editable file from ${xe[0].title}` : "No outputs yet", run: () => xe[0] && wt(xe[0]), disabled: xe.length === 0 }
+              { label: "AI: Open Latest Artifact as File", detail: Ce[0] ? `Create editable file from ${Ce[0].title}` : "No outputs yet", run: () => Ce[0] && wt(Ce[0]), disabled: Ce.length === 0 }
             ],
             openWorkbenchFile: G,
             onClose: () => ct(!1)
           }
         ),
         X && /* @__PURE__ */ r(
-          Ji,
+          qi,
           {
             edit: X,
             onApply: La,
@@ -2676,7 +2660,7 @@ function Ii({ host: e }) {
           }
         ),
         be && /* @__PURE__ */ r(
-          Xi,
+          Ki,
           {
             patch: be,
             onApply: Ea,
@@ -2684,33 +2668,32 @@ function Ii({ host: e }) {
             onClose: () => Oe(null)
           }
         ),
-        /* @__PURE__ */ r(tc, { status: sa, file: N ?? $i, cursor: A, fileCount: v.length, dirtyCount: ne.length })
+        /* @__PURE__ */ r(Zi, { status: sa, file: N ?? xi, cursor: A, fileCount: v.length, dirtyCount: ne.length })
       ]
     }
   );
 }
-function Mi({ active: e, setActive: t, openSettings: n, settingsActive: a }) {
+function Si({ active: e, setActive: t, openSettings: n, settingsActive: a }) {
   return /* @__PURE__ */ h("aside", { className: "workbench-activity-bar", "aria-label": "Activity Bar", children: [
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(An, { size: 25 }), label: "Explorer", active: e === "explorer", onClick: () => t("explorer") }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(kr, { size: 25 }), label: "Search", active: e === "search", onClick: () => t("search") }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r($n, { size: 25 }), label: "Source Control", active: e === "source-control", onClick: () => t("source-control") }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(Cn, { size: 25 }), label: "Run and Debug", active: e === "run", onClick: () => t("run") }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(zt, { size: 25 }), label: "Computer / Agents", active: e === "computer", onClick: () => t("computer") }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(Wa, { size: 25 }), label: "Skills / Apps", active: e === "extensions", onClick: () => t("extensions") }),
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(An, { size: 25 }), label: "Explorer", active: e === "explorer", onClick: () => t("explorer") }),
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(br, { size: 25 }), label: "Search", active: e === "search", onClick: () => t("search") }),
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r($n, { size: 25 }), label: "Source Control", active: e === "source-control", onClick: () => t("source-control") }),
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(Cn, { size: 25 }), label: "Run and Debug", active: e === "run", onClick: () => t("run") }),
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(zt, { size: 25 }), label: "Computer / Agents", active: e === "computer", onClick: () => t("computer") }),
     /* @__PURE__ */ r("div", { className: "workbench-activity-spacer" }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(Ga, { size: 23 }), label: "Accounts", active: !1, onClick: () => {
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(Ja, { size: 23 }), label: "Accounts", active: !1, onClick: () => {
     } }),
-    /* @__PURE__ */ r(ye, { icon: /* @__PURE__ */ r(Cr, { size: 23 }), label: "Settings", active: a, onClick: n })
+    /* @__PURE__ */ r(xe, { icon: /* @__PURE__ */ r(wr, { size: 23 }), label: "Settings", active: a, onClick: n })
   ] });
 }
-function ye({ icon: e, label: t, active: n, onClick: a }) {
+function xe({ icon: e, label: t, active: n, onClick: a }) {
   return /* @__PURE__ */ r("button", { className: `workbench-activity-button ${n ? "active" : ""}`, title: t, "aria-label": t, onClick: a, children: e });
 }
-function Pi(e) {
-  return e.activity === "search" ? /* @__PURE__ */ r(zi, { files: e.files, query: e.query, setQuery: e.setQuery, openWorkbenchFile: e.openWorkbenchFile, activeFileId: e.activeFileId }) : e.activity === "source-control" ? /* @__PURE__ */ r(yn, { title: "SOURCE CONTROL", body: "No source control provider registered. Git belongs here, not as a fake demo." }) : e.activity === "run" ? /* @__PURE__ */ r(yn, { title: "RUN AND DEBUG", body: "Run configurations, terminals, and recipe execution will plug into this surface later." }) : e.activity === "computer" || e.activity === "extensions" ? /* @__PURE__ */ r(ec, { host: e.host, setStatus: e.setStatus, attachSkillToChat: e.attachSkillToChat, saveLocalJobOutput: e.saveLocalJobOutput, activeFile: e.activeFile, openEditors: e.openEditors }) : /* @__PURE__ */ r(Li, { ...e });
+function Ii(e) {
+  return e.activity === "search" ? /* @__PURE__ */ r(Oi, { files: e.files, query: e.query, setQuery: e.setQuery, openWorkbenchFile: e.openWorkbenchFile, activeFileId: e.activeFileId }) : e.activity === "source-control" ? /* @__PURE__ */ r(yn, { title: "SOURCE CONTROL", body: "No source control provider registered. Git belongs here, not as a fake demo." }) : e.activity === "run" ? /* @__PURE__ */ r(yn, { title: "RUN AND DEBUG", body: "Run configurations, terminals, and recipe execution will plug into this surface later." }) : e.activity === "computer" ? /* @__PURE__ */ r(Qi, { host: e.host, setStatus: e.setStatus, attachSkillToChat: e.attachSkillToChat, saveLocalJobOutput: e.saveLocalJobOutput, activeFile: e.activeFile, openEditors: e.openEditors }) : /* @__PURE__ */ r(Mi, { ...e });
 }
-function Li(e) {
-  const t = !e.folder, n = Y(() => Ti(e.files, e.folder?.name), [e.files, e.folder?.name]);
+function Mi(e) {
+  const t = !e.folder, n = Y(() => Pi(e.files, e.folder?.name), [e.files, e.folder?.name]);
   return /* @__PURE__ */ h("aside", { className: "workbench-sidebar", children: [
     /* @__PURE__ */ r("div", { className: "workbench-sidebar-title", children: "EXPLORER" }),
     /* @__PURE__ */ h("div", { className: "workbench-sidebar-scroll", children: [
@@ -2747,7 +2730,7 @@ function Li(e) {
       ] }),
       /* @__PURE__ */ r("div", { className: "workbench-section-title", children: "Recent" }),
       e.recent.length === 0 ? /* @__PURE__ */ r("p", { className: "workbench-muted", children: "No recent folders yet." }) : e.recent.map((a) => /* @__PURE__ */ h("button", { className: "workbench-tree-row", onClick: () => e.reopenRecent(a), children: [
-        /* @__PURE__ */ r(cr, { size: 14 }),
+        /* @__PURE__ */ r(or, { size: 14 }),
         /* @__PURE__ */ r("span", { className: "workbench-row-name", children: a.name })
       ] }, `${a.path}-${a.at}`))
     ] })
@@ -2761,7 +2744,7 @@ function Ut({ file: e, active: t, onOpen: n, basePath: a, depth: o = 0, label: i
     e.dirty && /* @__PURE__ */ r("span", { className: "workbench-row-meta", children: "●" })
   ] });
 }
-function Ti(e, t) {
+function Pi(e, t) {
   const n = [], a = /* @__PURE__ */ new Map(), o = (s, l, m = n) => {
     const f = a.get(s);
     if (f) return f;
@@ -2788,14 +2771,14 @@ function Zn(e, t, n, a = 0) {
     Zn(o.children, t, n, a + 1)
   ] }, o.path));
 }
-function Ei({ file: e, folder: t, showWelcome: n }) {
+function Li({ file: e, folder: t, showWelcome: n }) {
   const a = n ? ["Welcome"] : e?.path.split("/").filter(Boolean) ?? [], o = t && a[0] === t.name ? a.slice(1) : a;
   return /* @__PURE__ */ r("div", { className: "workbench-breadcrumb", children: o.length === 0 ? /* @__PURE__ */ r("span", { children: "Workspace" }) : o.map((i, s) => /* @__PURE__ */ h("span", { className: "workbench-breadcrumb-part", children: [
     s > 0 && /* @__PURE__ */ r("span", { className: "workbench-breadcrumb-sep", children: "›" }),
     i
   ] }, `${i}-${s}`)) });
 }
-function Oi(e) {
+function Ti(e) {
   return /* @__PURE__ */ h("div", { className: "workbench-tabs", children: [
     e.showWelcome && /* @__PURE__ */ h("button", { className: "workbench-tab active", children: [
       /* @__PURE__ */ r(at, { size: 15 }),
@@ -2826,10 +2809,10 @@ function Oi(e) {
     ] }, t.id)),
     /* @__PURE__ */ r("div", { style: { flex: 1 } }),
     e.canPreview && /* @__PURE__ */ r("button", { className: `workbench-editor-action ${e.previewVisible ? "active" : ""}`, title: "Toggle Markdown Preview", onClick: e.togglePreview, children: /* @__PURE__ */ r(Rt, { size: 16 }) }),
-    /* @__PURE__ */ r("button", { className: `workbench-editor-action ${e.secondaryVisible ? "active" : ""}`, title: "Toggle Chat", onClick: e.toggleSecondary, children: /* @__PURE__ */ r(ur, { size: 16 }) })
+    /* @__PURE__ */ r("button", { className: `workbench-editor-action ${e.secondaryVisible ? "active" : ""}`, title: "Toggle Chat", onClick: e.toggleSecondary, children: /* @__PURE__ */ r(dr, { size: 16 }) })
   ] });
 }
-function Fi({ openFile: e, openFolder: t, newFile: n, recent: a, reopenRecent: o, setStatus: i }) {
+function Ei({ openFile: e, openFolder: t, newFile: n, recent: a, reopenRecent: o, setStatus: i }) {
   return /* @__PURE__ */ h("div", { className: "workbench-welcome", children: [
     /* @__PURE__ */ h("div", { className: "workbench-welcome-grid", children: [
       /* @__PURE__ */ h("section", { children: [
@@ -2876,8 +2859,8 @@ function Fi({ openFile: e, openFolder: t, newFile: n, recent: a, reopenRecent: o
     ] })
   ] });
 }
-function zi({ files: e, query: t, setQuery: n, openWorkbenchFile: a, activeFileId: o }) {
-  const i = Y(() => Ri(e, t), [e, t]), s = Y(() => {
+function Oi({ files: e, query: t, setQuery: n, openWorkbenchFile: a, activeFileId: o }) {
+  const i = Y(() => Fi(e, t), [e, t]), s = Y(() => {
     const l = /* @__PURE__ */ new Map();
     return i.forEach((m) => l.set(m.file.id, [...l.get(m.file.id) ?? [], m])), Array.from(l.values()).slice(0, 50);
   }, [i]);
@@ -2907,7 +2890,7 @@ function zi({ files: e, query: t, setQuery: n, openWorkbenchFile: a, activeFileI
     ] })
   ] });
 }
-function Ri(e, t) {
+function Fi(e, t) {
   const n = t.trim().toLowerCase();
   if (!n) return [];
   const a = [];
@@ -2916,7 +2899,7 @@ function Ri(e, t) {
 `).some((i, s) => i.toLowerCase().includes(n) ? (a.push({ file: o, lineNumber: s + 1, line: i.trim() || "(blank line)" }), a.length >= 200) : !1);
   }), a.slice(0, 200);
 }
-function _i(e) {
+function zi(e) {
   const t = e.query.trim().toLowerCase(), n = e.files.slice(0, 80).map((o) => ({
     label: o.path,
     detail: `Open ${In(o.language)} file`,
@@ -2958,7 +2941,7 @@ function _i(e) {
     )) })
   ] }) });
 }
-function ji({ content: e }) {
+function Ri({ content: e }) {
   const t = Y(() => On(e), [e]);
   return /* @__PURE__ */ h("aside", { className: "workbench-markdown-preview", children: [
     /* @__PURE__ */ h("div", { className: "workbench-preview-title", children: [
@@ -2968,8 +2951,8 @@ function ji({ content: e }) {
     /* @__PURE__ */ r("div", { className: "workbench-preview-body", dangerouslySetInnerHTML: { __html: t } })
   ] });
 }
-function Di(e) {
-  const t = e.session ? bi(e.session) : "pending";
+function _i(e) {
+  const t = e.session ? pi(e.session) : "pending";
   return /* @__PURE__ */ h("div", { className: "workbench-manual-check-panel", children: [
     /* @__PURE__ */ r("p", { className: "workbench-muted", children: "Terminal is parked. Atomek never executes host commands here; copy a command, run it yourself, then paste the result." }),
     e.session ? /* @__PURE__ */ h(We, { children: [
@@ -3041,7 +3024,7 @@ function Di(e) {
     ] }) : /* @__PURE__ */ r("pre", { className: "workbench-terminal-placeholder", children: "$ open the command palette and run Checks: Open Manual Check Panel" })
   ] });
 }
-function Hi(e) {
+function ji(e) {
   return /* @__PURE__ */ h("section", { className: "workbench-bottom-panel", "aria-label": "Panel", children: [
     /* @__PURE__ */ h("div", { className: "workbench-bottom-tabs", children: [
       /* @__PURE__ */ r("button", { className: e.tab === "problems" ? "active" : "", onClick: () => e.setTab("problems"), children: "PROBLEMS" }),
@@ -3053,7 +3036,7 @@ function Hi(e) {
     /* @__PURE__ */ h("div", { className: "workbench-bottom-body", children: [
       e.tab === "problems" && /* @__PURE__ */ r("p", { className: "workbench-muted", children: "No problems detected in open files. Diagnostics wire in after the base shell is approved." }),
       e.tab === "terminal" && /* @__PURE__ */ r(
-        Di,
+        _i,
         {
           session: e.manualCheckSession,
           commandInput: e.manualCheckCommandInput,
@@ -3074,7 +3057,7 @@ function Hi(e) {
     ] })
   ] });
 }
-function Bi(e) {
+function Di(e) {
   return /* @__PURE__ */ h("aside", { className: "workbench-secondary", children: [
     /* @__PURE__ */ r("div", { className: "workbench-secondary-resizer", onPointerDown: e.onResizeStart, title: "Resize Chat" }),
     /* @__PURE__ */ h("div", { className: "workbench-secondary-tabs", children: [
@@ -3083,16 +3066,16 @@ function Bi(e) {
         /* @__PURE__ */ r("button", { className: `workbench-secondary-tab ${e.tab === "outputs" ? "active" : ""}`, onClick: () => e.setTab("outputs"), children: "OUTPUTS" })
       ] }),
       /* @__PURE__ */ h("div", { className: "workbench-secondary-actions", children: [
-        /* @__PURE__ */ r("button", { title: "New Chat", onClick: e.newChat, children: /* @__PURE__ */ r(fr, { size: 15 }) }),
-        /* @__PURE__ */ r("button", { title: "Chat Settings", onClick: e.openSettings, children: /* @__PURE__ */ r(Za, { size: 16 }) }),
+        /* @__PURE__ */ r("button", { title: "New Chat", onClick: e.newChat, children: /* @__PURE__ */ r(mr, { size: 15 }) }),
+        /* @__PURE__ */ r("button", { title: "Chat Settings", onClick: e.openSettings, children: /* @__PURE__ */ r(Ya, { size: 16 }) }),
         /* @__PURE__ */ r("button", { title: "Close Chat", onClick: e.onClose, children: /* @__PURE__ */ r(ue, { size: 15 }) })
       ] })
     ] }),
-    e.tab === "chat" ? /* @__PURE__ */ r(Wi, { ...e }) : /* @__PURE__ */ r(na, { outputs: e.outputs, clearOutputs: e.clearOutputs, deleteArtifact: e.deleteArtifact, runAiSynthesis: e.runAiSynthesis, captureManualCheck: e.captureManualCheck, openOutputAsFile: e.openOutputAsFile, previewEditFromOutput: e.previewEditFromOutput, canPreviewEdit: e.canPreviewEdit })
+    e.tab === "chat" ? /* @__PURE__ */ r(Bi, { ...e }) : /* @__PURE__ */ r(na, { outputs: e.outputs, clearOutputs: e.clearOutputs, deleteArtifact: e.deleteArtifact, runAiSynthesis: e.runAiSynthesis, captureManualCheck: e.captureManualCheck, openOutputAsFile: e.openOutputAsFile, previewEditFromOutput: e.previewEditFromOutput, canPreviewEdit: e.canPreviewEdit })
   ] });
 }
 function ea({ body: e }) {
-  const t = Y(() => Si(e), [e]), [n, a] = C(null), o = y((i, s) => {
+  const t = Y(() => $i(e), [e]), [n, a] = C(null), o = y((i, s) => {
     (async () => await ot(s) && (a(i), window.setTimeout(() => a((m) => m === i ? null : m), 1200)))();
   }, []);
   return /* @__PURE__ */ r("div", { className: "workbench-rich-body", children: t.map((i) => {
@@ -3102,7 +3085,7 @@ function ea({ body: e }) {
         /* @__PURE__ */ h("div", { className: "workbench-rich-code-head", children: [
           /* @__PURE__ */ r("span", { children: i.language }),
           /* @__PURE__ */ h("button", { onClick: () => o(i.key, i.body), title: "Copy code block", children: [
-            s ? /* @__PURE__ */ r(Ka, { size: 12 }) : /* @__PURE__ */ r(Tt, { size: 12 }),
+            s ? /* @__PURE__ */ r(Ua, { size: 12 }) : /* @__PURE__ */ r(Tt, { size: 12 }),
             s ? "Copied" : "Copy"
           ] })
         ] }),
@@ -3119,7 +3102,7 @@ function ea({ body: e }) {
     );
   }) });
 }
-function Wi(e) {
+function Bi(e) {
   const t = e.chatInput.trim().length > 0 && !e.busy, n = Le(null), [a, o] = C(!0), [i, s] = C(!1), l = Y(() => e.chatMessages.map((u) => `${u.id}:${u.status ?? ""}:${u.body.length}`).join("|"), [e.chatMessages]);
   U(() => {
     const u = n.current;
@@ -3150,7 +3133,7 @@ function Wi(e) {
             e.chatThreads.map((u) => /* @__PURE__ */ h("option", { value: u.id, children: [
               u.title,
               " · ",
-              Vi(u.lastMessageAt ?? u.updatedAt)
+              Hi(u.lastMessageAt ?? u.updatedAt)
             ] }, u.id))
           ]
         }
@@ -3180,7 +3163,7 @@ function Wi(e) {
     ] }),
     /* @__PURE__ */ h("div", { ref: n, className: "workbench-chat-transcript", onScroll: m, children: [
       e.chatMessages.length === 0 ? /* @__PURE__ */ r("div", { className: "workbench-chat-empty", children: /* @__PURE__ */ h("div", { children: [
-        /* @__PURE__ */ r(dr, { size: 48 }),
+        /* @__PURE__ */ r(sr, { size: 48 }),
         /* @__PURE__ */ r("h3", { children: "Build with Agent" }),
         /* @__PURE__ */ r("p", { children: "Ask about open files, request a plan, or draft an artifact." }),
         /* @__PURE__ */ r("p", { className: "workbench-chat-empty-link", children: e.aiStatus.available ? e.aiStatus.label : e.aiStatus.reason ?? e.aiStatus.label })
@@ -3232,7 +3215,7 @@ function Wi(e) {
     /* @__PURE__ */ h("div", { className: "workbench-chat-composer", children: [
       /* @__PURE__ */ h("div", { className: "workbench-chat-tip", children: [
         /* @__PURE__ */ r("span", { children: "Context" }),
-        /* @__PURE__ */ r("strong", { children: Vr(e.contextScope) }),
+        /* @__PURE__ */ r("strong", { children: Hr(e.contextScope) }),
         /* @__PURE__ */ r("em", { children: bn(e.chatSettings, e.aiStatus.label, e.memoryHitCount) })
       ] }),
       /* @__PURE__ */ h("div", { className: "workbench-chat-box", children: [
@@ -3313,7 +3296,7 @@ function Wi(e) {
         /* @__PURE__ */ h("div", { className: "workbench-chat-toolbar compact", children: [
           /* @__PURE__ */ r("span", { className: "workbench-chat-route-summary", children: bn(e.chatSettings, e.aiStatus.label, e.memoryHitCount) }),
           /* @__PURE__ */ r("span", {}),
-          e.busy ? /* @__PURE__ */ r("button", { className: "workbench-chat-send stop", onClick: e.stopChat, title: "Stop", children: /* @__PURE__ */ r($r, { size: 14 }) }) : /* @__PURE__ */ r("button", { className: `workbench-chat-send ${t ? "ready" : ""}`, onClick: e.askAgent, title: "Send", disabled: !t, "aria-label": "Send message", children: /* @__PURE__ */ r(wr, { size: 16 }) })
+          e.busy ? /* @__PURE__ */ r("button", { className: "workbench-chat-send stop", onClick: e.stopChat, title: "Stop", children: /* @__PURE__ */ r(xr, { size: 14 }) }) : /* @__PURE__ */ r("button", { className: `workbench-chat-send ${t ? "ready" : ""}`, onClick: e.askAgent, title: "Send", disabled: !t, "aria-label": "Send message", children: /* @__PURE__ */ r(kr, { size: 16 }) })
         ] })
       ] })
     ] })
@@ -3326,16 +3309,16 @@ function bn(e, t, n) {
   const a = e.model.trim(), i = [e.gatewayPreference === "auto" ? t : ta(e.gatewayPreference)];
   return a && i.push(a), n > 0 && i.push(`${n} memories`), i.join(" · ");
 }
-function Vi(e) {
+function Hi(e) {
   return !Number.isFinite(e) || e <= 0 ? "new" : new Date(e).toLocaleString(void 0, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 function gn(e) {
   return /```(?:diff|patch)\b/i.test(e) || /^diff --git /m.test(e) || /^--- .+\n\+\+\+ /m.test(e) || /```[\w.+-]*\s*\n[\s\S]{80,}```/.test(e);
 }
-function Ui(e) {
+function Wi(e) {
   return /\b(change|edit|modify|replace|update|rename|fix|rewrite|apply)\b/i.test(e) && /\b(file|code|author|title|line|function|component|content|text|this|it)\b/i.test(e);
 }
-function qi(e) {
+function Vi(e) {
   return [
     e,
     "Atomek edit instruction: if this request should change an open file, return an applicable git-style unified diff in a fenced diff block. Use paths exactly as shown in the attached context. If one whole-file replacement is safer, return a fenced atomek-replace block. Do not claim a file changed unless you provide a patch/replacement Atomek can preview."
@@ -3343,7 +3326,7 @@ function qi(e) {
 
 `);
 }
-function Ki(e) {
+function Ui(e) {
   const [t, n] = C([]), [a, o] = C("Loading gateway models…"), [i, s] = C([]), [l, m] = C("Checking embedding capability…");
   U(() => {
     const g = new AbortController();
@@ -3368,19 +3351,19 @@ function Ki(e) {
   }, [e.chatSettings.gatewayPreference, e.host.ai]), U(() => {
     const g = new AbortController();
     return (async () => {
-      const I = li(e.host);
+      const I = ci(e.host);
       if (I) {
         s([]), m(I);
         return;
       }
       m("Loading embedding-capable models from AIL…");
       try {
-        const z = await si(e.host, {
+        const z = await ii(e.host, {
           gatewayPreference: e.chatSettings.gatewayPreference,
           signal: g.signal
         });
         if (g.signal.aborted) return;
-        s(z.map((B) => ({ id: B.id, gatewayLabel: B.gatewayLabel ?? B.source ?? "AIL" }))), m(z.length > 0 ? `${z.length} embedding models discovered from AIL metadata.` : "AIL embedding API is present, but no embedding-capable model metadata was returned.");
+        s(z.map((H) => ({ id: H.id, gatewayLabel: H.gatewayLabel ?? H.source ?? "AIL" }))), m(z.length > 0 ? `${z.length} embedding models discovered from AIL metadata.` : "AIL embedding API is present, but no embedding-capable model metadata was returned.");
       } catch (z) {
         if (g.signal.aborted) return;
         s([]), m(`Embedding model discovery failed: ${z instanceof Error ? z.message : String(z)}`);
@@ -3501,7 +3484,7 @@ function na({ outputs: e, clearOutputs: t, deleteArtifact: n, runAiSynthesis: a,
     ] }, f.id))
   ] });
 }
-function Ji({ edit: e, onApply: t, onOpenAsFile: n, onClose: a }) {
+function qi({ edit: e, onApply: t, onOpenAsFile: n, onClose: a }) {
   return /* @__PURE__ */ r("div", { className: "workbench-edit-review-overlay", role: "dialog", "aria-label": "Review AI edit", children: /* @__PURE__ */ h("section", { className: "workbench-edit-review", children: [
     /* @__PURE__ */ h("header", { className: "workbench-edit-review-head", children: [
       /* @__PURE__ */ h("div", { children: [
@@ -3542,7 +3525,7 @@ function Ji({ edit: e, onApply: t, onOpenAsFile: n, onClose: a }) {
     ] })
   ] }) });
 }
-function Xi({ patch: e, onApply: t, onOpenAsFiles: n, onClose: a }) {
+function Ki({ patch: e, onApply: t, onOpenAsFiles: n, onClose: a }) {
   const o = e.edits.reduce((i, s) => ({
     added: i.added + s.stats.added,
     removed: i.removed + s.stats.removed,
@@ -3588,7 +3571,7 @@ function Xi({ patch: e, onApply: t, onOpenAsFiles: n, onClose: a }) {
             i.stats.changed
           ] })
         ] }),
-        /* @__PURE__ */ r("pre", { children: rc(i.proposedContent) })
+        /* @__PURE__ */ r("pre", { children: nc(i.proposedContent) })
       ] }, i.fileId)),
       e.skipped.length > 0 ? /* @__PURE__ */ h("article", { className: "workbench-workspace-patch-card skipped", children: [
         /* @__PURE__ */ h("header", { children: [
@@ -3606,19 +3589,19 @@ function Xi({ patch: e, onApply: t, onOpenAsFiles: n, onClose: a }) {
     ] })
   ] }) });
 }
-function Gi(e, t = 9e3) {
+function Ji(e, t = 9e3) {
   return e.length <= t ? e : `${e.slice(0, t)}
 
 [Atomek clipped ${e.length - t} chars for local agent context]`;
 }
-function Yi(e, t) {
+function Xi(e, t) {
   const n = [
     "Atomek local agent context:",
     "- You are being launched from Atomek, the TytusOS workspace/chat app.",
     "- Do not write files directly. Return findings, markdown, unified diffs, or fenced replacement blocks. Atomek previews edits before applying."
   ];
   if (e)
-    n.push("", `Active file: ${e.path}`, `Language: ${e.language}`, `Dirty: ${e.dirty ? "yes" : "no"}`, "", "Active file content:", "```" + e.language, Gi(e.content), "```");
+    n.push("", `Active file: ${e.path}`, `Language: ${e.language}`, `Dirty: ${e.dirty ? "yes" : "no"}`, "", "Active file content:", "```" + e.language, Ji(e.content), "```");
   else if (t.length > 0) {
     n.push("", `Open editors (${t.length}):`);
     for (const a of t.slice(0, 8)) n.push(`- ${a.path} (${a.language}, ${a.content.length} chars${a.dirty ? ", dirty" : ""})`);
@@ -3632,14 +3615,14 @@ function kn(e) {
   const t = e.path.lastIndexOf("/");
   return t > 0 ? e.path.slice(0, t) : void 0;
 }
-function Qi(e) {
+function Gi(e) {
   return e.kind === "terminal" ? "Open Terminal" : `Open ${e.label}`;
 }
-function Zi(e, t) {
+function Yi(e, t) {
   return t === e.id ? `${e.label} running…` : `Ask ${e.label}`;
 }
-function ec({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a, activeFile: o, openEditors: i }) {
-  const [s, l] = C([]), [m, f] = C([]), [p, u] = C(!1), [g, S] = C(null), [I, z] = C("Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying."), [B, ae] = C(null), [q, W] = C(""), M = i.filter((w) => w.dirty).length, E = o ? `${o.path} · ${o.language} · ${o.content.length.toLocaleString()} chars${o.dirty ? " · dirty" : ""}` : i.length > 0 ? `${i.length} open editor${i.length === 1 ? "" : "s"}${M ? ` · ${M} dirty` : ""}` : "No active file — jobs run with only your typed prompt.", Q = Y(() => [
+function Qi({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a, activeFile: o, openEditors: i }) {
+  const [s, l] = C([]), [m, f] = C([]), [p, u] = C(!1), [g, S] = C(null), [I, z] = C("Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying."), [H, ae] = C(null), [q, W] = C(""), M = i.filter((w) => w.dirty).length, E = o ? `${o.path} · ${o.language} · ${o.content.length.toLocaleString()} chars${o.dirty ? " · dirty" : ""}` : i.length > 0 ? `${i.length} open editor${i.length === 1 ? "" : "s"}${M ? ` · ${M} dirty` : ""}` : "No active file — jobs run with only your typed prompt.", Q = Y(() => [
     {
       label: "Review active file",
       prompt: "Review the active file for bugs, missing edge cases, confusing UX, and production risks. Return prioritized findings with exact file/line references when possible."
@@ -3704,7 +3687,7 @@ function ec({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a
         toolId: w.id,
         prompt: v,
         cwd: kn(o),
-        context: Yi(o, i)
+        context: Xi(o, i)
       }), J = [];
       e.local.streamJob(T.id, {
         onLog: (ie) => {
@@ -3717,7 +3700,7 @@ function ec({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a
 `)), ae(null);
         },
         onExit: (ie) => {
-          const H = [
+          const B = [
             `# Local job — ${w.label}`,
             "",
             `- Tool: ${w.id}`,
@@ -3730,7 +3713,7 @@ function ec({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a
             "```"
           ].join(`
 `);
-          a(`${w.label} local job`, H), ae(null);
+          a(`${w.label} local job`, B), ae(null);
         },
         onError: () => t(`Local job stream issue for ${w.label}`)
       }), t(`Started ${w.label} local job`);
@@ -3791,10 +3774,10 @@ function ec({ host: e, setStatus: t, attachSkillToChat: n, saveLocalJobOutput: a
           /* @__PURE__ */ h("div", { className: "workbench-computer-actions", children: [
             /* @__PURE__ */ r("button", { className: "workbench-button-subtle", onClick: () => {
               K(w);
-            }, disabled: w.status !== "available", title: "Launch this tool in the real Tytus terminal with current Atomek context prefilled.", children: Qi(w) }),
+            }, disabled: w.status !== "available", title: "Launch this tool in the real Tytus terminal with current Atomek context prefilled.", children: Gi(w) }),
             w.kind === "ai-cli" ? /* @__PURE__ */ r("button", { className: "workbench-button-subtle", onClick: () => {
               re(w);
-            }, disabled: w.status !== "available" || B !== null, title: "Run this local agent headlessly and stream output back into Atomek Outputs. It cannot write files directly.", children: Zi(w, B) }) : null
+            }, disabled: w.status !== "available" || H !== null, title: "Run this local agent headlessly and stream output back into Atomek Outputs. It cannot write files directly.", children: Yi(w, H) }) : null
           ] })
         ] }, w.id))
       ] }),
@@ -3830,7 +3813,7 @@ function yn({ title: e, body: t }) {
     /* @__PURE__ */ r("div", { className: "workbench-empty-pane", children: t })
   ] });
 }
-function tc({ status: e, file: t, cursor: n, fileCount: a, dirtyCount: o }) {
+function Zi({ status: e, file: t, cursor: n, fileCount: a, dirtyCount: o }) {
   return /* @__PURE__ */ h("footer", { className: "workbench-statusbar", children: [
     /* @__PURE__ */ r("span", { children: "main" }),
     /* @__PURE__ */ h("span", { children: [
@@ -3858,7 +3841,7 @@ function tc({ status: e, file: t, cursor: n, fileCount: a, dirtyCount: o }) {
 function St(e, t) {
   return e.length === 0 ? !0 : window.confirm(`${e.length} file${e.length === 1 ? "" : "s"} have unsaved changes. Continue to ${t}?`);
 }
-function nc(e, t) {
+function ec(e, t) {
   const n = new Map(e.map((a) => [a.id, a]));
   return t.forEach((a) => n.set(a.id, a)), Array.from(n.values());
 }
@@ -3872,7 +3855,7 @@ function Mt(e, t) {
     a = `${t}-${o}.md`, o += 1;
   return a;
 }
-function ac(e) {
+function tc(e) {
   return {
     fileId: e.fileId,
     fileName: e.filePath,
@@ -3883,14 +3866,14 @@ function ac(e) {
     stats: e.stats
   };
 }
-function rc(e) {
+function nc(e) {
   const t = e.split(`
 `);
   return t.slice(0, 80).join(`
 `) + (t.length > 80 ? `
 …` : "");
 }
-function oc() {
+function ac() {
   try {
     const e = localStorage.getItem(Gn);
     if (!e) return [];
@@ -3900,7 +3883,7 @@ function oc() {
     return [];
   }
 }
-function ic() {
+function rc() {
   const e = {
     primaryVisible: !0,
     primaryWidth: 300,
@@ -3923,7 +3906,7 @@ function ic() {
     return e;
   }
 }
-function cc() {
+function oc() {
   try {
     const e = localStorage.getItem(Qn);
     if (!e) return nt;
@@ -3937,15 +3920,15 @@ function cc() {
     return nt;
   }
 }
-function sc({ host: e }) {
-  return /* @__PURE__ */ r(Ii, { host: e });
+function ic({ host: e }) {
+  return /* @__PURE__ */ r(Ni, { host: e });
 }
-function hc(e) {
+function lc(e) {
   return function() {
-    return /* @__PURE__ */ r(sc, { host: e.host });
+    return /* @__PURE__ */ r(ic, { host: e.host });
   };
 }
 export {
-  hc as default
+  lc as default
 };
 //# sourceMappingURL=index.js.map
