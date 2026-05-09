@@ -1633,6 +1633,7 @@ function ChatPane(props: {
   busy: boolean;
   memoryHitCount: number;
 }) {
+  const canSend = props.chatInput.trim().length > 0 && !props.busy;
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const [stickToLatest, setStickToLatest] = useState(true);
   const [hasHiddenNewOutput, setHasHiddenNewOutput] = useState(false);
@@ -1722,15 +1723,15 @@ function ChatPane(props: {
             {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
             {msg.role === 'assistant' && msg.status !== 'streaming' && msg.status !== 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button onClick={() => props.saveMessageAsArtifact(msg)}>Save artifact</button>
-                <button onClick={() => props.rememberMessage(msg)}>Remember</button>
-                <button onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0}>Preview edit</button>
-                <button onClick={() => props.regenerateMessage(msg)} disabled={props.busy}><RefreshCcw size={11} /> Regenerate</button>
+                <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title="Save this answer as an output artifact"><FilePlus2 size={12} /> Save</button>
+                <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store this answer in Atomek memory"><GitBranch size={12} /> Remember</button>
+                <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title="Preview an editable patch from this answer"><Eye size={12} /> Preview</button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Regenerate this answer"><RefreshCcw size={12} /> Regenerate</button>
               </div>
             ) : null}
             {msg.role === 'assistant' && msg.status === 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button onClick={() => props.regenerateMessage(msg)} disabled={props.busy}>Retry</button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy}><RefreshCcw size={12} /> Retry</button>
               </div>
             ) : null}
           </div>
@@ -1823,7 +1824,7 @@ function ChatPane(props: {
             {props.busy ? (
               <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop"><Square size={14} /></button>
             ) : (
-              <button className="workbench-chat-send" onClick={props.askAgent} title="Send"><Send size={16} /></button>
+              <button className={`workbench-chat-send ${canSend ? 'ready' : ''}`} onClick={props.askAgent} title="Send" disabled={!canSend} aria-label="Send message"><Send size={16} /></button>
             )}
           </div>
         </div>
