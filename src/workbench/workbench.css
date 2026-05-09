@@ -1367,3 +1367,94 @@ button { font: inherit; }
   color: var(--workbench-muted);
   font-size: 11px;
 }
+
+.workbench-manual-check-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.workbench-manual-check-head,
+.workbench-check-actions,
+.workbench-check-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workbench-manual-check-head small {
+  color: var(--workbench-muted, #8b949e);
+}
+
+.workbench-manual-check-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.3fr);
+  gap: 12px;
+}
+
+.workbench-manual-check-grid section,
+.workbench-check-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workbench-check-command-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.workbench-check-command-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.workbench-check-command-list button.active {
+  outline: 1px solid var(--workbench-accent, #6aa6ff);
+}
+
+.workbench-check-add-row input,
+.workbench-manual-check-grid textarea,
+.workbench-manual-check-grid select {
+  width: 100%;
+}
+
+.workbench-check-status {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.workbench-check-status.pending {
+  background: rgba(210, 153, 34, 0.18);
+  color: #d29922;
+}
+
+.workbench-check-status.failed {
+  background: rgba(248, 81, 73, 0.18);
+  color: #ff7b72;
+}
+
+.workbench-check-status.passed {
+  background: rgba(63, 185, 80, 0.18);
+  color: #56d364;
+}
+
+.workbench-check-results article {
+  border: 1px solid var(--workbench-border, #30363d);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.workbench-check-results pre {
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+}

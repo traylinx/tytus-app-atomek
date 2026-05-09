@@ -44,6 +44,8 @@ import { retrieveSemanticProjectContext, semanticHitsToContextParts } from '../s
 import { buildWorkspaceEditCandidate } from '../edits';
 import type { WorkspaceEditFileCandidate } from '../edits';
 import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
+import { addManualCheckCommand, addManualCheckResult, buildManualCheckFollowupPrompt, createManualCheckSession, latestManualCheckStatus } from '../checks/manualChecks';
+import type { ManualCheckSession, ManualCheckStatus } from '../checks/manualChecks';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
 
@@ -123,6 +125,11 @@ export function WorkbenchShell({ host }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chatSettings, setChatSettings] = useState<ChatAiSettings>(() => readChatAiSettings());
   const [aiDirtyNotice, setAiDirtyNotice] = useState<string | null>(null);
+  const [manualCheckSession, setManualCheckSession] = useState<ManualCheckSession | null>(null);
+  const [manualCheckCommandInput, setManualCheckCommandInput] = useState('');
+  const [manualCheckOutputInput, setManualCheckOutputInput] = useState('');
+  const [manualCheckSelectedCommand, setManualCheckSelectedCommand] = useState('');
+  const [manualCheckStatus, setManualCheckStatus] = useState<ManualCheckStatus>('failed');
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
@@ -524,6 +531,41 @@ export function WorkbenchShell({ host }: Props) {
     setStatus(`Opened ${output.title} as editable file`);
   }, [files, openWorkbenchFile]);
 
+  const captureManualCheck = useCallback(() => {
+    const command = window.prompt('Check command/name (manual capture only; Atomek will not execute it)');
+    if (command === null) return;
+    const normalizedCommand = command.trim();
+    if (!normalizedCommand) {
+      setStatus('Manual check capture canceled — command/name was empty');
+      return;
+    }
+    const result = window.prompt('Paste check output/result');
+    if (result === null) return;
+    const body = [
+      '# Manual check result',
+      '',
+      `- Captured: ${new Date().toISOString()}`,
+      `- Command/name: \`${normalizedCommand.replace(/`/g, '\\`')}\``,
+      '- Execution: manual user-provided output; Atomek did not run a shell command.',
+      '',
+      '```text',
+      result,
+      '```',
+    ].join('\n');
+    const output: OutputArtifact = {
+      id: `manual-check-${Date.now()}`,
+      title: `Manual check — ${normalizedCommand.slice(0, 80)}`,
+      kind: 'report',
+      body,
+      createdAt: Date.now(),
+      source: 'local',
+    };
+    setOutputs((current) => [output, ...current]);
+    setBottomPanelVisible(true);
+    setBottomPanelTab('output');
+    setStatus(`Captured manual check: ${normalizedCommand}`);
+  }, []);
+
   const previewEditFromText = useCallback((sourceTitle: string, body: string): boolean => {
     const candidate = buildWorkspaceEditCandidate({
       body,
@@ -575,6 +617,57 @@ export function WorkbenchShell({ host }: Props) {
     askAiWithPrompt(editPromptWithPatchInstructions(pendingPatchPrompt));
   }, [askAiWithPrompt, pendingPatchPrompt]);
 
+  const startManualCheckSession = useCallback((reason: string) => {
+    const session = createManualCheckSession(files, reason);
+    setManualCheckSession(session);
+    const firstCommand = session.commands[0]?.command ?? '';
+    setManualCheckSelectedCommand(firstCommand);
+    setManualCheckCommandInput('');
+    setManualCheckOutputInput('');
+    setManualCheckStatus('failed');
+    setBottomPanelVisible(true);
+    setBottomPanelTab('terminal');
+    setStatus(session.commands.length > 0
+      ? `Manual check ready: copy ${session.commands[0].command}`
+      : 'Manual check ready: enter a check command to copy');
+  }, [files]);
+
+  const copyManualCheckCommand = useCallback((command: string) => {
+    if (!command.trim()) return;
+    void navigator.clipboard?.writeText(command).catch(() => undefined);
+    setManualCheckSelectedCommand(command);
+    setStatus(`Manual check command copied: ${command}`);
+  }, []);
+
+  const addManualCommand = useCallback(() => {
+    setManualCheckSession((session) => {
+      if (!session) return session;
+      const next = addManualCheckCommand(session, manualCheckCommandInput);
+      const added = next.commands.at(-1)?.command ?? '';
+      if (added) setManualCheckSelectedCommand(added);
+      return next;
+    });
+    setManualCheckCommandInput('');
+  }, [manualCheckCommandInput]);
+
+  const recordManualCheckResult = useCallback(() => {
+    if (!manualCheckSession || !manualCheckSelectedCommand.trim()) {
+      setStatus('Select or enter a manual check command before capturing output');
+      return;
+    }
+    const command = manualCheckSelectedCommand.trim();
+    setManualCheckSession((session) => session ? addManualCheckResult(session, command, manualCheckStatus, manualCheckOutputInput) : session);
+    setManualCheckOutputInput('');
+    setStatus(`Captured manual check result: ${command} (${manualCheckStatus})`);
+  }, [manualCheckOutputInput, manualCheckSelectedCommand, manualCheckSession, manualCheckStatus]);
+
+  const askAgentFromManualChecks = useCallback(() => {
+    if (!manualCheckSession) return;
+    askAiWithPrompt(buildManualCheckFollowupPrompt(manualCheckSession));
+  }, [askAiWithPrompt, manualCheckSession]);
+
+
+
   const applyPendingEdit = useCallback(() => {
     if (!pendingEdit) return;
     const current = files.find((file) => file.id === pendingEdit.fileId);
@@ -591,8 +684,9 @@ export function WorkbenchShell({ host }: Props) {
     bumpDocumentVersion(pendingEdit.fileId);
     setAiDirtyNotice(`AI edit applied to ${current.name}. Save All to persist it to disk.`);
     setPendingEdit(null);
-    setStatus(`Applied AI edit to ${current.name} — unsaved`);
-  }, [bumpDocumentVersion, files, pendingEdit]);
+    startManualCheckSession(`AI edit applied to ${current.name}`);
+    setStatus(`Applied AI edit to ${current.name} — unsaved; manual check ready`);
+  }, [bumpDocumentVersion, files, pendingEdit, startManualCheckSession]);
 
   const openPendingEditAsFile = useCallback(() => {
     if (!pendingEdit) return;
@@ -630,8 +724,9 @@ export function WorkbenchShell({ host }: Props) {
     editsById.forEach((_, fileId) => bumpDocumentVersion(fileId));
     setAiDirtyNotice(`AI workspace patch applied to ${editsById.size} file${editsById.size === 1 ? '' : 's'}. Save All to persist changes.`);
     setPendingWorkspacePatch(null);
-    setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'} — unsaved`);
-  }, [bumpDocumentVersion, files, pendingWorkspacePatch]);
+    startManualCheckSession(`AI workspace patch applied to ${editsById.size} file${editsById.size === 1 ? '' : 's'}`);
+    setStatus(`Applied AI workspace patch to ${editsById.size} file${editsById.size === 1 ? '' : 's'} — unsaved; manual check ready`);
+  }, [bumpDocumentVersion, files, pendingWorkspacePatch, startManualCheckSession]);
 
   const openWorkspacePatchAsFiles = useCallback(() => {
     if (!pendingWorkspacePatch) return;
@@ -805,7 +900,21 @@ export function WorkbenchShell({ host }: Props) {
               clearOutputs={() => setOutputs([])}
               deleteArtifact={(id) => { void ai.deleteArtifact(id); }}
               runAiSynthesis={runAiSynthesis}
+              captureManualCheck={captureManualCheck}
               openOutputAsFile={openOutputAsFile}
+              manualCheckSession={manualCheckSession}
+              manualCheckCommandInput={manualCheckCommandInput}
+              setManualCheckCommandInput={setManualCheckCommandInput}
+              manualCheckOutputInput={manualCheckOutputInput}
+              setManualCheckOutputInput={setManualCheckOutputInput}
+              manualCheckSelectedCommand={manualCheckSelectedCommand}
+              setManualCheckSelectedCommand={setManualCheckSelectedCommand}
+              manualCheckStatus={manualCheckStatus}
+              setManualCheckStatus={setManualCheckStatus}
+              copyManualCheckCommand={copyManualCheckCommand}
+              addManualCheckCommand={addManualCommand}
+              recordManualCheckResult={recordManualCheckResult}
+              askAgentFromManualChecks={askAgentFromManualChecks}
               onClose={() => setBottomPanelVisible(false)}
             />
           )}
@@ -841,6 +950,7 @@ export function WorkbenchShell({ host }: Props) {
           memoryHitCount={ai.memoryHits.length}
           outputs={combinedOutputs}
           runAiSynthesis={runAiSynthesis}
+          captureManualCheck={captureManualCheck}
           openOutputAsFile={openOutputAsFile}
           previewEditFromOutput={(output) => previewEditFromText(output.title, output.body)}
           canPreviewEdit={files.length > 0}
@@ -881,6 +991,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'View: Toggle Primary Side Bar', detail: primaryVisible ? 'Hide Explorer side bar' : 'Show Explorer side bar', run: () => setPrimaryVisible((value) => !value) },
             { label: 'View: Toggle Chat Panel', detail: secondaryVisible ? 'Hide right AI side bar' : 'Show right AI side bar', run: () => setSecondaryVisible((value) => !value) },
             { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
+            { label: 'Checks: Open Manual Check Panel', detail: 'Capture copy/paste check commands without host execution', run: () => startManualCheckSession('Manual check requested from command palette') },
             { label: 'View: Toggle Markdown Preview', detail: activeFile?.language === 'markdown' ? 'Show or hide Markdown preview split' : 'Available for Markdown files', run: () => setMarkdownPreviewVisible((value) => !value), disabled: activeFile?.language !== 'markdown' },
             { label: 'Atomek: Create AI Synthesis', detail: activeFile || openEditors.length > 0 ? 'Ask AIL to produce a saved Markdown artifact' : 'Open a file first', run: runAiSynthesis, disabled: !activeFile && openEditors.length === 0 },
             { label: 'AI: Explain Active File', detail: activeFile ? `Ask Cortex to explain ${activeFile.path}` : 'Open a file first', run: () => askAiWithPrompt('Explain the active file. Focus on purpose, structure, risks, and next useful edits.'), disabled: !activeFile },
@@ -888,6 +999,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'AI: Draft Editable Replacement', detail: activeFile ? `Ask Cortex for a full-file replacement for ${activeFile.path}` : 'Open a file first', run: () => runQuickPrompt('edit'), disabled: !activeFile },
             { label: 'AI: Plan Workspace Work', detail: openEditors.length > 0 ? 'Use open editors as bounded context' : 'Open files first', run: () => askAiWithPrompt('Create an implementation plan from the open editor context. Be specific and sequence the work.'), disabled: openEditors.length === 0 },
             { label: 'AI: Save Active File as Artifact', detail: activeFile ? 'Persist active file in host.ai artifacts' : 'Open a file first', run: saveActiveFileAsArtifact, disabled: !activeFile },
+            { label: 'AI: Capture Manual Check Output', detail: 'Paste check output as an auditable local artifact; no shell execution', run: captureManualCheck },
             { label: 'AI: Open Latest Artifact as File', detail: combinedOutputs[0] ? `Create editable file from ${combinedOutputs[0].title}` : 'No outputs yet', run: () => combinedOutputs[0] && openOutputAsFile(combinedOutputs[0]), disabled: combinedOutputs.length === 0 },
           ]}
           openWorkbenchFile={openWorkbenchFile}
@@ -1265,6 +1377,101 @@ function MarkdownPreviewPane({ content }: { content: string }) {
   );
 }
 
+
+function ManualCheckPanel(props: {
+  session: ManualCheckSession | null;
+  commandInput: string;
+  setCommandInput: (value: string) => void;
+  outputInput: string;
+  setOutputInput: (value: string) => void;
+  selectedCommand: string;
+  setSelectedCommand: (value: string) => void;
+  status: ManualCheckStatus;
+  setStatus: (value: ManualCheckStatus) => void;
+  copyCommand: (command: string) => void;
+  addCommand: () => void;
+  recordResult: () => void;
+  askAgent: () => void;
+}) {
+  const sessionStatus = props.session ? latestManualCheckStatus(props.session) : 'pending';
+  return (
+    <div className="workbench-manual-check-panel">
+      <p className="workbench-muted">Terminal is parked. Atomek never executes host commands here; copy a command, run it yourself, then paste the result.</p>
+      {!props.session ? (
+        <pre className="workbench-terminal-placeholder">$ open the command palette and run Checks: Open Manual Check Panel</pre>
+      ) : (
+        <>
+          <div className="workbench-manual-check-head">
+            <strong>Manual edit-check loop</strong>
+            <span className={`workbench-check-status ${sessionStatus}`}>{sessionStatus}</span>
+            <small>{props.session.reason}</small>
+          </div>
+          <div className="workbench-manual-check-grid">
+            <section>
+              <label>Check commands</label>
+              {props.session.commands.length === 0 ? <p className="workbench-muted">No project check scripts detected from open files. Add the command you want to run.</p> : null}
+              <div className="workbench-check-command-list">
+                {props.session.commands.map((command) => (
+                  <button
+                    key={command.id}
+                    className={props.selectedCommand === command.command ? 'active' : ''}
+                    onClick={() => props.setSelectedCommand(command.command)}
+                    title={command.path ?? command.source}
+                  >
+                    <span>{command.command}</span>
+                    <small>{command.source === 'package-script' ? command.label : 'manual'}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="workbench-check-add-row">
+                <input
+                  value={props.commandInput}
+                  onChange={(event) => props.setCommandInput(event.target.value)}
+                  placeholder="Add manual command to copy"
+                />
+                <button onClick={props.addCommand} disabled={!props.commandInput.trim()}>Add</button>
+              </div>
+              <button className="workbench-button-primary" onClick={() => props.copyCommand(props.selectedCommand)} disabled={!props.selectedCommand.trim()}>
+                Copy selected command
+              </button>
+            </section>
+            <section>
+              <label>Paste result</label>
+              <select value={props.status} onChange={(event) => props.setStatus(event.target.value as ManualCheckStatus)}>
+                <option value="failed">failed</option>
+                <option value="passed">passed</option>
+                <option value="pending">pending/manual note</option>
+              </select>
+              <textarea
+                value={props.outputInput}
+                onChange={(event) => props.setOutputInput(event.target.value)}
+                placeholder="Paste stdout/stderr or a short manual QA note. Nothing runs in Atomek."
+                rows={6}
+              />
+              <div className="workbench-check-actions">
+                <button onClick={props.recordResult} disabled={!props.selectedCommand.trim()}>Capture result</button>
+                <button className="workbench-button-primary" onClick={props.askAgent} disabled={props.session.results.length === 0}>Ask Atomek to continue</button>
+              </div>
+            </section>
+          </div>
+          {props.session.results.length > 0 ? (
+            <div className="workbench-check-results">
+              <label>Captured results</label>
+              {props.session.results.map((result, index) => (
+                <article key={`${result.capturedAt}-${index}`}>
+                  <strong>{result.command}</strong>
+                  <span className={`workbench-check-status ${result.status}`}>{result.status}</span>
+                  <pre>{result.output || '(no output pasted)'}</pre>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 function BottomPanel(props: {
   tab: BottomPanelTab;
   setTab: (tab: BottomPanelTab) => void;
@@ -1272,7 +1479,21 @@ function BottomPanel(props: {
   clearOutputs: () => void;
   deleteArtifact: (id: string) => void;
   runAiSynthesis: () => void;
+  captureManualCheck: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
+  manualCheckSession: ManualCheckSession | null;
+  manualCheckCommandInput: string;
+  setManualCheckCommandInput: (value: string) => void;
+  manualCheckOutputInput: string;
+  setManualCheckOutputInput: (value: string) => void;
+  manualCheckSelectedCommand: string;
+  setManualCheckSelectedCommand: (value: string) => void;
+  manualCheckStatus: ManualCheckStatus;
+  setManualCheckStatus: (value: ManualCheckStatus) => void;
+  copyManualCheckCommand: (command: string) => void;
+  addManualCheckCommand: () => void;
+  recordManualCheckResult: () => void;
+  askAgentFromManualChecks: () => void;
   onClose: () => void;
 }) {
   return (
@@ -1287,13 +1508,24 @@ function BottomPanel(props: {
       <div className="workbench-bottom-body">
         {props.tab === 'problems' && <p className="workbench-muted">No problems detected in open files. Diagnostics wire in after the base shell is approved.</p>}
         {props.tab === 'terminal' && (
-          <div>
-            <p className="workbench-muted">Terminal is parked. Native command execution belongs to the pod/daemon integration sprint.</p>
-            <pre className="workbench-terminal-placeholder">$ atomek --local-first</pre>
-          </div>
+          <ManualCheckPanel
+            session={props.manualCheckSession}
+            commandInput={props.manualCheckCommandInput}
+            setCommandInput={props.setManualCheckCommandInput}
+            outputInput={props.manualCheckOutputInput}
+            setOutputInput={props.setManualCheckOutputInput}
+            selectedCommand={props.manualCheckSelectedCommand}
+            setSelectedCommand={props.setManualCheckSelectedCommand}
+            status={props.manualCheckStatus}
+            setStatus={props.setManualCheckStatus}
+            copyCommand={props.copyManualCheckCommand}
+            addCommand={props.addManualCheckCommand}
+            recordResult={props.recordManualCheckResult}
+            askAgent={props.askAgentFromManualChecks}
+          />
         )}
         {props.tab === 'output' && (
-          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} openOutputAsFile={props.openOutputAsFile} compact />
+          <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} captureManualCheck={props.captureManualCheck} openOutputAsFile={props.openOutputAsFile} compact />
         )}
       </div>
     </section>
@@ -1329,6 +1561,7 @@ function SecondarySidebar(props: {
   memoryHitCount: number;
   outputs: OutputArtifact[];
   runAiSynthesis: () => void;
+  captureManualCheck: () => void;
   openOutputAsFile: (output: OutputArtifact) => void;
   previewEditFromOutput: (output: OutputArtifact) => void;
   canPreviewEdit: boolean;
@@ -1361,7 +1594,7 @@ function SecondarySidebar(props: {
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
-      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} canPreviewEdit={props.canPreviewEdit} />}
+      {props.tab === 'chat' ? <ChatPane {...props} /> : <OutputsPane outputs={props.outputs} clearOutputs={props.clearOutputs} deleteArtifact={props.deleteArtifact} runAiSynthesis={props.runAiSynthesis} captureManualCheck={props.captureManualCheck} openOutputAsFile={props.openOutputAsFile} previewEditFromOutput={props.previewEditFromOutput} canPreviewEdit={props.canPreviewEdit} />}
     </aside>
   );
 }
@@ -1802,11 +2035,12 @@ function AtomekSettingsDialog(props: {
   );
 }
 
-function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runAiSynthesis: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
+function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, captureManualCheck, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runAiSynthesis: () => void; captureManualCheck: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <button className="workbench-button-subtle" onClick={runAiSynthesis}><Bot size={14} />AI synthesis</button>
+        <button className="workbench-button-subtle" onClick={captureManualCheck}><Bug size={14} />Capture check</button>
         <button className="workbench-button-subtle" onClick={clearOutputs}>Clear</button>
       </div>
       {outputs.length === 0 ? <p className="workbench-muted">No outputs yet. Save an AI answer as an artifact or create an AI synthesis.</p> : outputs.map((output) => (
