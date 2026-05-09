@@ -1225,7 +1225,7 @@ function ActivityBar({ active, setActive, openSettings, settingsActive }: { acti
       <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
       <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
       <ActivityButton icon={<Bot size={25} />} label="Computer / Agents" active={active === 'computer'} onClick={() => setActive('computer')} />
-      <ActivityButton icon={<Blocks size={25} />} label="Extensions" active={active === 'extensions'} onClick={() => setActive('extensions')} />
+      <ActivityButton icon={<Blocks size={25} />} label="Skills / Apps" active={active === 'extensions'} onClick={() => setActive('extensions')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
       <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
@@ -1260,8 +1260,7 @@ function PrimarySidebar(props: {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
   if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
   if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
-  if (props.activity === 'computer') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} />;
-  if (props.activity === 'extensions') return <ExtensionsPane />;
+  if (props.activity === 'computer' || props.activity === 'extensions') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} />;
   return <ExplorerPane {...props} />;
 }
 
@@ -2403,40 +2402,6 @@ function WorkspacePatchReviewDialog({ patch, onApply, onOpenAsFiles, onClose }: 
   );
 }
 
-function ExtensionsPane() {
-  const items = [
-    { name: 'Agents', detail: 'chat, planning, repo edits' },
-    { name: 'Pods', detail: 'allocated pod tools + local gateway' },
-    { name: 'local AIL', detail: 'local/private model routing' },
-    { name: 'Swarm', detail: 'parallel specialist workers' },
-    { name: 'Remotion', detail: 'video render recipes' },
-    { name: 'Hyperframes', detail: 'interactive app frames and tool connectors' },
-    { name: 'Blender', detail: '3D scene generation' },
-    { name: 'Media tools', detail: 'image/video/audio source cards' },
-    { name: 'Artifact recipes', detail: 'briefing, quiz, plan, report' },
-  ];
-  return (
-    <aside className="workbench-sidebar">
-      <div className="workbench-sidebar-title">EXTENSIONS</div>
-      <div className="workbench-sidebar-scroll">
-        <div className="workbench-extension-card">
-          <strong>TYTUS EXTENSIONS</strong>
-          <p className="workbench-muted">Connector surface kept intentionally. Chat, agents, pods, Hyperframes, Blender, and media tools wire in from here.</p>
-        </div>
-        {items.map((item) => (
-          <div key={item.name} className="workbench-extension-row">
-            <Blocks size={16} />
-            <div>
-              <strong>{item.name}</strong>
-              <span>{item.detail}</span>
-            </div>
-            <em>coming soon</em>
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-}
 
 function ComputerPane({ host, setStatus, attachSkillToChat, saveLocalJobOutput }: { host: HostClient; setStatus: (status: string) => void; attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>; saveLocalJobOutput: (title: string, body: string) => void }) {
   const [tools, setTools] = useState<AtomekLocalTool[]>([]);
