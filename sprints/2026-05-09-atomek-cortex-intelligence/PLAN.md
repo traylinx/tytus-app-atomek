@@ -150,9 +150,9 @@ npm run release:check
 - [x] Run all gates.
 - [x] Bump Atomek version.
 - [x] Build and release-check.
-- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` pending closeout).
-- [x] Update app catalog (`tytus-app-catalog` commit `1fe09da`, catalog version 30).
-- [x] TytusOS host API touched: `host.ai.embedText` landed in `f6a1905` on `feature/tytus-forge-mvp`.
+- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` closed (`96c9e17`)).
+- [x] Update app catalog (`tytus-app-catalog` commit `1fe09da`, catalog version 31 (`f7fa66c`)).
+- [x] TytusOS host API/runtime touched: `host.ai.embedText` landed in `f6a1905`; featured Atomek pointer updated in `e4d5689` on `feature/tytus-forge-mvp`.
 - [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
 
 Release gates:

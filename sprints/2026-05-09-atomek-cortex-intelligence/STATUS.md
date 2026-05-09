@@ -101,3 +101,12 @@ npm run typecheck --workspace app
 ```
 
 Results: all passed.
+
+
+## Semantic release closeout
+
+- Atomek semantic commit: `96c9e17` (`Add Atomek semantic retrieval 0.4.1`) pushed to `origin/main`.
+- Atomek tag: `v0.4.1` pushed.
+- App catalog commit: `f7fa66c` (`Publish Atomek 0.4.1`) pushed; catalog version `31`.
+- TytusOS host/runtime branch: `feature/tytus-forge-mvp` pushed with `f6a1905` (`host.ai.embedText`) and `e4d5689` (featured Atomek pointer to `0.4.1`).
+- Browser live QA still blocked on local Chrome CDP not running (`DevToolsActivePort not found`); CLI/build/release gates passed.
