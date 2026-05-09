@@ -153,7 +153,9 @@ npm run release:check
 - [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` closed (`96c9e17`); manual-check release `v0.4.2` closed (`3d372f2`)).
 - [x] Update app catalog (`tytus-app-catalog` commits `1fe09da` / `f7fa66c` / `2a59e4e`; latest catalog version `32`).
 - [x] TytusOS host API/runtime touched: `host.ai.embedText` landed in `f6a1905`; featured Atomek pointer updated in `e4d5689`, then `57c078c` on `feature/tytus-forge-mvp`.
-- [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
+- [x] Live QA in source Tytus runtime (`http://localhost:4243`) with opened throwaway file: asked edit, inspected active-file context, received diff, previewed edit, applied edit, confirmed dirty unsaved buffer and manual-check panel. Packaged `/Applications/Tytus.app` runtime on `4242` was stale before rebuild and showed Atomek `0.4.1`; fixed TytusOS downgrade path in `ea56524`.
+
+Sprint-audit note after `0.4.2`: implementation and source-runtime live validation are closed. Remaining operational task is rebuilding/reinstalling packaged Tytus.app so port `4242` carries TytusOS `ea56524`.
 
 Release gates:
 

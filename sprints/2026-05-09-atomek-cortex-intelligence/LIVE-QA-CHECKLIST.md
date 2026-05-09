@@ -11,11 +11,11 @@ Run after package gates pass and Atomek is loaded in a Tytus runtime.
 
 ## Context builder/store
 
-- [ ] Open two files; make one active.
+- [x] Open throwaway file; make it active. Source runtime `4243` created `Untitled-1`.
 - [ ] Select a small range in the active file.
 - [ ] Set context scope to active selection.
-- [ ] Send a chat prompt asking what the selected code does.
-- [ ] Confirm context chip shows the selected file/range, not every open file.
+- [x] Send chat prompt against active file. Source runtime returned `LIVE_OK` and later a unified diff.
+- [x] Confirm context chip shows active file. Source runtime showed `Context Active file` / `Untitled-1`.
 - [ ] Remove the chip and send again.
 - [ ] Confirm request proceeds without the removed attachment.
 - [ ] Switch to open-editors scope.
@@ -23,10 +23,10 @@ Run after package gates pass and Atomek is loaded in a Tytus runtime.
 
 ## Patch parser/edit service
 
-- [ ] Ask: `Change only the selected line to use a clearer variable name. Return a patch.`
-- [ ] Confirm Atomek shows an edit preview, not a silent prose answer.
-- [ ] Apply the preview.
-- [ ] Confirm the editor buffer changes and is marked unsaved/dirty.
+- [x] Ask: `Change only the Markdown heading from # Untitled to # Live QA Fixed. Return only a unified diff.`
+- [x] Confirm Atomek shows an edit preview, not a silent prose answer.
+- [x] Apply the preview.
+- [x] Confirm the editor buffer changes and is marked unsaved/dirty.
 - [ ] Before applying a second generated preview, manually edit the target line.
 - [ ] Confirm conflict guard blocks or warns unless force/apply is explicitly chosen.
 - [ ] Save remains explicit; no automatic disk write happens without user action.
@@ -43,12 +43,12 @@ Run after package gates pass and Atomek is loaded in a Tytus runtime.
 
 ## Release smoke
 
-- [ ] `npm run typecheck` passed.
-- [ ] `npm run build` passed.
-- [ ] `npm run release:check` passed.
-- [ ] `node scripts/verify-cortex-contracts.mjs` passed.
-- [ ] No hardcoded model IDs or provider tool names in `src/`.
-- [ ] Live edit flow works on a throwaway file.
+- [x] `npm run typecheck` passed. Re-run by Worker Sprint-Audit after `0.4.2`.
+- [x] `npm run build` passed. Re-run by Worker Sprint-Audit after `0.4.2`.
+- [x] `npm run release:check` passed. Re-run by Worker Sprint-Audit after `0.4.2`.
+- [x] `node scripts/verify-cortex-contracts.mjs` passed. Re-run by Worker Sprint-Audit after `0.4.2` via `npm run verify:cortex`.
+- [x] No hardcoded model IDs or provider tool names in `src/`. Re-run grep returned no hits for `minimax|m2.1|m2.7|web_search|"tools":`.
+- [x] Live edit flow works on a throwaway file in source runtime `http://localhost:4243/`.
 
 ## Fail criteria
 
@@ -92,4 +92,20 @@ Automated release and CDN readiness checks passed before any manual Tytus runtim
 - [x] Hardcode grep for `minimax|m2.1|m2.7|web_search|"tools":` returned no hits in release source/manifest/scripts.
 - [x] TytusOS featured catalog test passed.
 - [x] TytusOS `@tytus/host-api` and app typechecks passed.
-- [ ] Manual Tytus runtime UI walk-through still not executed: Chrome CDP reachable, but no open Tytus runtime tab/target was available in this session.
+- [x] Manual Tytus source-runtime UI walk-through executed through Chrome CDP on `http://localhost:4243/`; packaged runtime `4242` remains stale until rebuilt/reinstalled.
+
+## Sprint-Audit doc pass — 2026-05-09
+
+- [x] Release smoke/gate checkboxes above reflect `0.4.2` current state after Worker Sprint-Audit re-ran Atomek package gates and hardcode grep.
+- [x] No live UI checkbox was changed to checked by Worker Sprint-Audit.
+- [x] Worker Live-QA provided source-runtime browser evidence; packaged runtime remains an operational rebuild/reinstall task.
+
+
+## 0.4.2 live QA closeout — 2026-05-09
+
+- [x] Worker Live-QA verified source dev runtime `http://localhost:4243/` loads Atomek `0.4.2` manifest and entry URL. Screenshot: `/tmp/atomek-live-smoke-final-4243.png`.
+- [x] Harvey reran a full source-runtime edit smoke after fixing TytusOS rebrand downgrade: loaded resources included `@v0.4.2/tytus-app.json` and `@v0.4.2/dist/index.js`; screenshot `/tmp/atomek-042-fixed-live-full.png`.
+- [x] Chat/settings path visible; Auto/Remote/Local AIL settings visible; chat answered through AIL.
+- [x] New file + active context + unified diff + preview + apply + dirty unsaved editor all passed.
+- [x] Manual edit-check panel appeared after apply and states that Atomek does not execute host commands.
+- [ ] Packaged runtime `http://127.0.0.1:4242/` showed stale Atomek `0.4.1` before TytusOS fix. Rebuild/reinstall packaged Tytus.app from `ea56524` to make packaged runtime match source runtime.

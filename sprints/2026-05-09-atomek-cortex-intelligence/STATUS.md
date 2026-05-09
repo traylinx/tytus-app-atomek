@@ -2,7 +2,7 @@
 
 ## Current truth
 
-Atomek `0.4.0` is now an intelligent IDE-chat workbench, shipped as a standalone app release candidate. The sprint moved from implicit chat over open files to explicit, per-message, inspectable context with project indexing and real preview/apply edit flow.
+Atomek `0.4.2` is published as an intelligent IDE-chat workbench. The sprint moved from implicit chat over open files to explicit, per-message, inspectable context with project indexing, semantic retrieval when `host.ai.embedText` exists, preview/apply edit flow, and a manual edit-check loop that does not fake host command execution.
 
 ## Implemented in this sprint
 
@@ -54,11 +54,11 @@ grep -RInE '"tools"[[:space:]]*:' src package.json package-lock.json tytus-app.j
 
 Results: typecheck/build/release-check pass; hardcode greps produced no hits.
 
-## Remaining after Atomek 0.4.0
+## Remaining after Atomek 0.4.2
 
-- Optional live browser/Tytus QA after tag/catalog publish.
-- Separate TytusOS host API sprint for `host.ai.embedText`, vector storage, and semantic RAG.
-- Optional automated tests once the app repo adds a test runner.
+- Live browser/Tytus QA after tag/catalog publish remains unchecked. Do not mark it passed without Worker Live-QA evidence from a Tytus runtime tab.
+- Host command runner remains deferred by design. Current TytusOS installed-app API has no safe shell/check runner.
+- Optional future host API work: allow-listed non-shell check execution with consent/audit, if product wants automated checks inside installed apps.
 
 ## Lope escalation
 
@@ -166,3 +166,26 @@ npm run typecheck --workspace app
 ```
 
 Results: all passed.
+
+## Sprint-audit closeout — 2026-05-09
+
+Worker Sprint-Audit inspected `PLAN.md`, `UAT.md`, `STATUS.md`, `LIVE-QA-CHECKLIST.md`, and `SPRINT-MANIFEST.json` after the `0.4.2` release. Current repo truth:
+
+- Atomek `origin/main`: `540b066` (`Close Atomek 0.4.2 sprint docs`), with release code tag `v0.4.2` at `3d372f2`.
+- Catalog `origin/main`: `2a59e4e`, catalog version `32`.
+- TytusOS `origin/feature/tytus-forge-mvp`: `57c078c`, featured Atomek pointer at `0.4.2`.
+- Re-run gates passed from `/Users/sebastian/Projects/tytus-apps/tytus-app-atomek`: `npm run typecheck`, `npm run verify:cortex`, `npm run build`, `npm run release:check`.
+- Re-run hardcode grep returned no hits for `minimax|m2.1|m2.7|web_search|"tools":` in `src`, package files, manifest, or scripts.
+- No remaining unchecked implementation item was found in the sprint docs. Remaining unchecked items are live/manual runtime checks only.
+- Live UI QA is still not executed in these docs; no checkbox requiring Tytus runtime/browser evidence was marked complete by this audit.
+
+
+
+## Live QA and TytusOS downgrade fix — 2026-05-09
+
+- Worker Live-QA found a real packaged-runtime blocker: `/Applications/Tytus.app` on `http://127.0.0.1:4242` still showed Atomek `0.4.1`.
+- Root cause: TytusOS `app-rebrand-migrations.ts` pinned Atomek rebrand repair to `v0.3.8` and treated any non-exact Atomek row as stale, so current catalog installs could be coerced to old Atomek bundles.
+- Fixed in TytusOS commit `ea56524` (`Stop Atomek rebrand migration downgrades`): migration floor moved to `0.4.2`, stale detection no longer downgrades newer Atomek rows, and tests assert future `0.4.3` rows are preserved.
+- Source dev runtime `http://localhost:4243/` passed live QA after clearing the dev origin store: Atomek loaded `@v0.4.2/tytus-app.json` and `@v0.4.2/dist/index.js`; chat answered; edit request returned diff; preview/apply changed throwaway editor; file stayed unsaved; manual edit-check panel opened after apply.
+- Evidence screenshots: `/tmp/atomek-live-smoke-final-4243.png`, `/tmp/atomek-042-fixed-live-full.png`.
+- Remaining operational packaging task: rebuild/reinstall packaged Tytus.app from `feature/tytus-forge-mvp` at `ea56524` so port `4242` matches source runtime.

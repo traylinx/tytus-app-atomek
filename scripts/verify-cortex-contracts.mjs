@@ -15,6 +15,7 @@ const filesToCompile = [
   'src/workbench/context/contextBuilder.ts',
   'src/workbench/edits/patchParser.ts',
   'src/workbench/edits/workbenchEditService.ts',
+  'src/workbench/checks/manualChecks.ts',
   'src/workbench/projectIndex/chunker.ts',
   'src/workbench/projectIndex/indexStore.ts',
   'src/workbench/projectIndex/retrieval.ts',
@@ -186,11 +187,69 @@ function testProjectIndexRetrieval() {
   assert.equal(stale.files.find((entry) => entry.fileId === 'idx').status, 'changed');
 }
 
+function testManualEditCheckLoop() {
+  const manualChecks = load('src/workbench/checks/manualChecks.ts');
+  const files = [
+    file({
+      id: 'pkg',
+      name: 'package.json',
+      path: 'package.json',
+      language: 'json',
+      content: JSON.stringify({
+        scripts: {
+          build: 'vite build',
+          typecheck: 'tsc --noEmit',
+          'verify:cortex': 'node scripts/verify-cortex-contracts.mjs',
+          dev: 'vite --host 0.0.0.0',
+        },
+      }, null, 2),
+    }),
+    file({ id: 'lock', name: 'package-lock.json', path: 'package-lock.json', language: 'json', content: '{}' }),
+  ];
+
+  let session = manualChecks.createManualCheckSession(files, 'AI workspace patch applied to 2 files');
+  assert.equal(session.results.length, 0);
+  assert.deepEqual(session.commands.map((command) => command.command), [
+    'npm run typecheck',
+    'npm run build',
+    'npm run verify:cortex',
+  ]);
+  assert.ok(session.commands.every((command) => command.source === 'package-script'));
+  assert.ok(session.commands.every((command) => command.path === 'package.json'));
+
+  session = manualChecks.addManualCheckResult(
+    session,
+    ' npm   run   verify:cortex ',
+    'failed',
+    'Atomek cortex contract harness: FAIL\n```nested fence from tool output```',
+  );
+  assert.equal(manualChecks.latestManualCheckStatus(session), 'failed');
+  assert.equal(session.results[0].command, 'npm run verify:cortex');
+
+  const prompt = manualChecks.buildManualCheckFollowupPrompt(session);
+  assert.match(prompt, /Continue the agentic edit\/check loop from a manual check capture\./);
+  assert.match(prompt, /Manual check reason: AI workspace patch applied to 2 files/);
+  assert.match(prompt, /- npm run verify:cortex/);
+  assert.match(prompt, /Check 1: npm run verify:cortex/);
+  assert.match(prompt, /Status: failed/);
+  assert.match(prompt, /Atomek cortex contract harness: FAIL/);
+  assert.match(prompt, /Do not assume host command execution exists\. The user ran or will run checks outside Atomek\./);
+  assert.match(prompt, /Use only the currently attached workbench context and the pasted output below\./);
+  assert.match(prompt, /Do not write files, do not invoke tools, and do not assume any provider-specific model\/tool\./);
+
+  const noPackageManagerSession = manualChecks.createManualCheckSession([
+    file({ id: 'pkg-no-lock', name: 'package.json', path: 'package.json', language: 'json', content: '{"scripts":{"test":"vitest"}}' }),
+  ], 'No host package manager inference');
+  assert.deepEqual(noPackageManagerSession.commands, []);
+  assert.match(manualChecks.buildManualCheckFollowupPrompt(noPackageManagerSession), /No manual check output was captured yet\./);
+}
+
 try {
   compileSources();
   testContextBuilderAndStore();
   testPatchParserAndEditService();
   testProjectIndexRetrieval();
+  testManualEditCheckLoop();
   console.log('Atomek cortex contract harness: PASS');
   console.log(`Compiled modules under ${relative(repoRoot, tempRoot) || tempRoot}`);
 } finally {

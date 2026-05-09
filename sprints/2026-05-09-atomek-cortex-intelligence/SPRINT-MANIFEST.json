@@ -2,15 +2,16 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "ATOMEK_0_4_2_MANUAL_CHECK_RELEASED",
+  "status": "ATOMEK_0_4_2_LIVE_QA_PASSED_ON_SOURCE_RUNTIME",
   "currentVersionAtCreation": "0.3.9",
   "releaseVersion": "0.4.2",
   "atomekCommit": "3d372f2",
+  "atomekMainAtSprintAudit": "540b066",
   "atomekTag": "v0.4.2",
   "catalogCommit": "2a59e4e",
   "catalogVersion": 32,
   "tytusOsHostApiCommit": "f6a1905",
-  "tytusOsFeaturedPointerCommit": "57c078c",
+  "tytusOsFeaturedPointerCommit": "ea56524",
   "hardRules": [
     "no hardcoded model IDs",
     "no provider-specific tool hardcodes",
@@ -35,11 +36,31 @@
     "release-prep",
     "manual-edit-check-loop",
     "host-command-boundary-doc",
-    "remote-0.4.2-verification"
+    "remote-0.4.2-verification",
+    "manual-check-regression-harness",
+    "live-source-runtime-qa",
+    "tytusos-atomek-rebrand-downgrade-fix"
   ],
   "hostApiDeferred": [
     "host command runner for automatic checks"
   ],
+  "remainingUncheckedItems": [
+    "Packaged /Applications/Tytus.app runtime on port 4242 is still stale until rebuilt/reinstalled from TytusOS branch ea56524; source dev runtime on port 4243 passes Atomek 0.4.2 live QA."
+  ],
+  "sprintAudit": {
+    "date": "2026-05-09",
+    "worker": "Worker Sprint-Audit",
+    "scope": "sprint docs only",
+    "result": "NO_UNCHECKED_IMPLEMENTATION_ITEMS_REMAIN",
+    "liveQaStatus": "PENDING_WORKER_LIVE_QA_EVIDENCE",
+    "gatesRechecked": [
+      "npm run typecheck",
+      "npm run verify:cortex",
+      "npm run build",
+      "npm run release:check",
+      "grep: no minimax/m2.1/m2.7/web_search/\"tools\": hardcodes"
+    ]
+  },
   "gates": [
     "npm run typecheck",
     "npm run build",
@@ -52,5 +73,31 @@
     "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
     "/Users/sebastian/Projects/makakoo/agents/sample_apps/monaco-editor",
     "/Users/sebastian/Projects/makakoo/agents/sample_apps/vscode"
-  ]
+  ],
+  "atomekRegressionCommitPending": "manual-check harness added after 540b066",
+  "tytusOsAtomekRebrandFixCommit": "ea56524",
+  "liveQa": {
+    "date": "2026-05-09",
+    "sourceRuntimeUrl": "http://localhost:4243/",
+    "sourceRuntimeResult": "PASS",
+    "packagedRuntimeUrl": "http://127.0.0.1:4242/",
+    "packagedRuntimeResult": "STALE_APP_STORE_SHOWED_0_4_1_BEFORE_TYTUS_REBUILD",
+    "evidenceScreenshots": [
+      "/tmp/atomek-live-smoke-final-4243.png",
+      "/tmp/atomek-042-fixed-live-full.png"
+    ],
+    "loadedResources": [
+      "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/tytus-app.json",
+      "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/dist/index.js"
+    ],
+    "verified": [
+      "chat response via AIL",
+      "settings/routing UI",
+      "new file context",
+      "diff generation",
+      "edit preview",
+      "apply dirty buffer",
+      "manual edit-check panel"
+    ]
+  }
 }
