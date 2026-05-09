@@ -31,7 +31,7 @@ npm run release:check
    git push origin main --tags
    ```
 5. Update `tytus-app-catalog/featured.json` to point Atomek at the new manifest tag.
-6. Push the catalog. Tytus OS fetches the catalog from `main`, so Atomek version bumps do not need a Tytus OS rebuild.
+6. Push the catalog. TytusOS fetches the catalog from the configured catalog URL, so Atomek version bumps do not need a Tytus OS rebuild.
 
 ## Tytus OS integration contract
 
@@ -40,3 +40,5 @@ npm run release:check
 - Built entry stays `dist/index.js` and must be CSS-injected.
 - AI/pods/Cortex integrations should enter through the right-side chat/outputs extension surface.
 - Do not copy Atomek source back into `tytus-os/packages/app-workbench`; that package is intentionally retired.
+- Do not hardcode provider model IDs; use host/global AIL discovery.
+- Do not direct-fetch pod/model URLs from the browser; use the host bridge.
