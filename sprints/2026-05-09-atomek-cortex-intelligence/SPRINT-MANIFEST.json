@@ -2,15 +2,15 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "ATOMEK_0_4_1_SEMANTIC_RELEASED",
+  "status": "ATOMEK_0_4_2_MANUAL_CHECK_RELEASED",
   "currentVersionAtCreation": "0.3.9",
-  "releaseVersion": "0.4.1",
-  "atomekCommit": "96c9e17",
-  "atomekTag": "v0.4.1",
-  "catalogCommit": "f7fa66c",
-  "catalogVersion": 31,
+  "releaseVersion": "0.4.2",
+  "atomekCommit": "3d372f2",
+  "atomekTag": "v0.4.2",
+  "catalogCommit": "2a59e4e",
+  "catalogVersion": 32,
   "tytusOsHostApiCommit": "f6a1905",
-  "tytusOsFeaturedPointerCommit": "e4d5689",
+  "tytusOsFeaturedPointerCommit": "57c078c",
   "hardRules": [
     "no hardcoded model IDs",
     "no provider-specific tool hardcodes",
@@ -32,7 +32,10 @@
     "tytusos-host-embed-api",
     "semantic-hybrid-retrieval",
     "cortex-contract-harness",
-    "release-prep"
+    "release-prep",
+    "manual-edit-check-loop",
+    "host-command-boundary-doc",
+    "remote-0.4.2-verification"
   ],
   "hostApiDeferred": [
     "host command runner for automatic checks"

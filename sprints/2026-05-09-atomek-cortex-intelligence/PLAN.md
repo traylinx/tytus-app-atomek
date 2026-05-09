@@ -133,8 +133,8 @@ npm run build
 - [x] Add “Generate patch” action.
 - [x] Reuse workspace edit preview/apply pipeline.
 - [x] Add “Apply and mark unsaved” with save warning.
-- [ ] Add manual check command capture until host command runner exists.
-- [ ] If host command runner lands, run checks and feed failures back into follow-up prompt.
+- [x] Add manual check command capture until host command runner exists.
+- [x] Host command runner deferred by design; Atomek ships manual copy/paste checks and feeds captured output back into the chat loop.
 
 Gate:
 
@@ -150,9 +150,9 @@ npm run release:check
 - [x] Run all gates.
 - [x] Bump Atomek version.
 - [x] Build and release-check.
-- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` closed (`96c9e17`)).
-- [x] Update app catalog (`tytus-app-catalog` commit `1fe09da`, catalog version 31 (`f7fa66c`)).
-- [x] TytusOS host API/runtime touched: `host.ai.embedText` landed in `f6a1905`; featured Atomek pointer updated in `e4d5689` on `feature/tytus-forge-mvp`.
+- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`; semantic release `v0.4.1` closed (`96c9e17`); manual-check release `v0.4.2` closed (`3d372f2`)).
+- [x] Update app catalog (`tytus-app-catalog` commits `1fe09da` / `f7fa66c` / `2a59e4e`; latest catalog version `32`).
+- [x] TytusOS host API/runtime touched: `host.ai.embedText` landed in `f6a1905`; featured Atomek pointer updated in `e4d5689`, then `57c078c` on `feature/tytus-forge-mvp`.
 - [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
 
 Release gates:

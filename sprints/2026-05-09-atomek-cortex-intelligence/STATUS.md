@@ -109,4 +109,60 @@ Results: all passed.
 - Atomek tag: `v0.4.1` pushed.
 - App catalog commit: `f7fa66c` (`Publish Atomek 0.4.1`) pushed; catalog version `31`.
 - TytusOS host/runtime branch: `feature/tytus-forge-mvp` pushed with `f6a1905` (`host.ai.embedText`) and `e4d5689` (featured Atomek pointer to `0.4.1`).
-- Browser live QA still blocked on local Chrome CDP not running (`DevToolsActivePort not found`); CLI/build/release gates passed.
+- Browser/CDP prep rechecked by Worker C on 2026-05-09: Chrome CDP responds on `127.0.0.1:9222`, but `/json/list` returned no open Tytus runtime tab, so live UI QA remains not executed. Automated CLI/build/release and remote CDN/catalog checks passed.
+
+## Worker C live QA preparation evidence — 2026-05-09
+
+- Remote release refs verified:
+  - `git ls-remote --tags origin refs/tags/v0.4.1` -> `fcad9621a2ad34ee7dc6f90c7850a506bcbf993d`.
+  - `git ls-remote origin refs/heads/main` -> `790173a9274a0da84c43109227ebda019e7c2787`.
+- Remote manifest/catalog/CDN verified with HTTP 200 responses:
+  - `https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.1/tytus-app.json` -> `id=atomek`, `version=0.4.1`, entry pinned to `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.1/dist/index.js`.
+  - `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.1/tytus-app.json` -> same manifest values.
+  - `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.1/dist/index.js` -> HTTP 200, CSS marker `tytus-workbench-css` present, semantic `embedText` marker present.
+  - `https://raw.githubusercontent.com/traylinx/tytus-app-catalog/main/featured.json` and `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-catalog@main/featured.json` -> Atomek `version=0.4.1`, manifest URL pinned to the v0.4.1 raw manifest.
+- Local gates rerun from `/Users/sebastian/Projects/tytus-apps/tytus-app-atomek`:
+  - `npm run typecheck` -> PASS.
+  - `npm run verify:cortex` -> PASS (`Atomek cortex contract harness: PASS`).
+  - `npm run build` -> PASS (`✓ built in 2m 9s`).
+  - `npm run release:check` -> PASS (`[release-check] ok atomek 0.4.1`).
+  - Hardcode greps for `minimax|m2.1|m2.7|web_search` and `"tools":` -> PASS/no hits.
+- Browser/CDP prep:
+  - `curl http://127.0.0.1:9222/json/version` -> PASS, Chrome `147.0.7727.138` responded.
+  - `curl http://127.0.0.1:9222/json/list` -> PASS but no open target rows printed; no Tytus runtime tab available for UI walk-through.
+- Repo state after gates: pre-existing non-doc swarm edits remain in `src/workbench/components/WorkbenchShell.tsx` and `src/workbench/checks/`; Worker C did not revert or edit them.
+## 2026-05-09 — Worker A manual edit-check capture
+
+- Implemented Atomek-side manual check capture for Phase 7 without host command execution.
+- Added `src/workbench/checks/manualChecks.ts` for package-script command discovery, manual command/result capture, and follow-up prompt construction.
+- Workbench now opens the bottom Terminal panel after AI edit apply, lets the user copy commands, paste check output, and send that output back to Atomek for a diff follow-up.
+- Gate: `npm run typecheck` passed.
+
+
+## Manual check / 0.4.2 release closeout — 2026-05-09
+
+- Atomek manual-check commit: `3d372f2` (`Add Atomek manual check loop 0.4.2`) pushed to `origin/main`.
+- Atomek tag: `v0.4.2` pushed.
+- App catalog commit: `2a59e4e` (`Publish Atomek 0.4.2`) pushed; catalog version `32`.
+- TytusOS branch: `feature/tytus-forge-mvp` pushed with `57c078c` pointing featured Atomek/catalog to `0.4.2` and documenting that `@tytus/host-api` exposes no host shell runner for installed apps.
+- Manual edit-check loop shipped: after AI edit/workspace patch apply, Atomek opens the bottom Terminal/manual-check panel, suggests project check commands from opened `package.json` files, lets the user copy commands, paste stdout/stderr, mark pass/fail/pending, and ask Atomek to continue from the captured result.
+- Automatic host command execution deliberately not implemented: current host API has no installed-app command runner; built-in Terminal uses tray daemon PTY endpoints and is not a capability for installed apps. Future implementation must be an allow-listed non-shell check API with explicit consent/audit.
+- Remote verification: raw manifest, jsDelivr manifest, jsDelivr bundle, raw catalog, pinned catalog all return `0.4.2`; jsDelivr `@main` catalog cache was purged and now returns catalog version `32`.
+
+Gates run for 0.4.2:
+
+```bash
+# Atomek
+npm run typecheck
+npm run verify:cortex
+npm run build
+npm run release:check
+grep: no minimax/m2.1/m2.7/web_search/"tools": hardcodes
+
+# TytusOS
+npm run test --workspace app -- src/apps/featured-apps-catalog.test.ts
+npm run typecheck --workspace @tytus/host-api
+npm run typecheck --workspace app
+```
+
+Results: all passed.

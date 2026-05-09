@@ -50,7 +50,7 @@
 - [ ] Preview shows current/proposed changes.
 - [ ] Apply marks file dirty and shows save warning.
 - [ ] Save all persists changes.
-- [ ] Failed/manual check path is explicit, not fake.
+- [x] Failed/manual check path is explicit, not fake.
 
 ## Backward compatibility
 
