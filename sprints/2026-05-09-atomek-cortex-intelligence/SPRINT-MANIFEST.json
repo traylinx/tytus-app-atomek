@@ -2,7 +2,7 @@
   "id": "atomek-cortex-intelligence-2026-05-09",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "createdAt": "2026-05-09",
-  "status": "ATOMEK_0_4_2_LIVE_QA_PASSED_ON_SOURCE_RUNTIME",
+  "status": "ATOMEK_0_4_2_PACKAGED_RUNTIME_LIVE_QA_PASSED",
   "currentVersionAtCreation": "0.3.9",
   "releaseVersion": "0.4.2",
   "atomekCommit": "3d372f2",
@@ -39,14 +39,13 @@
     "remote-0.4.2-verification",
     "manual-check-regression-harness",
     "live-source-runtime-qa",
-    "tytusos-atomek-rebrand-downgrade-fix"
+    "tytusos-atomek-rebrand-downgrade-fix",
+    "packaged-runtime-4242-live-qa"
   ],
   "hostApiDeferred": [
     "host command runner for automatic checks"
   ],
-  "remainingUncheckedItems": [
-    "Packaged /Applications/Tytus.app runtime on port 4242 is still stale until rebuilt/reinstalled from TytusOS branch ea56524; source dev runtime on port 4243 passes Atomek 0.4.2 live QA."
-  ],
+  "remainingUncheckedItems": [],
   "sprintAudit": {
     "date": "2026-05-09",
     "worker": "Worker Sprint-Audit",
@@ -81,10 +80,13 @@
     "sourceRuntimeUrl": "http://localhost:4243/",
     "sourceRuntimeResult": "PASS",
     "packagedRuntimeUrl": "http://127.0.0.1:4242/",
-    "packagedRuntimeResult": "STALE_APP_STORE_SHOWED_0_4_1_BEFORE_TYTUS_REBUILD",
+    "packagedRuntimeResult": "PASS",
     "evidenceScreenshots": [
       "/tmp/atomek-live-smoke-final-4243.png",
-      "/tmp/atomek-042-fixed-live-full.png"
+      "/tmp/atomek-042-fixed-live-full.png",
+      "/tmp/atomek-4242-flow3-after-response.png",
+      "/tmp/atomek-4242-flow3-preview.png",
+      "/tmp/atomek-4242-flow3-after-apply.png"
     ],
     "loadedResources": [
       "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/tytus-app.json",
@@ -97,7 +99,35 @@
       "diff generation",
       "edit preview",
       "apply dirty buffer",
+      "manual edit-check panel",
+      "packaged runtime 4242 loads Atomek 0.4.2",
+      "chat streaming completed on packaged runtime",
+      "manual edit-check panel on packaged runtime"
+    ]
+  },
+  "tytusCliVendoredDist": "1c69e8e3e696c6fc234c719a0b3fb798419dc331f49a9ff3aa6d6a6428c134d6",
+  "packagedRuntimeCloseout": {
+    "date": "2026-05-09",
+    "url": "http://127.0.0.1:4242/",
+    "pid": 59717,
+    "servedMainBundle": "assets/index-Xb4UzeDM.js",
+    "result": "PASS",
+    "loadedResources": [
+      "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/tytus-app.json",
+      "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/dist/index.js"
+    ],
+    "verified": [
+      "no stale Atomek v0.3.8/v0.4.1 references",
+      "chat streaming completed",
+      "edit preview",
+      "apply dirty buffer",
       "manual edit-check panel"
+    ],
+    "evidence": [
+      "/tmp/atomek-4242-flow3-after-response.png",
+      "/tmp/atomek-4242-flow3-preview.png",
+      "/tmp/atomek-4242-flow3-after-apply.png",
+      "/tmp/atomek-4242-flow3-result.json"
     ]
   }
 }

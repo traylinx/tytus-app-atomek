@@ -108,4 +108,15 @@ Automated release and CDN readiness checks passed before any manual Tytus runtim
 - [x] Chat/settings path visible; Auto/Remote/Local AIL settings visible; chat answered through AIL.
 - [x] New file + active context + unified diff + preview + apply + dirty unsaved editor all passed.
 - [x] Manual edit-check panel appeared after apply and states that Atomek does not execute host commands.
-- [ ] Packaged runtime `http://127.0.0.1:4242/` showed stale Atomek `0.4.1` before TytusOS fix. Rebuild/reinstall packaged Tytus.app from `ea56524` to make packaged runtime match source runtime.
+- [x] Packaged runtime `http://127.0.0.1:4242/` was rebuilt/reinstalled from TytusOS `ea56524` and now loads Atomek `0.4.2` manifest + runtime. Full edit/preview/apply/manual-check smoke passed; evidence `/tmp/atomek-4242-flow3-result.json`.
+
+
+## Packaged runtime 4242 closeout — 2026-05-09
+
+- [x] `/Applications/Tytus.app` rebuilt/reinstalled from synced TytusOS dist; active process serves `http://127.0.0.1:4242/` from PID `59717`.
+- [x] Served main bundle changed to `assets/index-Xb4UzeDM.js`.
+- [x] Served main bundle has zero stale Atomek `v0.3.8`, `v0.4.1`, or catalog `f7fa66c` references.
+- [x] Packaged runtime loaded Atomek `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/tytus-app.json`.
+- [x] Packaged runtime loaded Atomek `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/dist/index.js`.
+- [x] Throwaway file edit flow passed: new file, active-file context, Local AIL streamed and completed, `Review AI edit` appeared, `Apply to active file` changed the buffer, dirty state remained unsaved, manual edit-check panel appeared.
+- [x] Evidence screenshots: `/tmp/atomek-4242-flow3-after-response.png`, `/tmp/atomek-4242-flow3-preview.png`, `/tmp/atomek-4242-flow3-after-apply.png`.

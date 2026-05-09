@@ -189,3 +189,27 @@ Worker Sprint-Audit inspected `PLAN.md`, `UAT.md`, `STATUS.md`, `LIVE-QA-CHECKLI
 - Source dev runtime `http://localhost:4243/` passed live QA after clearing the dev origin store: Atomek loaded `@v0.4.2/tytus-app.json` and `@v0.4.2/dist/index.js`; chat answered; edit request returned diff; preview/apply changed throwaway editor; file stayed unsaved; manual edit-check panel opened after apply.
 - Evidence screenshots: `/tmp/atomek-live-smoke-final-4243.png`, `/tmp/atomek-042-fixed-live-full.png`.
 - Remaining operational packaging task: rebuild/reinstall packaged Tytus.app from `feature/tytus-forge-mvp` at `ea56524` so port `4242` matches source runtime.
+
+
+## Packaged runtime closeout — 2026-05-09
+
+- Rebuilt TytusOS web dist from `services/tytus-os` commit `ea56524` and synced it into `services/tytus-cli/tray/web/os`.
+- Rebuilt local release binaries and reinstalled `/Applications/Tytus.app`; new running PID on port `4242`: `59717`; `/api/version` still reports tray version `0.6.14` as expected.
+- Embedded packaged runtime now serves `assets/index-Xb4UzeDM.js` and contains no stale Atomek `v0.3.8`, `v0.4.1`, or catalog `f7fa66c` references.
+- Packaged runtime `http://127.0.0.1:4242/` live QA passed in headless Chrome:
+  - loaded `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/tytus-app.json`;
+  - loaded `https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.2/dist/index.js`;
+  - created throwaway `Untitled-1`;
+  - Local AIL streamed and completed an `atomek-replace` edit;
+  - Atomek showed `Review AI edit`, applied it to the active file, kept the file unsaved/dirty, and opened the manual edit-check panel.
+- Evidence files:
+  - `/tmp/atomek-4242-flow3-after-response.png`
+  - `/tmp/atomek-4242-flow3-preview.png`
+  - `/tmp/atomek-4242-flow3-after-apply.png`
+  - `/tmp/atomek-4242-flow3-result.json`
+- Tytus CLI gates passed:
+  - `TYTUS_OS_SOURCE=../tytus-os scripts/sync-tytus-os-dist.sh --check`
+  - `git diff --check`
+  - `cargo build --release -p atomek-cli -p tytus-mcp -p tytus-tray`
+  - `cargo test -p atomek-cli --lib`
+  - `cargo test -p tytus-tray --bin tytus-tray`
