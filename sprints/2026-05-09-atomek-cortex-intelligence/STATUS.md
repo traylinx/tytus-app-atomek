@@ -63,3 +63,9 @@ Results: typecheck/build/release-check pass; hardcode greps produced no hits.
 ## Lope escalation
 
 Technical escalation was sent to Lope validators `kimi`, `pi`, and `opencode` about the missing host embedding API. All three validator runs errored/timed out, but Lope synthesis still recommended Option A: ship Atomek 0.4.0 with keyword retrieval + dynamic embedding alias/capability fallback, and defer true vector RAG to a separate TytusOS `host.ai.embedText` API sprint.
+
+## Release closeout
+
+- Atomek commit: `6ee73c0` (`Ship Atomek intelligent chat 0.4.0`) pushed to `origin/main`.
+- Atomek tag: `v0.4.0` pushed.
+- Catalog commit: `1fe09da` (`Publish Atomek 0.4.0`) pushed to `tytus-app-catalog` `origin/main`; catalog version `30`.

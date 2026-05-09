@@ -150,8 +150,8 @@ npm run release:check
 - [x] Run all gates.
 - [x] Bump Atomek version.
 - [x] Build and release-check.
-- [ ] Commit/tag/push Atomek.
-- [ ] Update app catalog.
+- [x] Commit/tag/push Atomek (`6ee73c0`, tag `v0.4.0`).
+- [x] Update app catalog (`tytus-app-catalog` commit `1fe09da`, catalog version 30).
 - [ ] If TytusOS touched, update/vendored local runtime separately.
 - [ ] Live QA in Tytus with opened file: ask edit, inspect context, apply edit, save file.
 
