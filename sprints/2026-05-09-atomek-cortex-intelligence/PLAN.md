@@ -61,13 +61,13 @@ npm run build
 Make edit prompts turn into actual interactive file changes.
 
 - [x] Add `editIntent` detection for common edit/update/change/replace prompts.
-- [ ] When edit intent is detected, include strict diff/replacement instructions using current context attachments.
+- [x] When edit intent is detected, include strict diff/replacement instructions using current context attachments.
 - [ ] Extract existing patch/replacement parsing from `WorkbenchShell.tsx` into `workbench/edits/`.
 - [ ] Introduce `WorkspaceEditCandidate` with file id/path/base version/base hash/proposed content/skipped paths.
 - [x] Preview single-file and multi-file edits automatically when parseable.
 - [ ] Apply through `WorkbenchEditService` with version/hash conflict checks.
 - [ ] Update Monaco buffers and mark files dirty; save remains explicit.
-- [ ] If AI returns prose only, show `Generate patch` CTA; never imply file changed.
+- [x] If AI returns prose only, show `Generate patch` CTA; never imply file changed.
 
 Gate:
 

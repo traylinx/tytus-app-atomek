@@ -44,6 +44,6 @@ Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a pr
 - 2026-05-09: Added chat UX repair track from screenshots: auto-follow, visible streaming, edit-preview/apply reliability, composer cleanup, and removable context chips.
 - 2026-05-09: Re-reviewed sprint against Atomek, Monaco sample, and VSCode sample codebases. Added production IDE context contract and corrected sequencing so dynamic chat/file integration lands before RAG/embeddings.
 
-- 2026-05-09: Implemented Phase 0/1/2 spine in Atomek source: document registry, per-message chat context scope, removable/revealable context chips, active selection capture, request-specific context assembly, transcript follow/jump-to-latest, safer stop behavior, and edit-intent auto-preview bridge for parseable patches. Strict edit prompting and Generate Patch CTA remain for Phase 3 hardening.
+- 2026-05-09: Implemented Phase 0/1/2 spine in Atomek source: document registry, per-message chat context scope, removable/revealable context chips, active selection capture, request-specific context assembly, transcript follow/jump-to-latest, safer stop behavior, and edit-intent strict patch prompting, auto-preview for parseable patches, and Generate Patch CTA when a response is prose-only.
   - `host.ai` type audit confirmed no embedding API yet; semantic retrieval must stay keyword-only until Phase 5 host capability lands.
   - Gates passed: `npm run typecheck`, `npm run build`, `npm run release:check`, model/tool hardcode greps.

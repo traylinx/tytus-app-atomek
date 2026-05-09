@@ -105,6 +105,7 @@ export function WorkbenchShell({ host }: Props) {
   const [documentVersions, setDocumentVersions] = useState<Record<string, number>>({});
   const [chatContextScope, setChatContextScope] = useState<ChatContextScope>(DEFAULT_CHAT_CONTEXT_SCOPE);
   const [removedContextAttachmentIds, setRemovedContextAttachmentIds] = useState<string[]>([]);
+  const [pendingPatchPrompt, setPendingPatchPrompt] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
@@ -498,6 +499,12 @@ export function WorkbenchShell({ host }: Props) {
     });
   }, [ai, chatInput, previewEditFromText]);
 
+  const generatePatchPrompt = useCallback(() => {
+    if (!pendingPatchPrompt) return;
+    setPendingPatchPrompt(null);
+    askAiWithPrompt(editPromptWithPatchInstructions(pendingPatchPrompt));
+  }, [askAiWithPrompt, pendingPatchPrompt]);
+
   const applyPendingEdit = useCallback(() => {
     if (!pendingEdit) return;
     const current = files.find((file) => file.id === pendingEdit.fileId);
@@ -754,6 +761,8 @@ export function WorkbenchShell({ host }: Props) {
           rememberMessage={rememberMessage}
           previewEditFromMessage={(message) => previewEditFromText(message.body.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 80) || 'Atomek answer', message.body)}
           runQuickPrompt={runQuickPrompt}
+          pendingPatchPrompt={pendingPatchPrompt}
+          generatePatchPrompt={generatePatchPrompt}
           workspaceFileCount={files.length}
           aiStatus={ai.aiStatus}
           chatSettings={chatSettings}
@@ -1234,6 +1243,8 @@ function SecondarySidebar(props: {
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
   runQuickPrompt: (kind: QuickPromptKind) => void;
+  pendingPatchPrompt: string | null;
+  generatePatchPrompt: () => void;
   workspaceFileCount: number;
   aiStatus: { available: boolean; label: string; reason?: string };
   chatSettings: ChatAiSettings;
@@ -1292,6 +1303,8 @@ function ChatPane(props: {
   rememberMessage: (message: ChatMessage) => void;
   previewEditFromMessage: (message: ChatMessage) => void;
   runQuickPrompt: (kind: QuickPromptKind) => void;
+  pendingPatchPrompt: string | null;
+  generatePatchPrompt: () => void;
   workspaceFileCount: number;
   activeFile: WorkbenchFile | null;
   contextScope: ChatContextScope;
@@ -1444,6 +1457,11 @@ function ChatPane(props: {
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>Edit</button>
             <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('draft')} disabled={props.busy}>Draft</button>
           </div>
+          {props.pendingPatchPrompt ? (
+            <button className="workbench-chat-generate-patch" onClick={props.generatePatchPrompt} disabled={props.busy}>
+              Generate patch for last edit request
+            </button>
+          ) : null}
           <textarea
             className="workbench-chat-textarea"
             value={props.chatInput}
@@ -1507,6 +1525,13 @@ function looksEditable(body: string): boolean {
 function looksLikeEditPrompt(prompt: string): boolean {
   return /(change|edit|modify|replace|update|rename|fix|rewrite|apply)/i.test(prompt)
     && /(file|code|author|title|line|function|component|content|text|this|it)/i.test(prompt);
+}
+
+function editPromptWithPatchInstructions(prompt: string): string {
+  return [
+    prompt,
+    'Atomek edit instruction: if this request should change an open file, return an applicable git-style unified diff in a fenced diff block. Use paths exactly as shown in the attached context. If one whole-file replacement is safer, return a fenced atomek-replace block. Do not claim a file changed unless you provide a patch/replacement Atomek can preview.',
+  ].join('\n\n');
 }
 
 function AtomekSettingsDialog(props: {
