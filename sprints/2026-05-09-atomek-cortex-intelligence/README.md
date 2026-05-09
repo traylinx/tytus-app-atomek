@@ -3,7 +3,7 @@
 **Created:** 2026-05-09  
 **Repo:** `/Users/sebastian/Projects/tytus-apps/tytus-app-atomek`  
 **Current app version at sprint start:** `0.3.9`  
-**Sprint status:** `READY_TO_EXECUTE`  
+**Sprint status:** `PRODUCTION_READY_SPRINT_READY_TO_EXECUTE`  
 **Owner:** Harvey  
 
 ## Why this sprint exists

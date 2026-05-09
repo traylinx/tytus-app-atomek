@@ -212,6 +212,6 @@ npm test
 Hard greps before release:
 
 ```bash
-! grep -R "minimax\|m2\.1\|m2\.7\|web_search" src --exclude-dir=node_modules
+! grep -R -E "minimax|m2\.1|m2\.7|web_search" src --exclude-dir=node_modules
 ! grep -R '"tools"[[:space:]]*:' src --exclude-dir=node_modules
 ```
