@@ -1,5 +1,16 @@
 # UAT — Acceptance Checks
 
+## Chat UX
+
+- [ ] Transcript follows the latest message while user is at the bottom.
+- [ ] Streaming answer visibly updates before completion.
+- [ ] Scrolling up preserves position and shows `Jump to latest` on new output.
+- [ ] `Jump to latest` restores follow mode.
+- [ ] Attached file chips can be removed before send.
+- [ ] Active-file context can be disabled for a message.
+- [ ] Composer primary lane contains only context/attach, input, send/stop.
+- [ ] Edit request against open file opens preview/apply and modifies Monaco buffer after apply.
+
 ## Chat and routing
 
 - [ ] Auto/Remote/Local AIL routing still works.

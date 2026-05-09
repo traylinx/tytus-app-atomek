@@ -13,6 +13,29 @@ Today, Atomek memory search is FTS5/BM25 only. No vectors.
 
 ## Proposed architecture
 
+### 0. Chat UX foundation
+
+Before retrieval/indexing work, harden the chat component:
+
+```text
+ChatPane
+  transcript scroll container
+  stickToLatest state
+  active streaming message state
+  context chip state
+  composer action bar
+  edit-intent bridge to existing preview/apply parser
+```
+
+Rules:
+
+- Stream updates must mutate rendered assistant content incrementally.
+- Auto-scroll only while the user is at/near the bottom.
+- User scroll-up disables follow mode until `Jump to latest` is clicked.
+- File/context chips are explicit and removable.
+- Edit-intent prompts should route into patch/replacement preview when possible.
+- Routing/model controls read/write aliases; no app-side model constants.
+
 ### A. Atomek-side project index
 
 Create a new workbench module:

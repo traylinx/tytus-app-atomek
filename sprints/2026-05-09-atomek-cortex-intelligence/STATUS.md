@@ -2,7 +2,7 @@
 
 ## Current truth
 
-Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent.
+Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent. It also needs a chat UX repair pass before deeper Cortex work: transcript follow mode, visible streaming, removable context chips, cleaner composer, and reliable edit-preview/apply behavior.
 
 ### Already shipped before this sprint
 
@@ -21,6 +21,11 @@ Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent.
 
 ### Missing / not done
 
+- Chat transcript does not reliably follow new messages/stream output.
+- Streaming is not visibly trustworthy in the UI.
+- File-change prompts can still end as prose instead of a concrete preview/apply flow.
+- Composer has confusing primary controls (`Auto`, `Plan`).
+- Attached/active file context cannot be clearly removed per message.
 - No Atomek embedding pipeline.
 - No semantic/vector RAG in Atomek.
 - No project/workspace file index.
@@ -33,3 +38,4 @@ Atomek `0.3.9` is chat-enabled, not fully Cortex-intelligent.
 ## Progress ledger
 
 - 2026-05-09: Sprint folder created. Status corrected from false “complete” to `READY_TO_EXECUTE`.
+- 2026-05-09: Added chat UX repair track from screenshots: auto-follow, visible streaming, edit-preview/apply reliability, composer cleanup, and removable context chips.

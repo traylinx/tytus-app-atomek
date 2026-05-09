@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make Atomek intelligent enough to understand a workspace, retrieve relevant project context, propose edits, apply them safely, and verify results.
+Make Atomek intelligent enough to behave like a trustworthy AI coding workbench: follow/stream chat correctly, manage context explicitly, understand a workspace, retrieve relevant project context, propose edits, apply them safely, and verify results.
 
 ## Out of scope
 
@@ -15,6 +15,13 @@ Make Atomek intelligent enough to understand a workspace, retrieve relevant proj
 ## Definition of “Cortex integrated” for this sprint
 
 Cortex integration means all of the following exist:
+
+0. **Chat UX foundation**
+   - Transcript auto-follows new messages while the user is at the bottom.
+   - Streaming renders incrementally and visibly.
+   - File-edit prompts open preview/apply instead of only returning prose.
+   - Context chips can be removed and context scope can be changed per message.
+   - Composer is clean; routing/model/mode controls do not pollute the input lane.
 
 1. **Project context ingestion**
    - Index opened files and optionally opened folder files.

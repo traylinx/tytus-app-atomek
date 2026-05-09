@@ -26,6 +26,7 @@ This sprint turns Atomek from chat-enabled editor into a project-aware AI workbe
 - [`STATUS.md`](./STATUS.md) — current truth and live progress ledger.
 - [`SCOPE.md`](./SCOPE.md) — implemented vs missing, corrected after the bad closeout.
 - [`PLAN.md`](./PLAN.md) — executable phases and gates.
+- [`CHAT-UX.md`](./CHAT-UX.md) — required chat repair track from the May 9 screenshots.
 - [`TECHNICAL-DESIGN.md`](./TECHNICAL-DESIGN.md) — architecture for embeddings, project index, retrieval, and agent loop.
 - [`UAT.md`](./UAT.md) — acceptance checks.
 - [`HANDOFF.md`](./HANDOFF.md) — copy-paste continuation prompt for a fresh context window.

@@ -13,10 +13,25 @@
   ],
   "phases": [
     "baseline-audit",
+    "chat-ux-repair",
     "project-index-without-embeddings",
     "embedding-capability-discovery",
     "semantic-retrieval",
     "agentic-edit-loop-v1",
     "release"
+  ],
+  "sourceScreenshots": [
+    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.29.17.png",
+    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.29.06.png",
+    "/Users/sebastian/Desktop/Screenshot 2026-05-09 at 09.28.07.png",
+    "/Users/sebastian/Desktop/Screenshot 2026-05-08 at 21.43.44.png"
+  ],
+  "chatUxRequirements": [
+    "transcript follow mode with jump-to-latest",
+    "visible incremental streaming",
+    "edit prompts open preview/apply when possible",
+    "removable context chips and per-message context scope",
+    "clean composer without Auto/Plan in primary input lane",
+    "dynamic AIL model/routing aliases only"
   ]
 }
