@@ -2,10 +2,10 @@
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
   "id": "atomek",
   "name": "Atomek",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "icon": "Sparkles",
   "category": "Productivity",
-  "description": "Atomek \u2014 Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, markdown preview, and AI edit previews.",
+  "description": "Atomek — Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, markdown preview, and AI edit previews.",
   "window": {
     "defaultSize": {
       "width": 1200,
@@ -28,7 +28,7 @@
     "ai.artifacts"
   ],
   "entry": {
-    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.3/dist/index.js"
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.4/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [

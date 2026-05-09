@@ -7,6 +7,8 @@ import {
   Bot,
   Bug,
   ChevronDown,
+  Check,
+  Copy,
   File,
   FileCode2,
   FilePlus2,
@@ -91,6 +93,53 @@ type PendingWorkspacePatch = {
   edits: PendingEdit[];
   skipped: string[];
 };
+
+type RichSegment = { type: 'markdown'; body: string; key: string } | { type: 'code'; body: string; language: string; key: string };
+
+function splitRichBody(body: string): RichSegment[] {
+  const segments: RichSegment[] = [];
+  const fence = /```([^\n`]*)\n?([\s\S]*?)```/g;
+  let cursor = 0;
+  let block = 0;
+  let match: RegExpExecArray | null;
+  while ((match = fence.exec(body)) !== null) {
+    if (match.index > cursor) {
+      const markdown = body.slice(cursor, match.index);
+      if (markdown.trim()) segments.push({ type: 'markdown', body: markdown, key: `md-${block}` });
+    }
+    segments.push({
+      type: 'code',
+      language: match[1]?.trim() || 'text',
+      body: match[2] ?? '',
+      key: `code-${block}`,
+    });
+    cursor = match.index + match[0].length;
+    block += 1;
+  }
+  const tail = body.slice(cursor);
+  if (tail.trim() || segments.length === 0) segments.push({ type: 'markdown', body: tail, key: `md-${block}` });
+  return segments;
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  try {
+    await navigator.clipboard?.writeText(text);
+    return true;
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  }
+}
 
 export function WorkbenchShell({ host }: Props) {
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
@@ -634,7 +683,7 @@ export function WorkbenchShell({ host }: Props) {
 
   const copyManualCheckCommand = useCallback((command: string) => {
     if (!command.trim()) return;
-    void navigator.clipboard?.writeText(command).catch(() => undefined);
+    void copyTextToClipboard(command);
     setManualCheckSelectedCommand(command);
     setStatus(`Manual check command copied: ${command}`);
   }, []);
@@ -1599,6 +1648,49 @@ function SecondarySidebar(props: {
   );
 }
 
+function RichMessageBody({ body }: { body: string }) {
+  const segments = useMemo(() => splitRichBody(body), [body]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyCode = useCallback((key: string, code: string) => {
+    void (async () => {
+      const ok = await copyTextToClipboard(code);
+      if (!ok) return;
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => current === key ? null : current), 1200);
+    })();
+  }, []);
+
+  return (
+    <div className="workbench-rich-body">
+      {segments.map((segment) => {
+        if (segment.type === 'code') {
+          const copied = copiedKey === segment.key;
+          return (
+            <div className="workbench-rich-code" key={segment.key}>
+              <div className="workbench-rich-code-head">
+                <span>{segment.language}</span>
+                <button onClick={() => copyCode(segment.key, segment.body)} title="Copy code block">
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre><code>{segment.body}</code></pre>
+            </div>
+          );
+        }
+        return (
+          <div
+            key={segment.key}
+            className="workbench-rich-markdown"
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(segment.body) }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function ChatPane(props: {
   chatInput: string;
   setChatInput: (value: string) => void;
@@ -1667,6 +1759,10 @@ function ChatPane(props: {
     setHasHiddenNewOutput(false);
   }, []);
 
+  const copyWholeMessage = useCallback((message: ChatMessage) => {
+    void copyTextToClipboard(message.body);
+  }, []);
+
   return (
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-threadbar">
@@ -1719,10 +1815,11 @@ function ChatPane(props: {
             {msg.status === 'streaming' ? <em> streaming</em> : null}
             {msg.status === 'error' ? <em> error</em> : null}
             <br />
-            {msg.body}
+            <RichMessageBody body={msg.body} />
             {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
             {msg.role === 'assistant' && msg.status !== 'streaming' && msg.status !== 'error' ? (
               <div className="workbench-chat-message-actions">
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy this answer"><Copy size={12} /> Copy</button>
                 <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title="Save this answer as an output artifact"><FilePlus2 size={12} /> Save</button>
                 <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store this answer in Atomek memory"><GitBranch size={12} /> Remember</button>
                 <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title="Preview an editable patch from this answer"><Eye size={12} /> Preview</button>
@@ -1731,6 +1828,7 @@ function ChatPane(props: {
             ) : null}
             {msg.role === 'assistant' && msg.status === 'error' ? (
               <div className="workbench-chat-message-actions">
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy this error"><Copy size={12} /> Copy</button>
                 <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy}><RefreshCcw size={12} /> Retry</button>
               </div>
             ) : null}
@@ -2049,6 +2147,7 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, ca
           <div className="workbench-output-head">
             <strong>{output.title}</strong>
             <span>{output.source === 'ai' ? `AI · ${output.kind}` : output.kind}</span>
+            <button onClick={() => void copyTextToClipboard(output.body)}>Copy</button>
             <button onClick={() => openOutputAsFile(output)}>Open as file</button>
             {previewEditFromOutput ? (
               <button
@@ -2061,7 +2160,7 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, ca
             ) : null}
             {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
           </div>
-          {output.body}
+          <RichMessageBody body={output.body} />
         </div>
       ))}
     </div>
