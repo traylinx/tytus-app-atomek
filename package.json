@@ -1,6 +1,6 @@
 {
   "name": "tytus-app-workbench",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "type": "module",
   "description": "Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, artifacts, markdown preview, and AI edit previews.",
   "license": "MIT",

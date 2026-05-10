@@ -52,8 +52,8 @@ const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor
 
 const welcomeFile: WorkbenchFile = {
   id: 'welcome',
-  name: 'Welcome',
-  path: 'Welcome',
+  name: 'Mission Control',
+  path: 'Mission Control',
   language: 'text',
   content: '',
   dirty: false,
@@ -348,7 +348,7 @@ export function WorkbenchShell({ host }: Props) {
   const workbenchRef = useRef<HTMLDivElement | null>(null);
   const [workbenchWidth, setWorkbenchWidth] = useState(0);
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
-  const [activity, setActivity] = useState<ActivityView>('explorer');
+  const [activity, setActivity] = useState<ActivityView>('computer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
   const [primaryWidth, setPrimaryWidth] = useState(initialLayout.primaryWidth);
   const [secondaryTab, setSecondaryTab] = useState<SecondaryTab>('chat');
@@ -1232,12 +1232,12 @@ export function WorkbenchShell({ host }: Props) {
                 onClose={closeSettingsTab}
               />
             ) : showWelcome ? (
-              <WelcomePage openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} />
+              <MissionControlHome host={host} openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} openControlTower={() => { setActivity('computer'); setPrimaryVisible(true); }} openChat={() => { setSecondaryTab('chat'); setSecondaryVisible(true); }} />
             ) : (
               <div className="workbench-no-editor">
                 <FileSearch size={34} />
                 <p>No editor open</p>
-                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>Show Welcome</button>
+                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>Show Mission Control</button>
               </div>
             )}
           </div>
@@ -1340,7 +1340,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'File: Save All', detail: `${dirtyFiles.length} dirty file${dirtyFiles.length === 1 ? '' : 's'}`, run: () => { void saveAllDirty(); }, disabled: dirtyFiles.length === 0 },
             { label: 'File: Close All Editors', detail: `${openEditors.length} open editor${openEditors.length === 1 ? '' : 's'}`, run: closeAllEditors, disabled: openEditors.length === 0 },
             { label: 'Search: Find in Files', detail: 'Open the VS Code-style search side bar', run: () => { setActivity('search'); setPrimaryVisible(true); } },
-            { label: 'Help: Show Welcome', detail: 'Open the workbench welcome page', run: () => { setActiveFileId(null); setWelcomeClosed(false); } },
+            { label: 'Help: Show Mission Control', detail: 'Open the Atomek control tower landing page', run: () => { setActiveFileId(null); setWelcomeClosed(false); setActivity('computer'); setPrimaryVisible(true); } },
             { label: 'View: Toggle Primary Side Bar', detail: primaryVisible ? 'Hide Explorer side bar' : 'Show Explorer side bar', run: () => setPrimaryVisible((value) => !value) },
             { label: 'View: Toggle Chat Panel', detail: secondaryVisible ? 'Hide right AI side bar' : 'Show right AI side bar', run: () => setSecondaryVisible((value) => !value) },
             { label: 'View: Toggle Bottom Panel', detail: bottomPanelVisible ? 'Hide Problems/Output/Terminal panel' : 'Show Problems/Output/Terminal panel', run: () => setBottomPanelVisible((value) => !value) },
@@ -1388,7 +1388,7 @@ function ActivityBar({ active, setActive, openSettings, settingsActive }: { acti
       <ActivityButton icon={<Search size={25} />} label="Search" active={active === 'search'} onClick={() => setActive('search')} />
       <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
       <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
-      <ActivityButton icon={<Bot size={25} />} label="Computer / Agents" active={active === 'computer'} onClick={() => setActive('computer')} />
+      <ActivityButton icon={<Bot size={25} />} label="Control Tower" active={active === 'computer'} onClick={() => setActive('computer')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
       <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
@@ -1424,7 +1424,7 @@ function PrimarySidebar(props: {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
   if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
   if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
-  if (props.activity === 'computer') return <ComputerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
+  if (props.activity === 'computer') return <ControlTowerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
 
@@ -1564,7 +1564,7 @@ function renderTreeNodes(
 }
 
 function BreadcrumbBar({ file, folder, showWelcome }: { file: WorkbenchFile | null; folder: WorkbenchFolder | null; showWelcome: boolean }) {
-  const parts = showWelcome ? ['Welcome'] : (file?.path.split('/').filter(Boolean) ?? []);
+  const parts = showWelcome ? ['Mission Control'] : (file?.path.split('/').filter(Boolean) ?? []);
   const normalized = folder && parts[0] === folder.name ? parts.slice(1) : parts;
   return (
     <div className="workbench-breadcrumb">
@@ -1601,7 +1601,7 @@ function EditorTabs(props: {
       {props.showWelcome && (
         <button className="workbench-tab active">
           <FileSearch size={15} />
-          <span className="workbench-tab-name">Welcome</span>
+          <span className="workbench-tab-name">Mission Control</span>
           <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeWelcome(); }}><X size={13} /></span>
         </button>
       )}
@@ -1627,28 +1627,209 @@ function EditorTabs(props: {
   );
 }
 
-function WelcomePage({ openFile, openFolder, newFile, recent, reopenRecent, setStatus }: { openFile: () => void; openFolder: () => void; newFile: () => void; recent: RecentEntry[]; reopenRecent: (entry: RecentEntry) => void; setStatus: (status: string) => void }) {
+function summarizeControlTowerResources(graph: TytusResourceGraph | null): Array<{ label: string; value: number; detail: string }> {
+  const resources = graph?.resources ?? [];
+  const count = (kind: TytusResource['kind']) => resources.filter((resource) => resource.kind === kind).length;
+  const ready = resources.filter((resource) => resource.status === 'ready' || resource.status === 'available').length;
+  return [
+    { label: 'Pods', value: count('pod-agent'), detail: 'OpenClaw, Hermes, AIL pods' },
+    { label: 'Local agents', value: count('local-cli'), detail: 'Claude, OpenCode, Codex, pi, Kimi' },
+    { label: 'Shared folders', value: count('shared-folder'), detail: 'garagetytus + mission handoff' },
+    { label: 'App skills', value: count('app-skill'), detail: 'Blender, JULI3TA, Remotion, tools' },
+    { label: 'Ready resources', value: ready, detail: 'usable now' },
+  ];
+}
+
+function topControlTowerResources(graph: TytusResourceGraph | null): TytusResource[] {
+  const priority: Record<string, number> = {
+    'pod-agent': 0,
+    'local-cli': 1,
+    'shared-folder': 2,
+    'app-skill': 3,
+    'ail-route': 4,
+    workspace: 5,
+  };
+  return [...(graph?.resources ?? [])]
+    .sort((a, b) => (priority[a.kind] ?? 9) - (priority[b.kind] ?? 9) || a.label.localeCompare(b.label))
+    .slice(0, 8);
+}
+
+function MissionControlHome({
+  host,
+  openFile,
+  openFolder,
+  newFile,
+  recent,
+  reopenRecent,
+  setStatus,
+  openControlTower,
+  openChat,
+}: {
+  host: HostClient;
+  openFile: () => void;
+  openFolder: () => void;
+  newFile: () => void;
+  recent: RecentEntry[];
+  reopenRecent: (entry: RecentEntry) => void;
+  setStatus: (status: string) => void;
+  openControlTower: () => void;
+  openChat: () => void;
+}) {
+  const [goal, setGoal] = useState('Coordinate a Tytus mission across pods, local agents, shared folders, and app skills.');
+  const [graph, setGraph] = useState<TytusResourceGraph | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mission, setMission] = useState<TytusMission | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadResources = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await host.resources?.list?.();
+      setGraph(next ?? null);
+      if (next) setStatus(`Control Tower loaded · ${next.resources.length} resources · ${next.warnings.length} warnings`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus(`Control Tower resource load failed: ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [host.resources, setStatus]);
+
+  useEffect(() => {
+    void loadResources();
+  }, [loadResources]);
+
+  const startMission = useCallback(async () => {
+    if (!host.missions?.create || !host.missions?.write) {
+      setStatus('Mission API unavailable in this Tytus host build');
+      openControlTower();
+      return;
+    }
+    const trimmedGoal = goal.trim() || 'Coordinate a Tytus mission.';
+    setLoading(true);
+    try {
+      const created = await host.missions.create({
+        title: `Atomek Control Tower — ${new Date().toLocaleString()}`,
+        goal: trimmedGoal,
+      });
+      const missionState: MissionFolderState = {
+        missionId: created.missionId,
+        title: created.title,
+        goal: created.goal,
+        rootPath: created.rootPath,
+        name: created.rootPath.split('/').pop() || created.missionId,
+        source: 'tray',
+      };
+      const audit: MissionAuditEvent = {
+        ts: new Date().toISOString(),
+        kind: 'mission.control.created',
+        message: 'Mission created from Atomek Control Tower home',
+        data: { resourceCount: graph?.resources.length ?? 0 },
+      };
+      await host.missions.write({
+        rootPath: created.rootPath,
+        files: [
+          { path: 'MISSION.md', content: buildMissionMarkdown(missionState, graph, null, [], trimmedGoal) },
+          { path: 'MISSION.json', content: buildMissionJson(missionState, graph, trimmedGoal) },
+          { path: 'RESOURCES.md', content: buildResourcesMarkdown(graph) },
+          { path: 'AUDIT.jsonl', content: `${JSON.stringify(audit)}\n` },
+          { path: 'NEXT.md', content: ['# Next actions', '', '- Pick resources for the mission.', '- Break goal into task cards.', '- Dispatch local/pod/app runs through Atomek.', '- Review approvals before applying outputs.', ''].join('\n') },
+        ],
+      });
+      setMission(created);
+      setStatus(`Mission created: ${created.rootPath}`);
+      openControlTower();
+    } catch (err) {
+      setStatus(`Mission create failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [goal, graph, host.missions, openControlTower, setStatus]);
+
+  const summaries = summarizeControlTowerResources(graph);
+  const resources = topControlTowerResources(graph);
+  const warnings = graph?.warnings ?? [];
+
   return (
-    <div className="workbench-welcome">
-      <div className="workbench-welcome-grid">
-        <section>
-          <h1>Atomek</h1>
-          <div className="workbench-welcome-subtitle">Shape files into working artifacts</div>
-          <h2>Start</h2>
-          <button className="workbench-start-link" onClick={newFile}><FilePlus2 size={18} />New File...</button>
-          <button className="workbench-start-link" onClick={openFile}><File size={18} />Open File...</button>
-          <button className="workbench-start-link" onClick={openFolder}><FolderOpen size={18} />Open Folder...</button>
-          <h2>Recent</h2>
-          {recent.length === 0 ? <p className="workbench-muted">No recent folders, open a folder to start.</p> : recent.map((item) => <button key={`${item.path}-${item.at}`} className="workbench-start-link" onClick={() => reopenRecent(item)}>{item.name}<span className="workbench-muted">~</span></button>)}
-        </section>
-        <section>
-          <h2>Walkthroughs</h2>
-          <div className="workbench-walkthrough-card"><strong>Get Started with Atomek</strong><span className="workbench-muted">Open local files, edit with Monaco, then wire Tytus agents and Cortex next.</span></div>
-          <div className="workbench-walkthrough-card"><strong>Browse & Edit Local Workspaces</strong><span className="workbench-muted">Uses browser-native File System Access API on supported Chromium builds.</span></div>
-          <div className="workbench-walkthrough-card"><strong>Learn the Fundamentals</strong><span className="workbench-muted">Explorer, tabs, editor, status bar, chat surface.</span></div>
-        </section>
-      </div>
-      <label className="workbench-welcome-checkbox"><input type="checkbox" defaultChecked /> Show welcome page on startup</label>
+    <div className="workbench-welcome workbench-control-home">
+      <section className="workbench-control-hero-main">
+        <div className="workbench-control-kicker">Tytus Control Tower</div>
+        <h1>Coordinate missions, not tabs.</h1>
+        <p>Atomek connects Tytus pods, local agents, shared folders, app skills, AIL routes, chat, files, outputs, and approvals around one durable mission folder.</p>
+        <div className="workbench-control-goal-row">
+          <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} aria-label="Mission goal" />
+          <div className="workbench-control-hero-actions">
+            <button className="workbench-button-primary" onClick={() => { void startMission(); }} disabled={loading}>Start mission</button>
+            <button className="workbench-button-subtle" onClick={openControlTower}>Inspect resources</button>
+            <button className="workbench-button-subtle" onClick={openChat}>Open chat</button>
+          </div>
+        </div>
+        {mission ? <div className="workbench-control-success">Mission ready: <code>{mission.rootPath}</code></div> : null}
+        {error ? <div className="workbench-inline-error">{error}</div> : null}
+      </section>
+
+      <section className="workbench-control-grid">
+        <article className="workbench-control-card wide">
+          <header>
+            <strong>Available now</strong>
+            <button className="workbench-button-subtle" onClick={() => { void loadResources(); }} disabled={loading}><RefreshCcw size={13} /> {loading ? 'Refreshing…' : 'Refresh'}</button>
+          </header>
+          <div className="workbench-control-metrics">
+            {summaries.map((item) => (
+              <div key={item.label} className="workbench-control-metric">
+                <strong>{item.value}</strong>
+                <span>{item.label}</span>
+                <em>{item.detail}</em>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="workbench-control-card">
+          <header><strong>First missions</strong></header>
+          <button className="workbench-control-preset" onClick={() => setGoal('Review this repo with local OpenCode/Claude, then ask Codex or pi for an independent review. Save all transcripts and proposed patches in the mission folder.')}>Review + patch repo</button>
+          <button className="workbench-control-preset" onClick={() => setGoal('Use Hermes/OpenClaw pod for planning or copy, then a local agent for implementation. Keep shared context in the mission folder and approval-gate all edits.')}>Pod + local agent</button>
+          <button className="workbench-control-preset" onClick={() => setGoal('Coordinate creative output: script, audio, visuals, render assets, and final handoff through app skills and shared folders.')}>Creative production</button>
+        </article>
+
+        <article className="workbench-control-card">
+          <header><strong>Workspace</strong></header>
+          <button className="workbench-start-link" onClick={openFolder}><FolderOpen size={18} />Open workspace folder</button>
+          <button className="workbench-start-link" onClick={openFile}><File size={18} />Open file</button>
+          <button className="workbench-start-link" onClick={newFile}><FilePlus2 size={18} />New mission note</button>
+          {recent.length ? <div className="workbench-control-recent"><span>Recent</span>{recent.slice(0, 3).map((item) => <button key={`${item.path}-${item.at}`} onClick={() => reopenRecent(item)}>{item.name}</button>)}</div> : null}
+        </article>
+
+        <article className="workbench-control-card wide">
+          <header><strong>Resource graph</strong><span>{graph ? `${graph.resources.length} discovered` : 'not loaded'}</span></header>
+          <div className="workbench-control-resource-list">
+            {resources.length === 0 ? <p className="workbench-muted">No resource graph yet. Start Tytus tray beta30 or newer, then refresh.</p> : null}
+            {resources.map((resource) => (
+              <div key={resource.id} className="workbench-control-resource">
+                <div>
+                  <strong>{resource.label}</strong>
+                  <span>{resource.kind} · {resource.trustTier} · {resource.capabilities.slice(0, 3).join(', ') || 'status only'}</span>
+                </div>
+                <span className={`workbench-computer-pill ${resource.status}`}>{resource.status}</span>
+              </div>
+            ))}
+          </div>
+          {warnings.length ? <div className="workbench-resource-warnings">{warnings.slice(0, 2).map((warning) => <span key={`${warning.code}-${warning.resourceId ?? warning.message}`}>{warning.code}: {warning.message}</span>)}</div> : null}
+        </article>
+
+        <article className="workbench-control-card wide">
+          <header><strong>Control loop</strong></header>
+          <ol className="workbench-control-loop">
+            <li><b>Mission</b><span>Goal + shared context folder.</span></li>
+            <li><b>Resources</b><span>Pods, local agents, folders, app skills.</span></li>
+            <li><b>Tasks</b><span>Plan, implement, review, render, validate.</span></li>
+            <li><b>Runs</b><span>Streams + transcripts saved under <code>runs/</code>.</span></li>
+            <li><b>Approvals</b><span>Diffs/artifacts applied only after preview.</span></li>
+          </ol>
+        </article>
+      </section>
     </div>
   );
 }
@@ -1999,7 +2180,7 @@ function SecondarySidebar(props: {
       {props.tab === 'chat' ? (
         <ChatPane {...props} />
       ) : props.tab === 'agents' ? (
-        <ComputerPane
+        <ControlTowerPane
           host={props.host}
           setStatus={props.setStatus}
           attachSkillToChat={props.attachSkillToChat}
@@ -2660,7 +2841,7 @@ function backgroundJobLabelForTool(tool: AtomekLocalTool, runningToolId: string 
   return 'Background review';
 }
 
-function ComputerPane({
+function ControlTowerPane({
   host,
   setStatus,
   attachSkillToChat,
@@ -2998,13 +3179,13 @@ function ComputerPane({
 
   return (
     <aside className={isDock ? 'workbench-agent-dock' : 'workbench-sidebar'}>
-      {!isDock ? <div className="workbench-sidebar-title">COMPUTER / AGENTS</div> : null}
+      {!isDock ? <div className="workbench-sidebar-title">CONTROL TOWER</div> : null}
       <div className={isDock ? 'workbench-agent-dock-scroll' : 'workbench-sidebar-scroll'}>
         <div className="workbench-computer-hero">
           <Bot size={18} />
           <div>
-            <strong>{isDock ? 'Agent Manager' : 'Computer cockpit'}</strong>
-            <p className="workbench-muted">Open real local CLIs in Tytus Terminal, or run a read-only background review in this panel. Every dispatch gets a mission pack so agents share context, resources, and transcripts. Same-origin host bridge only. No raw browser shell. No hardcoded models.</p>
+            <strong>{isDock ? 'Mission Runs' : 'Tytus Control Tower'}</strong>
+            <p className="workbench-muted">Coordinate missions across local agents, Tytus pods, shared folders, app skills, and AIL routes. Open tools in Terminal when you want hands-on control; run background reviews when you want streamed, approval-gated output.</p>
           </div>
         </div>
         <button className="workbench-button-subtle workbench-computer-refresh" onClick={() => { void load(); }} disabled={loading}>
@@ -3085,7 +3266,7 @@ function ComputerPane({
           <span><b>Background review</b>: runs the CLI through the tray in read-only/planning mode, streams output here, saves a transcript under <code>runs/</code>, and never applies edits directly.</span>
         </div>
 
-        <div className="workbench-section-title">LOCAL AGENTS & TOOLS</div>
+        <div className="workbench-section-title">LOCAL AGENTS & TERMINAL</div>
         <div className="workbench-computer-list">
           {tools.length === 0 && !loading ? <p className="workbench-muted">No local tools reported yet.</p> : null}
           {tools.map((tool) => (
