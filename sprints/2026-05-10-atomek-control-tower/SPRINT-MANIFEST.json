@@ -1,0 +1,41 @@
+{
+  "id": "2026-05-10-atomek-control-tower",
+  "title": "Atomek Control Tower",
+  "status": "ready_for_implementation",
+  "createdAt": "2026-05-10",
+  "repos": [
+    "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-os",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-cli"
+  ],
+  "goal": "Turn Atomek from editor/chat app into the Tytus Control Tower for missions, resources, pods, local agents, shared folders, app skills, approvals, and outputs.",
+  "mvp": [
+    "Mission Control default home",
+    "mission create/open/resume",
+    "resource graph picker with real status",
+    "task graph cards",
+    "local CLI dispatch and terminal launch",
+    "timeline/output inbox",
+    "approval gates for edits"
+  ],
+  "nonGoals": [
+    "VS Code clone",
+    "Antigravity clone",
+    "generic AI dashboard",
+    "fake coming-soon extension cards",
+    "hardcoded model IDs",
+    "raw browser calls to pod origins",
+    "arbitrary shell execution from model output"
+  ],
+  "implementationOrder": [
+    "Phase 0 — stop confusing product shape",
+    "Phase 1 — mission control shell",
+    "Phase 2 — resource picker with real status",
+    "Phase 3 — task graph",
+    "Phase 4 — dispatcher v1",
+    "Phase 5 — pod dispatch v1",
+    "Phase 6 — shared folder orchestration",
+    "Phase 7 — app skills as real drivers",
+    "Phase 8 — UAT + release"
+  ]
+}
