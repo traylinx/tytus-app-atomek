@@ -1311,6 +1311,25 @@ button { font: inherit; }
   margin-bottom: 12px;
 }
 .workbench-computer-list { display: grid; gap: 8px; margin: 8px 0 14px; }
+.workbench-computer-explainer {
+  border: 1px solid rgba(86, 156, 214, 0.24);
+  background: rgba(86, 156, 214, 0.07);
+  color: var(--workbench-muted);
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  margin: 10px 0 12px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.workbench-computer-explainer strong { color: var(--workbench-text); font-size: 12px; }
+.workbench-computer-explainer b { color: var(--workbench-text); font-weight: 700; }
+.workbench-computer-explainer code {
+  color: #d7ba7d;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 4px;
+}
 .workbench-computer-list.compact { gap: 5px; }
 .workbench-computer-context-card {
   border: 1px solid rgba(124, 77, 255, 0.28);

@@ -2651,13 +2651,13 @@ function cwdForLocalAgent(activeFile: WorkbenchFile | null): string | undefined 
 }
 
 function actionLabelForTool(tool: AtomekLocalTool): string {
-  if (tool.kind === 'terminal') return 'Open Terminal';
-  return `Open ${tool.label}`;
+  if (tool.kind === 'terminal') return 'Open shell';
+  return `Open ${tool.label} in Terminal`;
 }
 
 function backgroundJobLabelForTool(tool: AtomekLocalTool, runningToolId: string | null): string {
   if (runningToolId === tool.id) return `${tool.label} running…`;
-  return `Run in panel`;
+  return 'Background review';
 }
 
 function ComputerPane({
@@ -2750,24 +2750,6 @@ function ComputerPane({
     void load();
   }, [load]);
 
-  const openToolInTerminal = useCallback(async (tool: AtomekLocalTool) => {
-    if (!host.local?.openTerminal) {
-      setStatus('Terminal bridge unavailable in this host build');
-      return;
-    }
-    try {
-      await host.local.openTerminal({
-        toolId: tool.id,
-        command: tool.command,
-        cwd: cwdForLocalAgent(activeFile),
-        prompt: `Opened from Atomek. ${contextSummary}`,
-      });
-      setStatus(`Opened ${tool.label} interactively in Tytus Terminal`);
-    } catch (err) {
-      setStatus(`Terminal launch failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [activeFile, contextSummary, host.local, setStatus]);
-
   const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = []) => {
     const nextAudit = [
       ...missionAudit,
@@ -2791,58 +2773,95 @@ function ComputerPane({
     setMissionAudit(nextAudit);
   }, [activeFile, host.missions, missionAudit, openEditors, resourceGraph]);
 
+  const ensureMissionPack = useCallback(async (prompt: string, options: { allowBrowserPicker?: boolean } = {}): Promise<MissionFolderState | null> => {
+    if (mission) {
+      await writeMissionPack(mission, prompt);
+      return mission;
+    }
+    const title = `Atomek mission ${new Date().toLocaleString()}`;
+    const goal = prompt.trim() || 'Coordinate Tytus resources for the current Atomek task.';
+    let nextMission: MissionFolderState | null = null;
+    if (host.missions?.create) {
+      const created: TytusMission = await host.missions.create({ title, goal });
+      nextMission = {
+        missionId: created.missionId,
+        title: created.title,
+        goal: created.goal,
+        rootPath: created.rootPath,
+        name: created.rootPath.split('/').pop() || created.missionId,
+        source: 'tray',
+      };
+    } else if (options.allowBrowserPicker) {
+      const handle = await pickWritableDirectory();
+      if (!handle) {
+        setStatus('Mission folder picker unavailable in this browser context');
+        return null;
+      }
+      nextMission = {
+        handle,
+        name: handle.name,
+        missionId: `mission-${Date.now()}-${missionSlug(handle.name)}`,
+        title,
+        goal,
+        source: 'browser',
+      };
+    }
+    if (!nextMission) return null;
+    const event = { ts: new Date().toISOString(), kind: 'mission.folder.ready', message: `Mission folder ready: ${nextMission.rootPath ?? nextMission.name}` };
+    setMission(nextMission);
+    setMissionAudit([event]);
+    await writeMissionPack(nextMission, goal, [event]);
+    setStatus(`Mission pack ready in ${nextMission.rootPath ?? nextMission.name}`);
+    return nextMission;
+  }, [host.missions, mission, setStatus, writeMissionPack]);
+
+  const openToolInTerminal = useCallback(async (tool: AtomekLocalTool) => {
+    if (!host.local?.openTerminal) {
+      setStatus('Terminal bridge unavailable in this host build');
+      return;
+    }
+    try {
+      const prompt = jobPrompt.trim() || `Open ${tool.label} from Atomek with current context.`;
+      const launchMission = tool.kind === 'ai-cli'
+        ? await ensureMissionPack(prompt)
+        : mission;
+      await host.local.openTerminal({
+        toolId: tool.id,
+        command: tool.command,
+        cwd: launchMission?.rootPath ?? cwdForLocalAgent(activeFile),
+        prompt: launchMission
+          ? `Atomek mission pack ready at ${launchMission.rootPath ?? launchMission.name}. Read MISSION.md and RESOURCES.md. ${contextSummary}`
+          : `Opened from Atomek. ${contextSummary}`,
+      });
+      setStatus(tool.kind === 'ai-cli'
+        ? `Opened ${tool.label} in Tytus Terminal with mission context. Press Enter there to start it.`
+        : 'Opened Tytus Terminal');
+    } catch (err) {
+      setStatus(`Terminal launch failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [activeFile, contextSummary, ensureMissionPack, host.local, jobPrompt, mission, setStatus]);
+
   const selectMissionFolder = useCallback(async () => {
     try {
-      const title = `Atomek mission ${new Date().toLocaleString()}`;
-      const goal = jobPrompt.trim() || 'Coordinate Tytus resources for the current Atomek task.';
-      let nextMission: MissionFolderState;
-      if (host.missions?.create) {
-        const created: TytusMission = await host.missions.create({ title, goal });
-        nextMission = {
-          missionId: created.missionId,
-          title: created.title,
-          goal: created.goal,
-          rootPath: created.rootPath,
-          name: created.rootPath.split('/').pop() || created.missionId,
-          source: 'tray',
-        };
-      } else {
-        const handle = await pickWritableDirectory();
-        if (!handle) {
-          setStatus('Mission folder picker unavailable in this browser context');
-          return;
-        }
-        nextMission = {
-          handle,
-          name: handle.name,
-          missionId: `mission-${Date.now()}-${missionSlug(handle.name)}`,
-          title,
-          goal,
-          source: 'browser',
-        };
-      }
-      setMission(nextMission);
-      const event = { ts: new Date().toISOString(), kind: 'mission.folder.selected', message: `Mission folder selected: ${nextMission.rootPath ?? nextMission.name}` };
-      setMissionAudit([event]);
-      await writeMissionPack(nextMission, jobPrompt, [event]);
-      setStatus(`Mission pack ready in ${nextMission.rootPath ?? nextMission.name}`);
+      const nextMission = await ensureMissionPack(jobPrompt.trim(), { allowBrowserPicker: true });
+      if (!nextMission) setStatus('Mission folder setup skipped.');
     } catch (err) {
       setStatus(`Mission folder setup failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [host.missions, jobPrompt, setStatus, writeMissionPack]);
+  }, [ensureMissionPack, jobPrompt, setStatus]);
 
-  const saveRunTranscriptToMission = useCallback(async (tool: AtomekLocalTool, body: string, code: number) => {
-    if (!mission) return;
+  const saveRunTranscriptToMission = useCallback(async (tool: AtomekLocalTool, body: string, code: number, targetMission: MissionFolderState | null = mission) => {
+    if (!targetMission) return;
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `${stamp}-${tool.id}.md`;
     const relPath = `runs/${fileName}`;
-    if (mission.rootPath && host.missions?.write) {
-      await host.missions.write({ rootPath: mission.rootPath, files: [{ path: relPath, content: body }] });
-    } else if (mission.handle) {
-      const runsDir = await ensureDirectory(mission.handle, 'runs');
+    if (targetMission.rootPath && host.missions?.write) {
+      await host.missions.write({ rootPath: targetMission.rootPath, files: [{ path: relPath, content: body }] });
+    } else if (targetMission.handle) {
+      const runsDir = await ensureDirectory(targetMission.handle, 'runs');
       await writeTextToDirectory(runsDir, fileName, body);
     }
-    await writeMissionPack(mission, jobPrompt, [{
+    await writeMissionPack(targetMission, jobPrompt, [{
       ts: new Date().toISOString(),
       kind: 'local-cli.run.complete',
       message: `${tool.label} exited ${code}; transcript saved to ${relPath}`,
@@ -2860,15 +2879,22 @@ function ComputerPane({
       setStatus('Local job prompt is empty');
       return;
     }
-    setRunningToolId(tool.id);
-    if (mission) {
-      await writeMissionPack(mission, prompt, [{
-        ts: new Date().toISOString(),
-        kind: 'local-cli.run.start',
-        message: `${tool.label} local job started`,
-        data: { toolId: tool.id },
-      }]);
+    let launchMission: MissionFolderState | null = null;
+    try {
+      launchMission = await ensureMissionPack(prompt);
+      if (launchMission) {
+        await writeMissionPack(launchMission, prompt, [{
+          ts: new Date().toISOString(),
+          kind: 'local-cli.run.start',
+          message: `${tool.label} background review started`,
+          data: { toolId: tool.id },
+        }]);
+      }
+    } catch (err) {
+      setStatus(`Mission pack failed before local job start: ${err instanceof Error ? err.message : String(err)}`);
+      return;
     }
+    setRunningToolId(tool.id);
     const runId = `local-run-${Date.now()}-${tool.id}`;
     setAgentRuns((runs) => [{
       id: runId,
@@ -2881,21 +2907,21 @@ function ComputerPane({
     try {
       const job = await host.local.runJob({
         toolId: tool.id,
-        prompt: mission
+        prompt: launchMission
           ? [
             'Tytus mission context pack is active.',
-            `Mission: ${mission.title}`,
-            `Goal: ${mission.goal}`,
-            mission.rootPath ? `Mission folder: ${mission.rootPath}` : `Mission folder: ${mission.name}`,
+            `Mission: ${launchMission.title}`,
+            `Goal: ${launchMission.goal}`,
+            launchMission.rootPath ? `Mission folder: ${launchMission.rootPath}` : `Mission folder: ${launchMission.name}`,
             'Read MISSION.md and RESOURCES.md from the mission folder when available.',
             'Use the attached Atomek context as source of truth. If you propose file writes, return a unified diff/replacement only; Atomek approval gate applies it.',
             '',
             prompt,
           ].join('\n')
           : prompt,
-        cwd: mission?.rootPath ?? cwdForLocalAgent(activeFile),
+        cwd: launchMission?.rootPath ?? cwdForLocalAgent(activeFile),
         context: [
-          mission ? buildMissionMarkdown(mission, resourceGraph, activeFile, openEditors, prompt) : '',
+          launchMission ? buildMissionMarkdown(launchMission, resourceGraph, activeFile, openEditors, prompt) : '', 
           buildLocalAgentContext(activeFile, openEditors),
           resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
         ].filter(Boolean).join('\n\n---\n\n'),
@@ -2923,7 +2949,7 @@ function ComputerPane({
             lines: lines.slice(-500),
           }));
           saveLocalJobOutput(`${tool.label} local job failed`, lines.join('\n'));
-          void saveRunTranscriptToMission(tool, lines.join('\n'), -1).catch((err) => {
+          void saveRunTranscriptToMission(tool, lines.join('\n'), -1, launchMission).catch((err) => {
             setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
           });
           setRunningToolId(null);
@@ -2948,7 +2974,7 @@ function ComputerPane({
             lines: lines.slice(-500),
           }));
           saveLocalJobOutput(`${tool.label} local job`, body);
-          void saveRunTranscriptToMission(tool, body, code).catch((err) => {
+          void saveRunTranscriptToMission(tool, body, code, launchMission).catch((err) => {
             setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
           });
           setRunningToolId(null);
@@ -2968,7 +2994,7 @@ function ComputerPane({
         : run));
       setStatus(`Local job failed to start: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [activeFile, host.local, jobPrompt, mission, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, setStatus, writeMissionPack]);
+  }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, setStatus, writeMissionPack]);
 
   return (
     <aside className={isDock ? 'workbench-agent-dock' : 'workbench-sidebar'}>
@@ -2978,7 +3004,7 @@ function ComputerPane({
           <Bot size={18} />
           <div>
             <strong>{isDock ? 'Agent Manager' : 'Computer cockpit'}</strong>
-            <p className="workbench-muted">Run Claude, pi, OpenCode, Codex, Gemini, Qwen, Kimi, Aider, or Terminal from Atomek with the active file context. Same-origin host bridge only. No raw browser shell. No hardcoded models.</p>
+            <p className="workbench-muted">Open real local CLIs in Tytus Terminal, or run a read-only background review in this panel. Every dispatch gets a mission pack so agents share context, resources, and transcripts. Same-origin host bridge only. No raw browser shell. No hardcoded models.</p>
           </div>
         </div>
         <button className="workbench-button-subtle workbench-computer-refresh" onClick={() => { void load(); }} disabled={loading}>
@@ -2986,18 +3012,18 @@ function ComputerPane({
         </button>
         {error && <div className="workbench-inline-error">{error}</div>}
 
-        <div className="workbench-section-title">MISSION PACK</div>
+        <div className="workbench-section-title">MISSION PACK — SHARED CONTEXT</div>
         <div className="workbench-computer-context-card mission">
           <strong>{mission ? mission.title : 'No mission folder selected'}</strong>
-          <span>{mission ? `${mission.rootPath ?? mission.name} · ${mission.source} · ${missionAudit.length} audit events · transcripts saved under runs/` : 'Create a durable context pack before dispatching agents that need shared handoff state.'}</span>
+          <span>{mission ? `${mission.rootPath ?? mission.name} · ${mission.source} · ${missionAudit.length} audit events · transcripts saved under runs/` : 'Atomek creates this automatically before launching local agents. It is the shared folder agents read/write transcripts from.'}</span>
           {resourceGraph ? <span>{resourceSummary(resourceGraph.resources)}{resourceGraph.warnings.length ? ` · ${resourceGraph.warnings.length} warnings` : ''}</span> : <span>Resource graph not loaded yet.</span>}
         </div>
         <div className="workbench-computer-actions">
           <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void selectMissionFolder(); }}>
-            {mission ? 'Refresh mission pack' : 'Create/select mission folder'}
+            {mission ? 'Refresh mission pack' : 'Start mission pack'}
           </button>
           <button className="workbench-button-subtle" onClick={() => mission && void writeMissionPack(mission, jobPrompt)} disabled={!mission}>
-            Write pack now
+            Rewrite context files
           </button>
         </div>
         {resourceGraph?.warnings.length ? (
@@ -3053,6 +3079,12 @@ function ComputerPane({
           ))}
         </div>
 
+        <div className="workbench-computer-explainer">
+          <strong>How launch works</strong>
+          <span><b>Open in Terminal</b>: opens the real Tytus Terminal, changes into the mission folder, types the CLI command, and waits for you to press Enter.</span>
+          <span><b>Background review</b>: runs the CLI through the tray in read-only/planning mode, streams output here, saves a transcript under <code>runs/</code>, and never applies edits directly.</span>
+        </div>
+
         <div className="workbench-section-title">LOCAL AGENTS & TOOLS</div>
         <div className="workbench-computer-list">
           {tools.length === 0 && !loading ? <p className="workbench-muted">No local tools reported yet.</p> : null}
@@ -3067,14 +3099,14 @@ function ComputerPane({
               </div>
               {tool.description ? <p className="workbench-muted">{tool.description}</p> : null}
               <div className="workbench-computer-actions">
+                <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'} title="Launch this tool in the real Tytus Terminal with mission context prefilled. Atomek types the command; you press Enter to start it.">
+                  {actionLabelForTool(tool)}
+                </button>
                 {tool.kind === 'ai-cli' ? (
-                  <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void runLocalJob(tool); }} disabled={tool.status !== 'available' || runningToolId !== null} title="Run this local agent inside Atomek and stream output here. It cannot write files directly.">
+                  <button className="workbench-button-subtle" onClick={() => { void runLocalJob(tool); }} disabled={tool.status !== 'available' || runningToolId !== null} title="Run this local agent as a background read-only review inside Atomek and stream output here. It cannot write files directly.">
                     {backgroundJobLabelForTool(tool, runningToolId)}
                   </button>
                 ) : null}
-                <button className="workbench-button-subtle" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'} title="Launch this tool in the real Tytus terminal with current Atomek context prefilled.">
-                  {actionLabelForTool(tool)}
-                </button>
               </div>
             </div>
           ))}
