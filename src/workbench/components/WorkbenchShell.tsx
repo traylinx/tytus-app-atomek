@@ -1,7 +1,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { AiContextPart, AiThread, HostClient } from '@tytus/host-api';
+import type { AiContextPart, AiThread, HostClient, TytusMission, TytusResource, TytusResourceGraph } from '@tytus/host-api';
 import {
   Bot,
   Bug,
@@ -33,7 +33,7 @@ import {
 import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
+import type { ActivityView, BrowserDirectoryHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
 import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
@@ -127,6 +127,21 @@ type PendingWorkspacePatch = {
   edits: PendingEdit[];
   skipped: string[];
 };
+type MissionAuditEvent = {
+  ts: string;
+  kind: string;
+  message: string;
+  data?: Record<string, unknown>;
+};
+type MissionFolderState = {
+  handle?: BrowserDirectoryHandleLike;
+  name: string;
+  missionId: string;
+  title: string;
+  goal: string;
+  rootPath?: string;
+  source: 'tray' | 'browser';
+};
 
 function clampWidth(value: number, min: number, max: number): number {
   return Math.round(Math.max(min, Math.min(max, value)));
@@ -192,6 +207,141 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
     document.body.removeChild(textarea);
     return ok;
   }
+}
+
+async function pickWritableDirectory(): Promise<BrowserDirectoryHandleLike | null> {
+  const host = window as Window & { showDirectoryPicker?: (options?: unknown) => Promise<BrowserDirectoryHandleLike> };
+  if (typeof host.showDirectoryPicker !== 'function') return null;
+  return host.showDirectoryPicker({ mode: 'readwrite' });
+}
+
+async function writeTextToDirectory(dir: BrowserDirectoryHandleLike, fileName: string, content: string): Promise<void> {
+  const getFileHandle = dir.getFileHandle;
+  if (!getFileHandle) throw new Error('Selected mission folder is read-only in this browser context');
+  const file = await getFileHandle.call(dir, fileName, { create: true });
+  if (!file.createWritable) throw new Error(`Cannot write ${fileName}; File System Access write handle unavailable`);
+  const writable = await file.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+async function ensureDirectory(dir: BrowserDirectoryHandleLike, name: string): Promise<BrowserDirectoryHandleLike> {
+  const getDirectoryHandle = dir.getDirectoryHandle;
+  if (!getDirectoryHandle) throw new Error('Selected mission folder cannot create subfolders in this browser context');
+  return getDirectoryHandle.call(dir, name, { create: true });
+}
+
+function resourceSummary(resources: readonly TytusResource[]): string {
+  const counts = resources.reduce<Record<string, number>>((acc, resource) => {
+    acc[resource.kind] = (acc[resource.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts).map(([kind, count]) => `${count} ${kind}`).join(' · ') || 'no resources';
+}
+
+function missionSlug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mission';
+}
+
+function buildMissionMarkdown(mission: MissionFolderState, graph: TytusResourceGraph | null, activeFile: WorkbenchFile | null, openEditors: WorkbenchFile[], prompt: string): string {
+  return [
+    `# ${mission.title}`,
+    '',
+    `- Mission ID: \`${mission.missionId}\``,
+    `- Updated: ${new Date().toISOString()}`,
+    `- Folder: ${mission.rootPath ?? mission.name}`,
+    '',
+    '## Goal',
+    '',
+    mission.goal || '(no goal set)',
+    '',
+    '## Current Atomek context',
+    '',
+    activeFile
+      ? `- Active file: \`${activeFile.path}\` (${activeFile.language}, ${activeFile.content.length} chars${activeFile.dirty ? ', dirty' : ''})`
+      : '- Active file: none',
+    `- Open editors: ${openEditors.length}`,
+    '',
+    '## Current task',
+    '',
+    prompt || '(no task prompt set)',
+    '',
+    '## Resource graph',
+    '',
+    graph ? `- ${resourceSummary(graph.resources)}` : '- not loaded',
+    ...(graph?.warnings?.length ? graph.warnings.map((warning) => `- Warning: ${warning.code} — ${warning.message}`) : []),
+    '',
+    '## Rules',
+    '',
+    '- Agents must not write project files directly.',
+    '- Proposed edits must be returned as unified diffs or fenced replacement blocks.',
+    '- Atomek previews and approves edits before applying.',
+    '- Secrets are never requested or copied into mission context.',
+  ].join('\n');
+}
+
+function buildResourcesMarkdown(graph: TytusResourceGraph | null): string {
+  if (!graph) return '# Resources\n\nResource graph not loaded yet.\n';
+  return [
+    '# Resources',
+    '',
+    `Generated: ${graph.generatedAt}`,
+    '',
+    ...graph.resources.map((resource) => [
+      `## ${resource.label}`,
+      '',
+      `- ID: \`${resource.id}\``,
+      `- Kind: ${resource.kind}`,
+      `- Status: ${resource.status}${resource.reason ? ` — ${resource.reason}` : ''}`,
+      `- Trust: ${resource.trustTier}`,
+      `- Sandbox: ${resource.sandbox}`,
+      `- Capabilities: ${resource.capabilities.join(', ') || 'none'}`,
+      resource.allowedRoots.length ? `- Allowed roots: ${resource.allowedRoots.map((root) => `\`${root}\``).join(', ')}` : '- Allowed roots: none',
+      '',
+    ].join('\n')),
+    graph.warnings.length ? '## Warnings\n' : '',
+    ...graph.warnings.map((warning) => `- ${warning.code}: ${warning.message}${warning.resourceId ? ` (${warning.resourceId})` : ''}`),
+    '',
+  ].join('\n');
+}
+
+function buildMissionJson(mission: MissionFolderState, graph: TytusResourceGraph | null, prompt: string): string {
+  return JSON.stringify({
+    schemaVersion: 1,
+    missionId: mission.missionId,
+    title: mission.title,
+    goal: mission.goal,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'active',
+    rootPath: mission.rootPath ?? mission.name,
+    resources: (graph?.resources ?? []).filter((resource) => resource.status === 'ready').map((resource) => ({
+      resourceId: resource.id,
+      pinnedLabel: resource.label,
+      pinnedKind: resource.kind,
+      pinnedCapabilities: resource.capabilities,
+    })),
+    permissions: {
+      fileWrite: 'preview-only',
+      shellExec: 'allowlist-with-approval',
+      netEgress: 'resource-default',
+      secretRead: 'never',
+    },
+    secretsPolicy: {
+      deniedGlobs: ['**/.env', '**/.env.*', '**/.ssh/**', '**/*_key*', '**/*secret*', '**/*token*', '**/id_rsa', '**/id_ed25519'],
+      deniedPatterns: ['OPENAI_API_KEY\\\\s*=', 'sk-[A-Za-z0-9_-]{20,}', 'ANTHROPIC_API_KEY\\\\s*='],
+    },
+    budget: { maxRuntimeMinutes: 30, maxArtifactMb: 25 },
+    tasks: [{
+      id: `task-${Date.now()}`,
+      title: prompt.slice(0, 80) || 'Atomek local agent task',
+      prompt,
+      status: 'ready',
+      dependsOn: [],
+      expectedOutputs: ['transcript', 'findings', 'previewable edits if needed'],
+      approvalGateIds: ['file-write-preview'],
+    }],
+  }, null, 2);
 }
 
 export function WorkbenchShell({ host }: Props) {
@@ -2529,11 +2679,14 @@ function ComputerPane({
 }) {
   const [tools, setTools] = useState<AtomekLocalTool[]>([]);
   const [skills, setSkills] = useState<AtomekSkillSummary[]>([]);
+  const [resourceGraph, setResourceGraph] = useState<TytusResourceGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobPrompt, setJobPrompt] = useState('Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.');
   const [runningToolId, setRunningToolId] = useState<string | null>(null);
   const [agentRuns, setAgentRuns] = useState<LocalAgentRunState[]>([]);
+  const [mission, setMission] = useState<MissionFolderState | null>(null);
+  const [missionAudit, setMissionAudit] = useState<MissionAuditEvent[]>([]);
   const activeRun = agentRuns.find((run) => run.status === 'running') ?? agentRuns[0] ?? null;
   const isDock = variant === 'dock';
   const dirtyCount = openEditors.filter((file) => file.dirty).length;
@@ -2558,16 +2711,17 @@ function ComputerPane({
   ], []);
 
   const load = useCallback(async () => {
-    if (!host.local?.listTools && !host.skills?.list) {
+    if (!host.local?.listTools && !host.skills?.list && !host.resources?.list) {
       setTools([]);
       setSkills([]);
-      setError('This Tytus host build does not expose local tools or skill registry yet.');
+      setResourceGraph(null);
+      setError('This Tytus host build does not expose local tools, resource graph, or skill registry yet.');
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const [toolList, skillList] = await Promise.all([
+      const [toolList, skillList, graph] = await Promise.all([
         host.local?.listTools?.().catch((err) => {
           setStatus(`Local tool discovery failed: ${err instanceof Error ? err.message : String(err)}`);
           return [] as AtomekLocalTool[];
@@ -2576,16 +2730,21 @@ function ComputerPane({
           setStatus(`Skill registry discovery failed: ${err instanceof Error ? err.message : String(err)}`);
           return [] as AtomekSkillSummary[];
         }) ?? Promise.resolve([] as AtomekSkillSummary[]),
+        host.resources?.list?.().catch((err) => {
+          setStatus(`Resource graph discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+          return null;
+        }) ?? Promise.resolve(null),
       ]);
       setTools(toolList as AtomekLocalTool[]);
       setSkills(skillList as AtomekSkillSummary[]);
-      setStatus(`Computer loaded · ${toolList.length} tools · ${skillList.length} skills`);
+      setResourceGraph(graph);
+      setStatus(`Computer loaded · ${toolList.length} tools · ${skillList.length} skills${graph ? ` · ${graph.resources.length} resources` : ''}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [host.local, host.skills, setStatus]);
+  }, [host.local, host.resources, host.skills, setStatus]);
 
   useEffect(() => {
     void load();
@@ -2609,6 +2768,88 @@ function ComputerPane({
     }
   }, [activeFile, contextSummary, host.local, setStatus]);
 
+  const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = []) => {
+    const nextAudit = [
+      ...missionAudit,
+      ...extraEvents,
+      { ts: new Date().toISOString(), kind: 'mission.pack.write', message: 'Mission context pack written from Atomek' },
+    ];
+    const files = [
+      { path: 'MISSION.md', content: buildMissionMarkdown(target, resourceGraph, activeFile, openEditors, prompt) },
+      { path: 'MISSION.json', content: buildMissionJson(target, resourceGraph, prompt) },
+      { path: 'RESOURCES.md', content: buildResourcesMarkdown(resourceGraph) },
+      { path: 'AUDIT.jsonl', content: nextAudit.map((event) => JSON.stringify(event)).join('\n') + '\n' },
+    ];
+    if (target.rootPath && host.missions?.write) {
+      await host.missions.write({ rootPath: target.rootPath, files });
+    } else if (target.handle) {
+      await ensureDirectory(target.handle, 'runs');
+      for (const file of files) await writeTextToDirectory(target.handle, file.path, file.content);
+    } else {
+      throw new Error('Mission has neither tray rootPath nor browser folder handle');
+    }
+    setMissionAudit(nextAudit);
+  }, [activeFile, host.missions, missionAudit, openEditors, resourceGraph]);
+
+  const selectMissionFolder = useCallback(async () => {
+    try {
+      const title = `Atomek mission ${new Date().toLocaleString()}`;
+      const goal = jobPrompt.trim() || 'Coordinate Tytus resources for the current Atomek task.';
+      let nextMission: MissionFolderState;
+      if (host.missions?.create) {
+        const created: TytusMission = await host.missions.create({ title, goal });
+        nextMission = {
+          missionId: created.missionId,
+          title: created.title,
+          goal: created.goal,
+          rootPath: created.rootPath,
+          name: created.rootPath.split('/').pop() || created.missionId,
+          source: 'tray',
+        };
+      } else {
+        const handle = await pickWritableDirectory();
+        if (!handle) {
+          setStatus('Mission folder picker unavailable in this browser context');
+          return;
+        }
+        nextMission = {
+          handle,
+          name: handle.name,
+          missionId: `mission-${Date.now()}-${missionSlug(handle.name)}`,
+          title,
+          goal,
+          source: 'browser',
+        };
+      }
+      setMission(nextMission);
+      const event = { ts: new Date().toISOString(), kind: 'mission.folder.selected', message: `Mission folder selected: ${nextMission.rootPath ?? nextMission.name}` };
+      setMissionAudit([event]);
+      await writeMissionPack(nextMission, jobPrompt, [event]);
+      setStatus(`Mission pack ready in ${nextMission.rootPath ?? nextMission.name}`);
+    } catch (err) {
+      setStatus(`Mission folder setup failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [host.missions, jobPrompt, setStatus, writeMissionPack]);
+
+  const saveRunTranscriptToMission = useCallback(async (tool: AtomekLocalTool, body: string, code: number) => {
+    if (!mission) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `${stamp}-${tool.id}.md`;
+    const relPath = `runs/${fileName}`;
+    if (mission.rootPath && host.missions?.write) {
+      await host.missions.write({ rootPath: mission.rootPath, files: [{ path: relPath, content: body }] });
+    } else if (mission.handle) {
+      const runsDir = await ensureDirectory(mission.handle, 'runs');
+      await writeTextToDirectory(runsDir, fileName, body);
+    }
+    await writeMissionPack(mission, jobPrompt, [{
+      ts: new Date().toISOString(),
+      kind: 'local-cli.run.complete',
+      message: `${tool.label} exited ${code}; transcript saved to ${relPath}`,
+      data: { toolId: tool.id, exitCode: code, transcript: relPath },
+    }]);
+  }, [host.missions, jobPrompt, mission, writeMissionPack]);
+
   const runLocalJob = useCallback(async (tool: AtomekLocalTool) => {
     if (!host.local?.runJob || !host.local?.streamJob) {
       setStatus('Local job runner unavailable in this host build');
@@ -2620,6 +2861,14 @@ function ComputerPane({
       return;
     }
     setRunningToolId(tool.id);
+    if (mission) {
+      await writeMissionPack(mission, prompt, [{
+        ts: new Date().toISOString(),
+        kind: 'local-cli.run.start',
+        message: `${tool.label} local job started`,
+        data: { toolId: tool.id },
+      }]);
+    }
     const runId = `local-run-${Date.now()}-${tool.id}`;
     setAgentRuns((runs) => [{
       id: runId,
@@ -2632,9 +2881,24 @@ function ComputerPane({
     try {
       const job = await host.local.runJob({
         toolId: tool.id,
-        prompt,
-        cwd: cwdForLocalAgent(activeFile),
-        context: buildLocalAgentContext(activeFile, openEditors),
+        prompt: mission
+          ? [
+            'Tytus mission context pack is active.',
+            `Mission: ${mission.title}`,
+            `Goal: ${mission.goal}`,
+            mission.rootPath ? `Mission folder: ${mission.rootPath}` : `Mission folder: ${mission.name}`,
+            'Read MISSION.md and RESOURCES.md from the mission folder when available.',
+            'Use the attached Atomek context as source of truth. If you propose file writes, return a unified diff/replacement only; Atomek approval gate applies it.',
+            '',
+            prompt,
+          ].join('\n')
+          : prompt,
+        cwd: mission?.rootPath ?? cwdForLocalAgent(activeFile),
+        context: [
+          mission ? buildMissionMarkdown(mission, resourceGraph, activeFile, openEditors, prompt) : '',
+          buildLocalAgentContext(activeFile, openEditors),
+          resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
+        ].filter(Boolean).join('\n\n---\n\n'),
       });
       const lines: string[] = [`[Atomek] Started ${tool.label} local job ${job.id}`];
       const updateRun = (updater: (run: LocalAgentRunState) => LocalAgentRunState) => {
@@ -2659,6 +2923,9 @@ function ComputerPane({
             lines: lines.slice(-500),
           }));
           saveLocalJobOutput(`${tool.label} local job failed`, lines.join('\n'));
+          void saveRunTranscriptToMission(tool, lines.join('\n'), -1).catch((err) => {
+            setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
           setRunningToolId(null);
         },
         onExit: (code) => {
@@ -2681,6 +2948,9 @@ function ComputerPane({
             lines: lines.slice(-500),
           }));
           saveLocalJobOutput(`${tool.label} local job`, body);
+          void saveRunTranscriptToMission(tool, body, code).catch((err) => {
+            setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
           setRunningToolId(null);
         },
         onError: () => setStatus(`Local job stream issue for ${tool.label}`),
@@ -2698,7 +2968,7 @@ function ComputerPane({
         : run));
       setStatus(`Local job failed to start: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [activeFile, host.local, jobPrompt, openEditors, saveLocalJobOutput, setStatus]);
+  }, [activeFile, host.local, jobPrompt, mission, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, setStatus, writeMissionPack]);
 
   return (
     <aside className={isDock ? 'workbench-agent-dock' : 'workbench-sidebar'}>
@@ -2715,6 +2985,26 @@ function ComputerPane({
           <RefreshCcw size={14} /> {loading ? 'Refreshing…' : 'Refresh capabilities'}
         </button>
         {error && <div className="workbench-inline-error">{error}</div>}
+
+        <div className="workbench-section-title">MISSION PACK</div>
+        <div className="workbench-computer-context-card mission">
+          <strong>{mission ? mission.title : 'No mission folder selected'}</strong>
+          <span>{mission ? `${mission.rootPath ?? mission.name} · ${mission.source} · ${missionAudit.length} audit events · transcripts saved under runs/` : 'Create a durable context pack before dispatching agents that need shared handoff state.'}</span>
+          {resourceGraph ? <span>{resourceSummary(resourceGraph.resources)}{resourceGraph.warnings.length ? ` · ${resourceGraph.warnings.length} warnings` : ''}</span> : <span>Resource graph not loaded yet.</span>}
+        </div>
+        <div className="workbench-computer-actions">
+          <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void selectMissionFolder(); }}>
+            {mission ? 'Refresh mission pack' : 'Create/select mission folder'}
+          </button>
+          <button className="workbench-button-subtle" onClick={() => mission && void writeMissionPack(mission, jobPrompt)} disabled={!mission}>
+            Write pack now
+          </button>
+        </div>
+        {resourceGraph?.warnings.length ? (
+          <div className="workbench-resource-warnings">
+            {resourceGraph.warnings.slice(0, 3).map((warning) => <span key={`${warning.code}-${warning.resourceId ?? warning.message}`}>{warning.code}: {warning.message}</span>)}
+          </div>
+        ) : null}
 
         <div className="workbench-section-title">ACTIVE CONTEXT</div>
         <div className="workbench-computer-context-card">
@@ -2748,6 +3038,20 @@ function ComputerPane({
             <pre className="workbench-computer-job-log">{activeRun.lines.join('\n') || '[waiting for output]'}</pre>
           </div>
         ) : null}
+
+        <div className="workbench-section-title">RESOURCE GRAPH</div>
+        <div className="workbench-computer-list compact">
+          {!resourceGraph && !loading ? <p className="workbench-muted">No resource graph reported yet. Older Tytus host builds need `/api/resources`.</p> : null}
+          {resourceGraph?.resources.slice(0, isDock ? 8 : 5).map((resource) => (
+            <div key={resource.id} className="workbench-resource-row">
+              <div>
+                <strong>{resource.label}</strong>
+                <span>{resource.kind} · {resource.trustTier} · {resource.capabilities.slice(0, 3).join(', ')}</span>
+              </div>
+              <span className={`workbench-computer-pill ${resource.status}`}>{resource.status}</span>
+            </div>
+          ))}
+        </div>
 
         <div className="workbench-section-title">LOCAL AGENTS & TOOLS</div>
         <div className="workbench-computer-list">

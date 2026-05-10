@@ -34,6 +34,8 @@ export type BrowserDirectoryHandleLike = {
   kind?: 'directory';
   name: string;
   values: () => AsyncIterable<BrowserFileHandleLike | BrowserDirectoryHandleLike>;
+  getFileHandle?: (name: string, opts?: { create?: boolean }) => Promise<BrowserFileHandleLike>;
+  getDirectoryHandle?: (name: string, opts?: { create?: boolean }) => Promise<BrowserDirectoryHandleLike>;
 };
 
 export type WorkbenchFile = {
