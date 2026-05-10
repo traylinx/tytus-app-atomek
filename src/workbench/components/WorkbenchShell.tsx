@@ -1,7 +1,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { AiContextPart, AiThread, HostClient, TytusMission, TytusResource, TytusResourceGraph } from '@tytus/host-api';
+import type { AiContextPart, AiThread, HostClient, TytusMission, TytusMissionSummary, TytusResource, TytusResourceGraph } from '@tytus/host-api';
 import {
   Bot,
   Bug,
@@ -63,6 +63,8 @@ const welcomeFile: WorkbenchFile = {
 const RECENT_KEY = 'tytus.workspace.recent';
 const LAYOUT_KEY = 'tytus.workspace.layout';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
+const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
+const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
@@ -141,6 +143,14 @@ type MissionFolderState = {
   goal: string;
   rootPath?: string;
   source: 'tray' | 'browser';
+};
+type MissionTaskPreview = {
+  id: string;
+  title: string;
+  prompt: string;
+  resourceHint: string;
+  status: 'ready' | 'waiting' | 'running' | 'needs-approval' | 'done';
+  expectedOutputs: string[];
 };
 
 function clampWidth(value: number, min: number, max: number): number {
@@ -243,6 +253,135 @@ function missionSlug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mission';
 }
 
+function saveCurrentMission(mission: MissionFolderState | TytusMission): void {
+  const state: MissionFolderState = 'source' in mission
+    ? mission
+    : {
+      missionId: mission.missionId,
+      title: mission.title,
+      goal: mission.goal,
+      rootPath: mission.rootPath,
+      name: mission.rootPath.split('/').pop() || mission.missionId,
+      source: 'tray',
+    };
+  try {
+    localStorage.setItem(CURRENT_MISSION_KEY, JSON.stringify(state));
+    window.dispatchEvent(new CustomEvent(CURRENT_MISSION_EVENT, { detail: state }));
+  } catch {
+    // localStorage can be unavailable in strict privacy contexts. Mission still exists on disk.
+  }
+}
+
+function readCurrentMission(): MissionFolderState | null {
+  try {
+    const raw = localStorage.getItem(CURRENT_MISSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MissionFolderState>;
+    if (!parsed.missionId || !parsed.title) return null;
+    return {
+      missionId: parsed.missionId,
+      title: parsed.title,
+      goal: parsed.goal ?? '',
+      rootPath: parsed.rootPath,
+      name: parsed.name ?? parsed.rootPath?.split('/').pop() ?? parsed.missionId,
+      source: parsed.source === 'browser' ? 'browser' : 'tray',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function missionStateFromSummary(summary: TytusMissionSummary): MissionFolderState {
+  return {
+    missionId: summary.missionId,
+    title: summary.title,
+    goal: summary.goal,
+    rootPath: summary.rootPath,
+    name: summary.rootPath.split('/').pop() || summary.missionId,
+    source: 'tray',
+  };
+}
+
+function buildMissionTasks(goal: string, graph: TytusResourceGraph | null): MissionTaskPreview[] {
+  const resources = graph?.resources ?? [];
+  const hasPod = resources.some((resource) => resource.kind === 'pod-agent' && (resource.status === 'ready' || resource.status === 'degraded'));
+  const hasLocal = resources.some((resource) => resource.kind === 'local-cli' && (resource.status === 'ready' || resource.status === 'available'));
+  const hasShared = resources.some((resource) => resource.kind === 'shared-folder' && resource.status === 'ready');
+  const hasSkill = resources.some((resource) => resource.kind === 'app-skill' && resource.status === 'ready');
+  const trimmedGoal = goal.trim() || 'Coordinate a Tytus mission.';
+  return [
+    {
+      id: 'task-plan',
+      title: 'Plan mission',
+      prompt: `Turn this goal into an executable plan: ${trimmedGoal}`,
+      resourceHint: hasPod ? 'pod-agent or AIL route' : 'AIL chat',
+      status: 'ready',
+      expectedOutputs: ['PLAN.md', 'risks', 'resource choices'],
+    },
+    {
+      id: 'task-execute',
+      title: 'Execute safely',
+      prompt: `Use the mission context and selected resources to execute the plan. Goal: ${trimmedGoal}`,
+      resourceHint: hasLocal ? 'local agent' : hasSkill ? 'app skill' : 'chat',
+      status: 'waiting',
+      expectedOutputs: ['transcript', 'artifact', 'patch proposal'],
+    },
+    {
+      id: 'task-handoff',
+      title: 'Review and hand off',
+      prompt: `Review outputs for the mission, summarize decisions, and prepare handoff. Goal: ${trimmedGoal}`,
+      resourceHint: hasShared ? 'shared folder + reviewer agent' : 'reviewer agent',
+      status: 'waiting',
+      expectedOutputs: ['REVIEW.md', 'HANDOFF.md', 'approval list'],
+    },
+  ];
+}
+
+function buildTasksMarkdown(tasks: MissionTaskPreview[]): string {
+  return [
+    '# Mission tasks',
+    '',
+    ...tasks.map((task, index) => [
+      `## ${index + 1}. ${task.title}`,
+      '',
+      `- ID: \`${task.id}\``,
+      `- Status: ${task.status}`,
+      `- Resource hint: ${task.resourceHint}`,
+      `- Expected outputs: ${task.expectedOutputs.join(', ')}`,
+      '',
+      task.prompt,
+      '',
+    ].join('\n')),
+  ].join('\n');
+}
+
+function buildHandoffMarkdown(mission: MissionFolderState): string {
+  return [
+    `# Handoff — ${mission.title}`,
+    '',
+    `- Mission ID: \`${mission.missionId}\``,
+    `- Root: \`${mission.rootPath ?? mission.name}\``,
+    `- Updated: ${new Date().toISOString()}`,
+    '',
+    '## What changed',
+    '',
+    '- TBD',
+    '',
+    '## Decisions',
+    '',
+    '- TBD',
+    '',
+    '## Open approvals',
+    '',
+    '- No direct writes without Atomek preview/approval.',
+    '',
+    '## Next owner',
+    '',
+    '- Pick the next resource from Control Tower.',
+    '',
+  ].join('\n');
+}
+
 function buildMissionMarkdown(mission: MissionFolderState, graph: TytusResourceGraph | null, activeFile: WorkbenchFile | null, openEditors: WorkbenchFile[], prompt: string): string {
   return [
     `# ${mission.title}`,
@@ -306,6 +445,7 @@ function buildResourcesMarkdown(graph: TytusResourceGraph | null): string {
 }
 
 function buildMissionJson(mission: MissionFolderState, graph: TytusResourceGraph | null, prompt: string): string {
+  const tasks = buildMissionTasks(prompt || mission.goal, graph);
   return JSON.stringify({
     schemaVersion: 1,
     missionId: mission.missionId,
@@ -332,15 +472,16 @@ function buildMissionJson(mission: MissionFolderState, graph: TytusResourceGraph
       deniedPatterns: ['OPENAI_API_KEY\\\\s*=', 'sk-[A-Za-z0-9_-]{20,}', 'ANTHROPIC_API_KEY\\\\s*='],
     },
     budget: { maxRuntimeMinutes: 30, maxArtifactMb: 25 },
-    tasks: [{
-      id: `task-${Date.now()}`,
-      title: prompt.slice(0, 80) || 'Atomek local agent task',
-      prompt,
-      status: 'ready',
-      dependsOn: [],
-      expectedOutputs: ['transcript', 'findings', 'previewable edits if needed'],
+    tasks: tasks.map((task, index) => ({
+      id: task.id,
+      title: task.title,
+      prompt: task.prompt,
+      status: index === 0 ? 'ready' : 'waiting',
+      selectedResourceHint: task.resourceHint,
+      dependsOn: index === 0 ? [] : [tasks[index - 1].id],
+      expectedOutputs: task.expectedOutputs,
       approvalGateIds: ['file-write-preview'],
-    }],
+    })),
   }, null, 2);
 }
 
@@ -1677,6 +1818,7 @@ function MissionControlHome({
 }) {
   const [goal, setGoal] = useState('Coordinate a Tytus mission across pods, local agents, shared folders, and app skills.');
   const [graph, setGraph] = useState<TytusResourceGraph | null>(null);
+  const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [mission, setMission] = useState<TytusMission | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1685,8 +1827,12 @@ function MissionControlHome({
     setLoading(true);
     setError(null);
     try {
-      const next = await host.resources?.list?.();
+      const [next, missions] = await Promise.all([
+        host.resources?.list?.() ?? Promise.resolve(null),
+        host.missions?.list?.().catch(() => [] as TytusMissionSummary[]) ?? Promise.resolve([] as TytusMissionSummary[]),
+      ]);
       setGraph(next ?? null);
+      setMissionList(missions);
       if (next) setStatus(`Control Tower loaded · ${next.resources.length} resources · ${next.warnings.length} warnings`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1695,7 +1841,7 @@ function MissionControlHome({
     } finally {
       setLoading(false);
     }
-  }, [host.resources, setStatus]);
+  }, [host.missions, host.resources, setStatus]);
 
   useEffect(() => {
     void loadResources();
@@ -1734,11 +1880,16 @@ function MissionControlHome({
           { path: 'MISSION.md', content: buildMissionMarkdown(missionState, graph, null, [], trimmedGoal) },
           { path: 'MISSION.json', content: buildMissionJson(missionState, graph, trimmedGoal) },
           { path: 'RESOURCES.md', content: buildResourcesMarkdown(graph) },
+          { path: 'TASKS.md', content: buildTasksMarkdown(buildMissionTasks(trimmedGoal, graph)) },
+          { path: 'HANDOFF.md', content: buildHandoffMarkdown(missionState) },
+          { path: 'INBOX.md', content: '# Mission inbox\n\nDrop incoming agent notes, pod outputs, and shared-folder discoveries here.\n' },
+          { path: 'OUTBOX.md', content: '# Mission outbox\n\nApproved handoffs, final artifacts, and user-ready summaries go here.\n' },
           { path: 'AUDIT.jsonl', content: `${JSON.stringify(audit)}\n` },
           { path: 'NEXT.md', content: ['# Next actions', '', '- Pick resources for the mission.', '- Break goal into task cards.', '- Dispatch local/pod/app runs through Atomek.', '- Review approvals before applying outputs.', ''].join('\n') },
         ],
       });
       setMission(created);
+      saveCurrentMission(created);
       setStatus(`Mission created: ${created.rootPath}`);
       openControlTower();
     } catch (err) {
@@ -1751,6 +1902,7 @@ function MissionControlHome({
   const summaries = summarizeControlTowerResources(graph);
   const resources = topControlTowerResources(graph);
   const warnings = graph?.warnings ?? [];
+  const tasks = buildMissionTasks(goal, graph);
 
   return (
     <div className="workbench-welcome workbench-control-home">
@@ -1795,6 +1947,17 @@ function MissionControlHome({
         </article>
 
         <article className="workbench-control-card">
+          <header><strong>Resume</strong><span>{missionList.length ? `${missionList.length} missions` : 'none yet'}</span></header>
+          {missionList.length === 0 ? <p className="workbench-muted">Create a mission once; it stays in Tytus Home/Missions and can be resumed here.</p> : null}
+          {missionList.slice(0, 4).map((item) => (
+            <button key={item.missionId} className="workbench-control-preset" onClick={() => { saveCurrentMission(item); openControlTower(); }} title={item.rootPath}>
+              {item.title}
+              <small>{item.status ?? 'active'} · {item.taskCount ?? 0} tasks · {item.runCount ?? 0} runs</small>
+            </button>
+          ))}
+        </article>
+
+        <article className="workbench-control-card">
           <header><strong>Workspace</strong></header>
           <button className="workbench-start-link" onClick={openFolder}><FolderOpen size={18} />Open workspace folder</button>
           <button className="workbench-start-link" onClick={openFile}><File size={18} />Open file</button>
@@ -1817,6 +1980,19 @@ function MissionControlHome({
             ))}
           </div>
           {warnings.length ? <div className="workbench-resource-warnings">{warnings.slice(0, 2).map((warning) => <span key={`${warning.code}-${warning.resourceId ?? warning.message}`}>{warning.code}: {warning.message}</span>)}</div> : null}
+        </article>
+
+        <article className="workbench-control-card wide">
+          <header><strong>Recommended task graph</strong></header>
+          <div className="workbench-task-graph home">
+            {tasks.map((task, index) => (
+              <button key={task.id} className={`workbench-task-card ${task.status}`} onClick={() => setGoal(task.prompt)}>
+                <span>{index + 1}</span>
+                <strong>{task.title}</strong>
+                <em>{task.resourceHint}</em>
+              </button>
+            ))}
+          </div>
         </article>
 
         <article className="workbench-control-card wide">
@@ -2866,10 +3042,12 @@ function ControlTowerPane({
   const [jobPrompt, setJobPrompt] = useState('Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.');
   const [runningToolId, setRunningToolId] = useState<string | null>(null);
   const [agentRuns, setAgentRuns] = useState<LocalAgentRunState[]>([]);
-  const [mission, setMission] = useState<MissionFolderState | null>(null);
+  const [mission, setMission] = useState<MissionFolderState | null>(() => readCurrentMission());
+  const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [missionAudit, setMissionAudit] = useState<MissionAuditEvent[]>([]);
   const activeRun = agentRuns.find((run) => run.status === 'running') ?? agentRuns[0] ?? null;
   const isDock = variant === 'dock';
+  const missionTasks = useMemo(() => buildMissionTasks(jobPrompt || mission?.goal || '', resourceGraph), [jobPrompt, mission?.goal, resourceGraph]);
   const dirtyCount = openEditors.filter((file) => file.dirty).length;
   const contextSummary = activeFile
     ? `${activeFile.path} · ${activeFile.language} · ${activeFile.content.length.toLocaleString()} chars${activeFile.dirty ? ' · dirty' : ''}`
@@ -2902,7 +3080,7 @@ function ControlTowerPane({
     setLoading(true);
     setError(null);
     try {
-      const [toolList, skillList, graph] = await Promise.all([
+      const [toolList, skillList, graph, missions] = await Promise.all([
         host.local?.listTools?.().catch((err) => {
           setStatus(`Local tool discovery failed: ${err instanceof Error ? err.message : String(err)}`);
           return [] as AtomekLocalTool[];
@@ -2915,21 +3093,50 @@ function ControlTowerPane({
           setStatus(`Resource graph discovery failed: ${err instanceof Error ? err.message : String(err)}`);
           return null;
         }) ?? Promise.resolve(null),
+        host.missions?.list?.().catch((err) => {
+          setStatus(`Mission list failed: ${err instanceof Error ? err.message : String(err)}`);
+          return [] as TytusMissionSummary[];
+        }) ?? Promise.resolve([] as TytusMissionSummary[]),
       ]);
       setTools(toolList as AtomekLocalTool[]);
       setSkills(skillList as AtomekSkillSummary[]);
       setResourceGraph(graph);
-      setStatus(`Computer loaded · ${toolList.length} tools · ${skillList.length} skills${graph ? ` · ${graph.resources.length} resources` : ''}`);
+      setMissionList(missions as TytusMissionSummary[]);
+      setStatus(`Control Tower loaded · ${toolList.length} tools · ${skillList.length} skills · ${(missions as TytusMissionSummary[]).length} missions${graph ? ` · ${graph.resources.length} resources` : ''}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [host.local, host.resources, host.skills, setStatus]);
+  }, [host.local, host.missions, host.resources, host.skills, setStatus]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const onMission = (event: Event) => {
+      const detail = (event as CustomEvent<MissionFolderState>).detail;
+      if (detail?.missionId) setMission(detail);
+      void load();
+    };
+    window.addEventListener(CURRENT_MISSION_EVENT, onMission);
+    return () => window.removeEventListener(CURRENT_MISSION_EVENT, onMission);
+  }, [load]);
+
+  const resumeMission = useCallback((summary: TytusMissionSummary) => {
+    const next = missionStateFromSummary(summary);
+    setMission(next);
+    saveCurrentMission(next);
+    setMissionAudit([{
+      ts: new Date().toISOString(),
+      kind: 'mission.resume',
+      message: `Mission resumed from Control Tower: ${next.rootPath ?? next.name}`,
+      data: { runCount: summary.runCount ?? 0, taskCount: summary.taskCount ?? 0 },
+    }]);
+    setJobPrompt(summary.goal || `Continue mission ${summary.title}. Review MISSION.md, TASKS.md, RESOURCES.md, and runs/ before acting.`);
+    setStatus(`Resumed mission: ${summary.rootPath}`);
+  }, [setStatus]);
 
   const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = []) => {
     const nextAudit = [
@@ -2937,10 +3144,15 @@ function ControlTowerPane({
       ...extraEvents,
       { ts: new Date().toISOString(), kind: 'mission.pack.write', message: 'Mission context pack written from Atomek' },
     ];
+    const tasks = buildMissionTasks(prompt || target.goal, resourceGraph);
     const files = [
       { path: 'MISSION.md', content: buildMissionMarkdown(target, resourceGraph, activeFile, openEditors, prompt) },
       { path: 'MISSION.json', content: buildMissionJson(target, resourceGraph, prompt) },
       { path: 'RESOURCES.md', content: buildResourcesMarkdown(resourceGraph) },
+      { path: 'TASKS.md', content: buildTasksMarkdown(tasks) },
+      { path: 'HANDOFF.md', content: buildHandoffMarkdown(target) },
+      { path: 'INBOX.md', content: '# Mission inbox\n\nDrop incoming agent notes, pod outputs, and shared-folder discoveries here.\n' },
+      { path: 'OUTBOX.md', content: '# Mission outbox\n\nApproved handoffs, final artifacts, and user-ready summaries go here.\n' },
       { path: 'AUDIT.jsonl', content: nextAudit.map((event) => JSON.stringify(event)).join('\n') + '\n' },
     ];
     if (target.rootPath && host.missions?.write) {
@@ -2952,6 +3164,7 @@ function ControlTowerPane({
       throw new Error('Mission has neither tray rootPath nor browser folder handle');
     }
     setMissionAudit(nextAudit);
+    saveCurrentMission(target);
   }, [activeFile, host.missions, missionAudit, openEditors, resourceGraph]);
 
   const ensureMissionPack = useCallback(async (prompt: string, options: { allowBrowserPicker?: boolean } = {}): Promise<MissionFolderState | null> => {
@@ -2990,6 +3203,7 @@ function ControlTowerPane({
     if (!nextMission) return null;
     const event = { ts: new Date().toISOString(), kind: 'mission.folder.ready', message: `Mission folder ready: ${nextMission.rootPath ?? nextMission.name}` };
     setMission(nextMission);
+    saveCurrentMission(nextMission);
     setMissionAudit([event]);
     await writeMissionPack(nextMission, goal, [event]);
     setStatus(`Mission pack ready in ${nextMission.rootPath ?? nextMission.name}`);
@@ -3177,6 +3391,37 @@ function ControlTowerPane({
     }
   }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, setStatus, writeMissionPack]);
 
+  const useResourceInMission = useCallback(async (resource: TytusResource) => {
+    const prompt = [
+      `Use Tytus resource "${resource.label}" (${resource.kind}) for the next mission step.`,
+      `Capabilities: ${resource.capabilities.join(', ') || 'status only'}.`,
+      `Sandbox: ${resource.sandbox}. Trust: ${resource.trustTier}.`,
+      resource.allowedRoots.length ? `Allowed roots: ${resource.allowedRoots.join(', ')}` : 'No direct roots exposed.',
+      'Return transcript/findings/artifacts only; edits require Atomek approval.',
+    ].join('\n');
+    setJobPrompt(prompt);
+    if (mission) {
+      await writeMissionPack(mission, prompt, [{
+        ts: new Date().toISOString(),
+        kind: 'resource.selected',
+        message: `Selected resource ${resource.label}`,
+        data: { resourceId: resource.id, kind: resource.kind, status: resource.status },
+      }]);
+    }
+    setStatus(`Selected ${resource.label} for mission`);
+  }, [mission, setStatus, writeMissionPack]);
+
+  const showSetupForResource = useCallback((resource: TytusResource) => {
+    const setup = resource.setupAction;
+    const message = setup?.commandPreview
+      ? `${setup.label}: ${setup.commandPreview}`
+      : setup?.deepLink
+        ? `${setup.label}: ${setup.deepLink}`
+        : setup?.label ?? `${resource.label} needs setup`;
+    setStatus(message);
+    void copyTextToClipboard(setup?.commandPreview ?? setup?.deepLink ?? message);
+  }, [setStatus]);
+
   return (
     <aside className={isDock ? 'workbench-agent-dock' : 'workbench-sidebar'}>
       {!isDock ? <div className="workbench-sidebar-title">CONTROL TOWER</div> : null}
@@ -3207,6 +3452,24 @@ function ControlTowerPane({
             Rewrite context files
           </button>
         </div>
+        {missionList.length ? (
+          <>
+            <div className="workbench-section-title">RESUME MISSION</div>
+            <div className="workbench-mission-list">
+              {missionList.slice(0, isDock ? 3 : 5).map((item) => (
+                <button
+                  key={item.missionId}
+                  className={`workbench-mission-row ${mission?.missionId === item.missionId ? 'active' : ''}`}
+                  onClick={() => resumeMission(item)}
+                  title={item.rootPath}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.status ?? 'active'} · {item.taskCount ?? 0} tasks · {item.runCount ?? 0} runs</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
         {resourceGraph?.warnings.length ? (
           <div className="workbench-resource-warnings">
             {resourceGraph.warnings.slice(0, 3).map((warning) => <span key={`${warning.code}-${warning.resourceId ?? warning.message}`}>{warning.code}: {warning.message}</span>)}
@@ -3231,6 +3494,21 @@ function ControlTowerPane({
           onChange={(event) => setJobPrompt(event.target.value)}
           rows={5}
         />
+        <div className="workbench-section-title">TASK GRAPH</div>
+        <div className="workbench-task-graph">
+          {missionTasks.map((task, index) => (
+            <button
+              key={task.id}
+              className={`workbench-task-card ${task.status}`}
+              onClick={() => setJobPrompt(task.prompt)}
+              title="Load this task prompt"
+            >
+              <span>{index + 1}</span>
+              <strong>{task.title}</strong>
+              <em>{task.resourceHint}</em>
+            </button>
+          ))}
+        </div>
         {activeRun ? (
           <div className="workbench-agent-run">
             <header>
@@ -3255,7 +3533,17 @@ function ControlTowerPane({
                 <strong>{resource.label}</strong>
                 <span>{resource.kind} · {resource.trustTier} · {resource.capabilities.slice(0, 3).join(', ')}</span>
               </div>
-              <span className={`workbench-computer-pill ${resource.status}`}>{resource.status}</span>
+              <div className="workbench-resource-row-actions">
+                <span className={`workbench-computer-pill ${resource.status}`}>{resource.status}</span>
+                <button className="workbench-button-subtle" onClick={() => { void useResourceInMission(resource); }}>
+                  Use
+                </button>
+                {resource.status === 'needs-setup' || resource.setupAction ? (
+                  <button className="workbench-button-subtle" onClick={() => showSetupForResource(resource)}>
+                    Setup
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
