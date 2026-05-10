@@ -2376,3 +2376,23 @@ button { font: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+.workbench-button-subtle.danger {
+  border-color: rgba(255, 107, 107, 0.35);
+  color: #ffb4b4;
+  background: rgba(255, 107, 107, 0.08);
+}
+.workbench-button-subtle.danger:hover { background: rgba(255, 107, 107, 0.14); }
+.workbench-task-card.active {
+  border-color: rgba(124, 77, 255, 0.7);
+  background: rgba(124, 77, 255, 0.16);
+  box-shadow: inset 2px 0 0 rgba(124, 77, 255, 0.85);
+}
+.workbench-agent-run-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px !important;
+  flex-shrink: 0;
+}

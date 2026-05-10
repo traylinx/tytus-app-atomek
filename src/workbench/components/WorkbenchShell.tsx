@@ -106,12 +106,16 @@ type AtomekSkillPack = AtomekSkillSummary & {
 };
 type LocalAgentRunState = {
   id: string;
+  jobId?: string;
   toolId: string;
   label: string;
-  status: 'running' | 'failed' | 'complete';
+  status: 'running' | 'failed' | 'complete' | 'canceling';
   startedAt: number;
   finishedAt?: number;
   exitCode?: number;
+  taskId?: string;
+  taskTitle?: string;
+  transcriptPath?: string;
   lines: string[];
 };
 type EditStats = { added: number; removed: number; changed: number };
@@ -3045,9 +3049,11 @@ function ControlTowerPane({
   const [mission, setMission] = useState<MissionFolderState | null>(() => readCurrentMission());
   const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [missionAudit, setMissionAudit] = useState<MissionAuditEvent[]>([]);
-  const activeRun = agentRuns.find((run) => run.status === 'running') ?? agentRuns[0] ?? null;
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('execute');
+  const activeRun = agentRuns.find((run) => run.status === 'running' || run.status === 'canceling') ?? agentRuns[0] ?? null;
   const isDock = variant === 'dock';
   const missionTasks = useMemo(() => buildMissionTasks(jobPrompt || mission?.goal || '', resourceGraph), [jobPrompt, mission?.goal, resourceGraph]);
+  const selectedTask = missionTasks.find((task) => task.id === selectedTaskId) ?? missionTasks[1] ?? missionTasks[0] ?? null;
   const dirtyCount = openEditors.filter((file) => file.dirty).length;
   const contextSummary = activeFile
     ? `${activeFile.path} · ${activeFile.language} · ${activeFile.content.length.toLocaleString()} chars${activeFile.dirty ? ' · dirty' : ''}`
@@ -3282,7 +3288,7 @@ function ControlTowerPane({
           ts: new Date().toISOString(),
           kind: 'local-cli.run.start',
           message: `${tool.label} background review started`,
-          data: { toolId: tool.id },
+          data: { toolId: tool.id, taskId: selectedTask?.id ?? 'manual', taskTitle: selectedTask?.title ?? 'Manual run' },
         }]);
       }
     } catch (err) {
@@ -3297,7 +3303,9 @@ function ControlTowerPane({
       label: tool.label,
       status: 'running' as const,
       startedAt: Date.now(),
-      lines: [`[Atomek] Starting ${tool.label} local job…`],
+      taskId: selectedTask?.id ?? 'manual',
+      taskTitle: selectedTask?.title ?? 'Manual run',
+      lines: [`[Atomek] Starting ${tool.label} local job for ${selectedTask?.title ?? 'manual run'}…`],
     }, ...runs].slice(0, 6));
     try {
       const job = await host.local.runJob({
@@ -3315,13 +3323,26 @@ function ControlTowerPane({
           ].join('\n')
           : prompt,
         cwd: launchMission?.rootPath ?? cwdForLocalAgent(activeFile),
+        mission: launchMission ? {
+          missionId: launchMission.missionId,
+          rootPath: launchMission.rootPath,
+          taskId: selectedTask?.id ?? 'manual',
+          taskTitle: selectedTask?.title ?? 'Manual run',
+          resourceId: tool.id,
+        } : undefined,
         context: [
           launchMission ? buildMissionMarkdown(launchMission, resourceGraph, activeFile, openEditors, prompt) : '', 
           buildLocalAgentContext(activeFile, openEditors),
           resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
         ].filter(Boolean).join('\n\n---\n\n'),
       });
-      const lines: string[] = [`[Atomek] Started ${tool.label} local job ${job.id}`];
+      const transcriptPath = launchMission?.rootPath ? `runs/${new Date().toISOString().replace(/[:.]/g, '-')}-${tool.id}.md` : undefined;
+      const lines: string[] = [
+        `[Atomek] Started ${tool.label} local job ${job.id}`,
+        selectedTask ? `[Atomek] Task: ${selectedTask.title} (${selectedTask.id})` : '[Atomek] Task: manual',
+        launchMission?.rootPath ? `[Atomek] Mission: ${launchMission.rootPath}` : '',
+      ].filter(Boolean);
+      setAgentRuns((runs) => runs.map((run) => run.id === runId ? { ...run, jobId: job.id, transcriptPath: job.transcriptPath ?? transcriptPath } : run));
       const updateRun = (updater: (run: LocalAgentRunState) => LocalAgentRunState) => {
         setAgentRuns((runs) => runs.map((run) => run.id === runId ? updater(run) : run));
       };
@@ -3376,7 +3397,7 @@ function ControlTowerPane({
         },
         onError: () => setStatus(`Local job stream issue for ${tool.label}`),
       });
-      setStatus(`Started ${tool.label} local job`);
+      setStatus(`Started ${tool.label} mission run${selectedTask ? ` · ${selectedTask.title}` : ''}`);
     } catch (err) {
       setRunningToolId(null);
       setAgentRuns((runs) => runs.map((run) => run.id === runId
@@ -3389,7 +3410,22 @@ function ControlTowerPane({
         : run));
       setStatus(`Local job failed to start: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, setStatus, writeMissionPack]);
+  }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, selectedTask, setStatus, writeMissionPack]);
+
+  const cancelLocalJob = useCallback(async (run: LocalAgentRunState) => {
+    if (!run.jobId || !host.local?.cancelJob) {
+      setStatus('Local job cancel bridge unavailable in this host build');
+      return;
+    }
+    setAgentRuns((runs) => runs.map((item) => item.id === run.id ? { ...item, status: 'canceling', lines: [...item.lines, '[Atomek] Cancel requested…'] } : item));
+    try {
+      await host.local.cancelJob(run.jobId);
+      setStatus(`Cancel requested for ${run.label}`);
+    } catch (err) {
+      setAgentRuns((runs) => runs.map((item) => item.id === run.id ? { ...item, status: 'running', lines: [...item.lines, `[Atomek] Cancel failed: ${err instanceof Error ? err.message : String(err)}`] } : item));
+      setStatus(`Local job cancel failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [host.local, setStatus]);
 
   const useResourceInMission = useCallback(async (resource: TytusResource) => {
     const prompt = [
@@ -3499,8 +3535,8 @@ function ControlTowerPane({
           {missionTasks.map((task, index) => (
             <button
               key={task.id}
-              className={`workbench-task-card ${task.status}`}
-              onClick={() => setJobPrompt(task.prompt)}
+              className={`workbench-task-card ${task.status} ${selectedTask?.id === task.id ? 'active' : ''}`}
+              onClick={() => { setSelectedTaskId(task.id); setJobPrompt(task.prompt); }}
               title="Load this task prompt"
             >
               <span>{index + 1}</span>
@@ -3514,11 +3550,19 @@ function ControlTowerPane({
             <header>
               <div>
                 <strong>{activeRun.label}</strong>
-                <span>{activeRun.status}{typeof activeRun.exitCode === 'number' ? ` · exit ${activeRun.exitCode}` : ''}</span>
+                <span>{activeRun.status}{typeof activeRun.exitCode === 'number' ? ` · exit ${activeRun.exitCode}` : ''}{activeRun.taskTitle ? ` · ${activeRun.taskTitle}` : ''}</span>
+                {activeRun.transcriptPath ? <span>{activeRun.transcriptPath}</span> : null}
               </div>
-              <button className="workbench-button-subtle" onClick={() => saveLocalJobOutput(`${activeRun.label} local job`, activeRun.lines.join('\n'))} disabled={activeRun.lines.length === 0}>
-                Save output
-              </button>
+              <div className="workbench-agent-run-actions">
+                <button className="workbench-button-subtle" onClick={() => saveLocalJobOutput(`${activeRun.label} local job`, activeRun.lines.join('\n'))} disabled={activeRun.lines.length === 0}>
+                  Save output
+                </button>
+                {activeRun.jobId && (activeRun.status === 'running' || activeRun.status === 'canceling') ? (
+                  <button className="workbench-button-subtle danger" onClick={() => { void cancelLocalJob(activeRun); }} disabled={activeRun.status === 'canceling'}>
+                    <Square size={12} /> {activeRun.status === 'canceling' ? 'Canceling…' : 'Cancel'}
+                  </button>
+                ) : null}
+              </div>
             </header>
             <pre className="workbench-computer-job-log">{activeRun.lines.join('\n') || '[waiting for output]'}</pre>
           </div>
