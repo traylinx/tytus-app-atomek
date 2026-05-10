@@ -1,7 +1,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { AiContextPart, AiThread, HostClient, TytusMission, TytusMissionSummary, TytusResource, TytusResourceGraph } from '@tytus/host-api';
+import type { AiContextPart, AiThread, HostClient, TytusMission, TytusMissionRun, TytusMissionSummary, TytusResource, TytusResourceGraph } from '@tytus/host-api';
 import {
   Bot,
   Bug,
@@ -255,6 +255,14 @@ function resourceSummary(resources: readonly TytusResource[]): string {
 
 function missionSlug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mission';
+}
+
+function isoNow(): string {
+  return new Date().toISOString();
+}
+
+function missionRunSortValue(run: TytusMissionRun): string {
+  return run.finishedAt ?? run.startedAt ?? '';
 }
 
 function saveCurrentMission(mission: MissionFolderState | TytusMission): void {
@@ -3049,6 +3057,8 @@ function ControlTowerPane({
   const [mission, setMission] = useState<MissionFolderState | null>(() => readCurrentMission());
   const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [missionAudit, setMissionAudit] = useState<MissionAuditEvent[]>([]);
+  const [missionRuns, setMissionRuns] = useState<TytusMissionRun[]>([]);
+  const missionRunsRef = useRef<TytusMissionRun[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('execute');
   const activeRun = agentRuns.find((run) => run.status === 'running' || run.status === 'canceling') ?? agentRuns[0] ?? null;
   const isDock = variant === 'dock';
@@ -3074,6 +3084,48 @@ function ControlTowerPane({
       prompt: 'Explain how the active file/context fits into the TytusOS/Atomek architecture. Point out any integration seams that do not make sense.',
     },
   ], []);
+
+  useEffect(() => {
+    missionRunsRef.current = missionRuns;
+  }, [missionRuns]);
+
+  const loadMissionRuns = useCallback(async (target: MissionFolderState | null = mission) => {
+    if (!target?.rootPath || !host.missions?.listRuns) {
+      setMissionRuns([]);
+      return [];
+    }
+    try {
+      const runs = await host.missions.listRuns(target.rootPath);
+      setMissionRuns(runs);
+      missionRunsRef.current = runs;
+      return runs;
+    } catch (err) {
+      setStatus(`Mission run history failed: ${err instanceof Error ? err.message : String(err)}`);
+      return [];
+    }
+  }, [host.missions, mission, setStatus]);
+
+  const writeMissionRunIndex = useCallback(async (target: MissionFolderState | null, runs: TytusMissionRun[]) => {
+    if (!target) return;
+    const sorted = [...runs].sort((a, b) => missionRunSortValue(b).localeCompare(missionRunSortValue(a))).slice(0, 100);
+    const content = sorted.map((run) => JSON.stringify(run)).join('\n') + (sorted.length ? '\n' : '');
+    if (target.rootPath && host.missions?.write) {
+      await host.missions.write({ rootPath: target.rootPath, files: [{ path: 'RUNS.jsonl', content }] });
+    } else if (target.handle) {
+      await writeTextToDirectory(target.handle, 'RUNS.jsonl', content);
+    }
+    setMissionRuns(sorted);
+    missionRunsRef.current = sorted;
+  }, [host.missions]);
+
+  const upsertMissionRun = useCallback(async (record: TytusMissionRun, target: MissionFolderState | null = mission) => {
+    if (!target) return;
+    const next = [
+      record,
+      ...missionRunsRef.current.filter((run) => run.id !== record.id),
+    ];
+    await writeMissionRunIndex(target, next);
+  }, [mission, writeMissionRunIndex]);
 
   const load = useCallback(async () => {
     if (!host.local?.listTools && !host.skills?.list && !host.resources?.list) {
@@ -3108,13 +3160,14 @@ function ControlTowerPane({
       setSkills(skillList as AtomekSkillSummary[]);
       setResourceGraph(graph);
       setMissionList(missions as TytusMissionSummary[]);
+      if (mission?.rootPath) void loadMissionRuns(mission);
       setStatus(`Control Tower loaded · ${toolList.length} tools · ${skillList.length} skills · ${(missions as TytusMissionSummary[]).length} missions${graph ? ` · ${graph.resources.length} resources` : ''}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [host.local, host.missions, host.resources, host.skills, setStatus]);
+  }, [host.local, host.missions, host.resources, host.skills, loadMissionRuns, mission, setStatus]);
 
   useEffect(() => {
     void load();
@@ -3123,17 +3176,21 @@ function ControlTowerPane({
   useEffect(() => {
     const onMission = (event: Event) => {
       const detail = (event as CustomEvent<MissionFolderState>).detail;
-      if (detail?.missionId) setMission(detail);
+      if (detail?.missionId) {
+        setMission(detail);
+        void loadMissionRuns(detail);
+      }
       void load();
     };
     window.addEventListener(CURRENT_MISSION_EVENT, onMission);
     return () => window.removeEventListener(CURRENT_MISSION_EVENT, onMission);
-  }, [load]);
+  }, [load, loadMissionRuns]);
 
   const resumeMission = useCallback((summary: TytusMissionSummary) => {
     const next = missionStateFromSummary(summary);
     setMission(next);
     saveCurrentMission(next);
+    void loadMissionRuns(next);
     setMissionAudit([{
       ts: new Date().toISOString(),
       kind: 'mission.resume',
@@ -3142,7 +3199,7 @@ function ControlTowerPane({
     }]);
     setJobPrompt(summary.goal || `Continue mission ${summary.title}. Review MISSION.md, TASKS.md, RESOURCES.md, and runs/ before acting.`);
     setStatus(`Resumed mission: ${summary.rootPath}`);
-  }, [setStatus]);
+  }, [loadMissionRuns, setStatus]);
 
   const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = []) => {
     const nextAudit = [
@@ -3251,11 +3308,11 @@ function ControlTowerPane({
     }
   }, [ensureMissionPack, jobPrompt, setStatus]);
 
-  const saveRunTranscriptToMission = useCallback(async (tool: AtomekLocalTool, body: string, code: number, targetMission: MissionFolderState | null = mission) => {
+  const saveRunTranscriptToMission = useCallback(async (tool: AtomekLocalTool, body: string, code: number, targetMission: MissionFolderState | null = mission, preferredRelPath?: string) => {
     if (!targetMission) return;
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `${stamp}-${tool.id}.md`;
-    const relPath = `runs/${fileName}`;
+    const relPath = preferredRelPath ?? `runs/${stamp}-${tool.id}.md`;
+    const fileName = relPath.split('/').pop() || `${stamp}-${tool.id}.md`;
     if (targetMission.rootPath && host.missions?.write) {
       await host.missions.write({ rootPath: targetMission.rootPath, files: [{ path: relPath, content: body }] });
     } else if (targetMission.handle) {
@@ -3297,6 +3354,7 @@ function ControlTowerPane({
     }
     setRunningToolId(tool.id);
     const runId = `local-run-${Date.now()}-${tool.id}`;
+    const startedAt = isoNow();
     setAgentRuns((runs) => [{
       id: runId,
       toolId: tool.id,
@@ -3336,13 +3394,28 @@ function ControlTowerPane({
           resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
         ].filter(Boolean).join('\n\n---\n\n'),
       });
-      const transcriptPath = launchMission?.rootPath ? `runs/${new Date().toISOString().replace(/[:.]/g, '-')}-${tool.id}.md` : undefined;
+      const transcriptPath = job.transcriptPath ?? (launchMission?.rootPath ? `runs/${new Date().toISOString().replace(/[:.]/g, '-')}-${tool.id}.md` : undefined);
       const lines: string[] = [
         `[Atomek] Started ${tool.label} local job ${job.id}`,
         selectedTask ? `[Atomek] Task: ${selectedTask.title} (${selectedTask.id})` : '[Atomek] Task: manual',
         launchMission?.rootPath ? `[Atomek] Mission: ${launchMission.rootPath}` : '',
       ].filter(Boolean);
-      setAgentRuns((runs) => runs.map((run) => run.id === runId ? { ...run, jobId: job.id, transcriptPath: job.transcriptPath ?? transcriptPath } : run));
+      const baseRecord: TytusMissionRun = {
+        id: runId,
+        jobId: job.id,
+        toolId: tool.id,
+        label: tool.label,
+        status: 'running',
+        startedAt,
+        taskId: selectedTask?.id ?? 'manual',
+        taskTitle: selectedTask?.title ?? 'Manual run',
+        transcriptPath,
+        summary: `Started ${tool.label} for ${selectedTask?.title ?? 'manual run'}`,
+      };
+      void upsertMissionRun(baseRecord, launchMission).catch((err) => {
+        setStatus(`Mission run index failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
+      setAgentRuns((runs) => runs.map((run) => run.id === runId ? { ...run, jobId: job.id, transcriptPath } : run));
       const updateRun = (updater: (run: LocalAgentRunState) => LocalAgentRunState) => {
         setAgentRuns((runs) => runs.map((run) => run.id === runId ? updater(run) : run));
       };
@@ -3364,8 +3437,17 @@ function ControlTowerPane({
             finishedAt: Date.now(),
             lines: lines.slice(-500),
           }));
+          void upsertMissionRun({
+            ...baseRecord,
+            status: 'failed',
+            finishedAt: isoNow(),
+            exitCode: -1,
+            summary: message,
+          }, launchMission).catch((err) => {
+            setStatus(`Mission run index failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
           saveLocalJobOutput(`${tool.label} local job failed`, lines.join('\n'));
-          void saveRunTranscriptToMission(tool, lines.join('\n'), -1, launchMission).catch((err) => {
+          void saveRunTranscriptToMission(tool, lines.join('\n'), -1, launchMission, transcriptPath).catch((err) => {
             setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
           });
           setRunningToolId(null);
@@ -3389,8 +3471,17 @@ function ControlTowerPane({
             finishedAt: Date.now(),
             lines: lines.slice(-500),
           }));
+          void upsertMissionRun({
+            ...baseRecord,
+            status: code === 0 ? 'complete' : 'failed',
+            finishedAt: isoNow(),
+            exitCode: code,
+            summary: `${tool.label} exited ${code}`,
+          }, launchMission).catch((err) => {
+            setStatus(`Mission run index failed: ${err instanceof Error ? err.message : String(err)}`);
+          });
           saveLocalJobOutput(`${tool.label} local job`, body);
-          void saveRunTranscriptToMission(tool, body, code, launchMission).catch((err) => {
+          void saveRunTranscriptToMission(tool, body, code, launchMission, transcriptPath).catch((err) => {
             setStatus(`Mission transcript save failed: ${err instanceof Error ? err.message : String(err)}`);
           });
           setRunningToolId(null);
@@ -3410,7 +3501,7 @@ function ControlTowerPane({
         : run));
       setStatus(`Local job failed to start: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, selectedTask, setStatus, writeMissionPack]);
+  }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, selectedTask, setStatus, upsertMissionRun, writeMissionPack]);
 
   const cancelLocalJob = useCallback(async (run: LocalAgentRunState) => {
     if (!run.jobId || !host.local?.cancelJob) {
@@ -3418,6 +3509,20 @@ function ControlTowerPane({
       return;
     }
     setAgentRuns((runs) => runs.map((item) => item.id === run.id ? { ...item, status: 'canceling', lines: [...item.lines, '[Atomek] Cancel requested…'] } : item));
+    void upsertMissionRun({
+      id: run.id,
+      jobId: run.jobId,
+      toolId: run.toolId,
+      label: run.label,
+      status: 'canceling',
+      startedAt: new Date(run.startedAt).toISOString(),
+      taskId: run.taskId,
+      taskTitle: run.taskTitle,
+      transcriptPath: run.transcriptPath,
+      summary: 'Cancel requested from Atomek',
+    }).catch((err) => {
+      setStatus(`Mission run index failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
     try {
       await host.local.cancelJob(run.jobId);
       setStatus(`Cancel requested for ${run.label}`);
@@ -3425,7 +3530,7 @@ function ControlTowerPane({
       setAgentRuns((runs) => runs.map((item) => item.id === run.id ? { ...item, status: 'running', lines: [...item.lines, `[Atomek] Cancel failed: ${err instanceof Error ? err.message : String(err)}`] } : item));
       setStatus(`Local job cancel failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [host.local, setStatus]);
+  }, [host.local, setStatus, upsertMissionRun]);
 
   const useResourceInMission = useCallback(async (resource: TytusResource) => {
     const prompt = [
@@ -3566,6 +3671,25 @@ function ControlTowerPane({
             </header>
             <pre className="workbench-computer-job-log">{activeRun.lines.join('\n') || '[waiting for output]'}</pre>
           </div>
+        ) : null}
+        {missionRuns.length ? (
+          <>
+            <div className="workbench-section-title">RUN HISTORY</div>
+            <div className="workbench-run-history">
+              {missionRuns.slice(0, isDock ? 4 : 8).map((run) => (
+                <div key={run.id} className="workbench-run-history-row">
+                  <div>
+                    <strong>{run.taskTitle || run.label}</strong>
+                    <span>{run.label} · {run.status}{typeof run.exitCode === 'number' ? ` · exit ${run.exitCode}` : ''}</span>
+                    {run.transcriptPath ? <small>{run.transcriptPath}</small> : null}
+                  </div>
+                  <button className="workbench-button-subtle" onClick={() => void copyTextToClipboard(run.transcriptPath ?? run.id)} title="Copy transcript path or run id">
+                    Copy path
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
         ) : null}
 
         <div className="workbench-section-title">RESOURCE GRAPH</div>

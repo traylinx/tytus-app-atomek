@@ -2068,6 +2068,42 @@ button { font: inherit; }
   text-transform: uppercase;
   letter-spacing: .04em;
 }
+.workbench-run-history {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+.workbench-run-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: var(--tytus-radius-sm, 7px);
+  padding: 7px 8px;
+}
+.workbench-run-history-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.workbench-run-history-row strong,
+.workbench-run-history-row span,
+.workbench-run-history-row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-run-history-row span,
+.workbench-run-history-row small {
+  color: var(--workbench-muted);
+  font-size: 11px;
+}
+.workbench-run-history-row small {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+}
 .workbench-agent-primary-action {
   border-color: rgba(124, 77, 255, 0.40) !important;
   background: linear-gradient(135deg, rgba(124, 77, 255, 0.20), rgba(216, 92, 174, 0.12)) !important;
