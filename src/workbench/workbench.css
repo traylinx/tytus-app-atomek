@@ -1777,3 +1777,214 @@ button { font: inherit; }
   overflow: auto;
   white-space: pre-wrap;
 }
+
+/* 2026-05 responsive + agent dock hardening. Keep this after polish layer. */
+.workbench-workbench {
+  grid-template-columns: 48px minmax(0, var(--workbench-primary-width, 300px)) minmax(0, 1fr) minmax(320px, var(--workbench-secondary-width, 520px));
+}
+.workbench-workbench.no-primary {
+  grid-template-columns: 48px 0 minmax(0, 1fr) minmax(320px, var(--workbench-secondary-width, 460px));
+}
+.workbench-workbench.no-secondary {
+  grid-template-columns: 48px minmax(0, var(--workbench-primary-width, 300px)) minmax(0, 1fr) 0;
+}
+.workbench-workbench.no-primary.no-secondary {
+  grid-template-columns: 48px 0 minmax(0, 1fr) 0;
+}
+.workbench-primary-region,
+.workbench-main,
+.workbench-secondary,
+.workbench-chat-wrap,
+.workbench-chat-transcript,
+.workbench-chat-message,
+.workbench-rich-body,
+.workbench-rich-markdown,
+.workbench-editor-stack,
+.workbench-editor-pane {
+  min-width: 0;
+}
+.workbench-secondary {
+  overflow: hidden;
+}
+.workbench-secondary-tab-group {
+  min-width: 0;
+  overflow: hidden;
+}
+.workbench-secondary-tab {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workbench-chat-threadbar {
+  min-width: 0;
+}
+.workbench-chat-threadbar select {
+  width: 100%;
+}
+.workbench-chat-message {
+  overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workbench-rich-body,
+.workbench-rich-markdown {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.workbench-rich-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+  border-collapse: collapse;
+  margin: 10px 0 12px;
+  white-space: normal;
+}
+.workbench-rich-markdown th,
+.workbench-rich-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  padding: 6px 8px;
+  vertical-align: top;
+  min-width: 120px;
+}
+.workbench-rich-markdown th {
+  color: #f0f0f3;
+  background: rgba(255, 255, 255, 0.05);
+}
+.workbench-rich-code {
+  max-width: 100%;
+}
+.workbench-rich-code pre {
+  max-width: 100%;
+}
+.workbench-file-row,
+.workbench-tree-row,
+.workbench-folder-row {
+  min-width: 0;
+}
+.workbench-file-row svg,
+.workbench-tree-row svg,
+.workbench-folder-row svg {
+  flex: 0 0 auto;
+}
+.workbench-row-text {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  line-height: 1.2;
+}
+.workbench-row-name,
+.workbench-row-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-row-detail {
+  color: var(--workbench-muted);
+  font-size: 10px;
+}
+.workbench-agent-dock {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--workbench-side);
+  overflow: hidden;
+}
+.workbench-agent-dock-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.workbench-agent-run {
+  margin: 10px 0 12px;
+  border: 1px solid var(--border-subtle, #34343a);
+  border-radius: var(--tytus-radius-sm, 7px);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.workbench-agent-run header {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+}
+.workbench-agent-run header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.workbench-agent-run header strong,
+.workbench-agent-run header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-agent-run header span {
+  color: var(--workbench-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.workbench-agent-primary-action {
+  border-color: rgba(124, 77, 255, 0.40) !important;
+  background: linear-gradient(135deg, rgba(124, 77, 255, 0.20), rgba(216, 92, 174, 0.12)) !important;
+  color: #f5efff !important;
+  font-weight: 650;
+}
+.workbench-computer-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px;
+}
+.workbench-computer-card,
+.workbench-computer-context-card,
+.workbench-computer-hero,
+.workbench-computer-job-prompt,
+.workbench-computer-job-log {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workbench-computer-job-log {
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1180px) {
+  .workbench-workbench {
+    grid-template-columns: 48px minmax(0, min(260px, var(--workbench-primary-width, 260px))) minmax(0, 1fr) minmax(300px, min(42vw, var(--workbench-secondary-width, 420px)));
+  }
+}
+@media (max-width: 980px) {
+  .workbench-workbench {
+    grid-template-columns: 48px minmax(0, 240px) minmax(0, 1fr) 0;
+  }
+  .workbench-secondary {
+    display: none;
+  }
+  .workbench-statusbar {
+    grid-column: 3 / 4;
+  }
+}
+@media (max-width: 760px) {
+  .workbench-workbench,
+  .workbench-workbench.no-primary,
+  .workbench-workbench.no-secondary,
+  .workbench-workbench.no-primary.no-secondary {
+    grid-template-columns: 48px 0 minmax(0, 1fr) 0;
+  }
+  .workbench-primary-region,
+  .workbench-secondary {
+    display: none;
+  }
+  .workbench-statusbar {
+    grid-column: 3 / 4;
+  }
+}
