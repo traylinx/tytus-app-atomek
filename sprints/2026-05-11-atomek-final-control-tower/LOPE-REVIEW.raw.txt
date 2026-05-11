@@ -1,0 +1,123 @@
+
+Lope review: sprints/2026-05-11-atomek-final-control-tower/IMPLEMENTATION-PLAN.md  (6519 chars)
+Validators: kimi, pi, claude
+Focus: product coherence, missing phases, overengineering, implementation order, and wh...
+Timeout: 180s per validator
+
+
+━━━ kimi ━━━
+[ERROR] kimi exited 1: 
+To resume this session: kimi -r 64eff77b-49db-476c-9187-6a43dc387252
+
+
+━━━ claude ━━━
+## Review — Atomek Final Control Tower Implementation Plan
+
+### Product coherence
+
+The spine is right. `mission → team → run → output → approval → handoff` is a clean mental model and the plan is mostly faithful to it. The PRODUCT-SPEC, FEATURE-AUDIT, and IMPLEMENTATION-PLAN agree on positioning, so there's no internal drift to resolve. Phase 0 (lock IA), Phase 1 (harden mission folder), Phase 3 (board), and Phase 8 (approvals) are the load-bearing pieces — the rest hangs off them.
+
+The coherence breaks in two places, both ordering-related, not concept-related.
+
+First, **Phase 0 promises a default Team Mission landing but Mission Board doesn't land until Phase 3**. Between landing Phase 0 and shipping Phase 3, the user can start a mission but has no surface to work on it. That's two phases of "started a mission, now what?" — either Mission Board needs a minimal v0 in Phase 0/1, or Phases 0–2 should not ship without it.
+
+Second, **Phase 3 acceptance includes Approvals**, but the approval data model isn't built until Phase 8. So Phase 3 either ships fake approval UI (the exact pattern the audit calls out as wrong elsewhere) or quietly drops approvals from the board until Phase 8 — neither matches the stated acceptance.
+
+### Implementation order
+
+The single biggest issue is that **Phase 5 (pod dispatch) is too late**. Pod dispatch is the actual differentiator — local agent running already mostly works per FEATURE-AUDIT §5. Phase 4 ("local agent run polish") is a refinement of working machinery; Phase 5 is the missing primitive. If the unified `MissionRunRecord` model is defined against local-only in Phase 4 and then extended in Phase 5, Phase 3's timeline/task cards will need rework. Either:
+
+- Swap Phase 4 and Phase 5, or
+- Merge them into one "run any agent" phase that lands the unified `RunRecord` from the start.
+
+The second consequence is **Phase 2 (presets) before Phase 5 (pod dispatch)**. The "Pod + Local Team" preset assigns work to pods that cannot yet be dispatched, so the preset dead-ends until Phase 5. Either gate non-local presets behind Phase 5, or move presets after dispatch.
+
+**Approvals (Phase 8) should be earlier** — at minimum, the data model and write path. Phase 3's board promises an approvals section; Phase 4 produces patch proposals; Phase 5 produces pod outputs with cost. All three need an approval write path before they're real. The UI inbox can ship in Phase 8 but the model and `approvals/` directory writes should be in Phase 1.
+
+**Phase 6 (shared folder) and Phase 9 (chat cleanup) are over-promoted to phases.** Shared folder is a mission-wizard step plus a status panel — fold into Phase 0/1. Chat cleanup is UI relabeling — fold into Phase 0. As standalone phases they imply more work than they need.
+
+**Phase 10 (responsive polish) at the end is a trap**. By Phase 10 there will be five new surfaces (mission wizard, board, resource setup, approval inbox, mission chat). Polishing them in one phase guarantees rework. Treat responsive as an acceptance criterion on every phase that ships a surface.
+
+### Missing phases / gaps
+
+- **Channels are dropped.** PRODUCT-SPEC and FEATURE-AUDIT both make Telegram/Discord/Slack first-class for approval and status. The implementation plan never mentions channels. If this is deliberate deferral, say so in the plan; if not, it's a real omission given that `external-message` is already in the approval kind enum.
+- **Resume UX is implicit.** Acceptance for Phase 1 says "a new agent can read MISSION.md... and continue," and PRODUCT-SPEC has "Resume mission" as the secondary landing CTA, but no phase defines what `Resume` actually opens or what the resumed UI shows. This is the test of whether the folder-as-truth model actually works.
+- **Cost/unit accounting.** Phase 5 says "mark pod costs/units before start" but there's no mission-level cost surface. For a control tower, "total cost of this mission so far" is a basic expectation.
+- **Team-manifest sprint integration.** The parallel `2026-05-11-tytus-agent-team-manifest` sprint defines the agent team. Nothing in this plan imports/reconciles with that manifest. Two parallel "team" definitions will drift.
+- **Failure paths.** No phase covers tray down, pod unreachable mid-run, mission folder deleted externally. Acceptance criteria are all happy-path.
+
+### Overengineering
+
+- **Phase 1 creates 11 files and 4 directories.** `INBOX.md`, `OUTBOX.md`, and `HANDOFF.md` appear in Phase 1 but no later phase reads or writes them. If nothing consumes them, they are cargo. Either name the phase that uses each, or drop them.
+- **`AUDIT.jsonl` + `RUNS.jsonl` are redundant.** Two append logs with two write paths is two ways to drift. RUNS should be a projection of AUDIT, or AUDIT should be the only log and the UI derives runs.
+- **`proposals/` and `approvals/` overlap.** Per the contract, an `ApprovalRequest` already has a `payloadPath`. An approval is a proposal plus a decision. Two directories invite an inconsistency bug; consider one directory keyed by status.
+- **Phase 7 (app skills) is mostly UI honesty work** (hide fake actions, show setup-needed) that belongs in Phase 0. The "convert chat skills to task targets" part requires the run model from Phase 3+5 anyway. As a standalone phase it doesn't reveal new infra.
+
+### Does this make Atomek useful as a Tytus agent-team control tower?
+
+Yes — but not for 12 phases. The thing that justifies the rename and the pitch is: **start a mission, dispatch one local AND one pod agent to a task, see the output land in `outputs/` and approve it**. That's Phases 0 + 1 + (combined 4/5) + minimal 3 + minimal 8. Roughly half the plan.
+
+Everything past that — preset engine, app skill dispatch, channels, responsive polish — is post-MVP value. As written, the plan reads as if all 12 phases must ship before the product story is true, which both delays validation and risks rework on phases built on assumptions that the first MVP would invalidate.
+
+Recommend collapsing to: lock IA + folder protocol + approval write path → ship pod+local dispatch with unified RunRecord → minimal Mission Board reading from folder → then evaluate whether presets/channels/app skills/polish are still shaped right before committing the next phases.
+
+━━━ pi ━━━
+
+
+Here's the review:
+
+---
+
+**The plan diagnoses real problems.** The app is a workbench that grew mission-control features into a control tower that grew into something with no coherent product identity. "Mission Control" on the welcome tab, "Tytus Control Tower" in the hero text, `computer` as the default activity showing a Control Tower pane, and "Start mission" buried behind an unused welcome view — it's a layered accretion with no clear front door. The plan names this correctly.
+
+The core concept — `mission → team → run → output → approval → handoff` — is also the right flow. That is what a control tower does: it doesn't run agents, it coordinates runs, watches outputs, gates approvals, and hands off results.
+
+---
+
+**Product coherence is the biggest gap.**
+
+The app has `MissionControlHome`, `ControlTowerPane`, and `MissionFolderState` — three terms for roughly the same idea. The activity bar shows "Control Tower" as a tab (like Git, Search, Debug) which is wrong. It's not a sidebar view; it's the primary product mode. Meanwhile the welcome tab says "Mission Control." The plan's fix — rename "Control Tower" to "Team Mission," make it the default landing, and move chat/editor/settings into contextual panes — is correct, but Phase 0 as written is too large for a single phase. It touches `ActivityBar`, `PrimarySidebar`, the welcome pane rendering logic, the `computer` default state, and every command palette string that says "Control Tower." I'd split Phase 0 into Phase 0a (make Team Mission the default landing / fix the default `activity` state) and Phase 0b (rename/reshape navigation) — doing them in separate commits makes the visual changes testable before the deeper restructuring.
+
+---
+
+**Missing phases, concretely:**
+
+Phase 3 (Mission Board) doesn't exist. The plan says "Show: goal/scope, selected team, task cards, run cards, timeline, outputs/proposals, approvals." In the current app, resource display happens in the `ControlTowerPane` (tool-first, showing installed tools and skill cards). The plan's "task-first" action model — *"Ask Claude to implement this task"* — is fundamentally different. That's not a polish; it's a rewrite of `ControlTowerPane`. Phase 3 is really Phase 3 and Phase 4 combined.
+
+Phase 5 (Pod dispatch) is underdescribed. "Add/confirm host/tray same-origin pod task endpoint" is doing a lot of work in that sentence. The WireGuard tunnel, unit accounting, and state persistence across sessions are non-trivial. The plan correctly scopes it to one repo (`tytus-cli`) but doesn't flag the integration point as a blocker. I'd make Phase 5 conditional on Phase 4 being stable, and add a "confirm host contract" sub-step before writing any pod dispatch logic.
+
+Phase 7 (App skills → task targets) doesn't match the current implementation. `attachSkillToChat` copies skill body text into the chat input. Converting that to task targets means either rewriting the skill attachment model entirely or building a parallel dispatch path. The plan doesn't acknowledge this gap. "Show only after real installed skill/manifest exists" is the right call for UX, but it needs a concrete UI state (a setup-needed badge or a redirect to skill configuration).
+
+---
+
+**Overengineering risks:**
+
+The plan has 11 phases. After Phase 2 (team presets) you have a functional control tower: coherent landing, readable mission state, team selection from actual resources, tasks generated from presets, and runs tracked in the mission folder. Phase 3 through 7 are improvements, not prerequisites for usefulness. Phase 9 (mission chat cleanup) is cosmetic. Phase 10 (responsive polish) is always last and always underestimated. I'd cut Phase 3 from the core sprint — the `ControlTowerPane` already shows resources and tasks in some form — and defer Phase 6 (shared folder) and Phase 7 (app skills) to a follow-on sprint. That gets you to a useful control tower in 5 phases instead of 11.
+
+Phase 8 (approval inbox) is also overengineered for what the app already does. The `EditReviewDialog` and `WorkspacePatchReviewDialog` already gate file writes. Adding a separate "approvals" inbox for shell risk and pod cost implies those gates don't exist yet — but the plan doesn't audit the current gate coverage before proposing new surfaces.
+
+---
+
+**Implementation order concerns:**
+
+Phase 0 defaulting `activity` from `'computer'` to `'team-mission'` (or whatever the new landing is) must come before Phase 1, not after. If you ship Phase 1 with the old default, the mission folder creation flow is unreachable because users land on the Control Tower pane every time.
+
+Phase 1 creates 10 files (`MISSION.md` through `AUDIT.jsonl`) but the current `startMission` only creates 8 and omits `RUNS.jsonl`, `runs/`, `outputs/`, `proposals/`, `approvals/`. That's a quick fix, but the file viewer buttons ("Add selected-resource visibility to MISSION.json" and "Add approval policy to MISSION.json") need the Phase 0 UI scaffold to exist first.
+
+Phase 2 (team presets) is the most valuable feature in the entire plan. The current app lets you pick a goal and create a mission, but it never helps you select Claude vs. Codex vs. OpenClaw for a task. Presets that map roles to actual available resources would make the control tower actually useful, not just visually organized.
+
+---
+
+**Does this make Atomek useful as a Tytus agent-team control tower?**
+
+Currently, no. The app is a file browser with an AI chat sidebar and a control tower pane that shows resources. It's useful for the person at the keyboard talking to one AI. It's not useful for coordinating a team of agents because:
+
+- There is no team selection workflow (Phase 2).
+- There is no task-first dispatch (Phases 3–4).
+- There is no proposal review flow beyond one-off edit previews (Phase 8 partial coverage).
+- There is no handoff model (Mission folder exists but isn't used as a coordination surface).
+
+After Phase 4, the answer starts becoming yes — you have team selection, task dispatch, run tracking, output saving, and patch review. After Phase 5 it gets more interesting with pod coordination. After Phase 11 it's a polished shipped product.
+
+**My recommendation:** Cut to 5 phases: 0a, 0b, 1, 2, 4. Ship that. It gives you a coherent, useful control tower with a clear default landing, readable mission state, team selection, and run management. Phase 3 (Mission Board), Phase 5 (Pod dispatch), Phase 6 (Shared folder), Phase 7 (App skills), Phase 8 (Approval inbox), Phase 9 (Chat cleanup), Phase 10 (Polish), Phase 11 (QA/Release) become the follow-on sprint. The Phase 0 rename is also an opportunity to resolve "Mission Control" vs "Control Tower" vs "Team Mission" into a single consistent name — I'd pick one and commit to it, because every mention of multiple names is a product coherence failure.
+

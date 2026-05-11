@@ -1,0 +1,62 @@
+{
+  "id": "2026-05-11-atomek-final-control-tower",
+  "title": "Atomek Final Control Tower",
+  "status": "ready-for-core-vertical-implementation",
+  "createdAt": "2026-05-11",
+  "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
+  "coupledRepos": [
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-os",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-cli",
+    "/Users/sebastian/Projects/tytus-apps/tytus-app-catalog"
+  ],
+  "northStar": "Mission -> team -> run -> output -> approval -> handoff",
+  "phases": [
+    "Kill noise, lock IA",
+    "Mission protocol hardening",
+    "Team preset engine",
+    "Mission Board MVP",
+    "Local agent run polish",
+    "Pod agent dispatch",
+    "Shared folder as Team Desk",
+    "App skill dispatch",
+    "Approval inbox",
+    "Mission chat cleanup",
+    "Responsive/visual polish",
+    "QA/docs/release"
+  ],
+  "hardRules": [
+    "no VS Code clone",
+    "no raw model shell",
+    "no hardcoded model IDs",
+    "no fake integrations",
+    "no hidden chat-only state",
+    "approval before writes/costs/external messages"
+  ],
+  "review": {
+    "lope": "completed-partial",
+    "validators": [
+      "claude",
+      "pi"
+    ],
+    "failed": [
+      "kimi"
+    ],
+    "summaryFile": "LOPE-REVIEW-SUMMARY.md"
+  },
+  "coreVerticalPhases": [
+    "Team Mission front door",
+    "Navigation consolidation",
+    "Mission protocol + approval skeleton",
+    "Team presets + Mission Board v0",
+    "Unified run model + local task-first runs",
+    "Pod task dispatch",
+    "Output/proposal/approval inbox",
+    "Core QA/release"
+  ],
+  "expansionPhases": [
+    "App skill dispatch",
+    "Channels for status/approval",
+    "Mission Copilot cleanup",
+    "Deep visual polish"
+  ]
+}
