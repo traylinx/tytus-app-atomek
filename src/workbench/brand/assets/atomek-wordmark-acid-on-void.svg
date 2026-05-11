@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160" width="720" height="160">
+  
+  <text x="0" y="120" class="at-letter" fill="#F0EAD8">AT</text>
+  <g transform="translate(232 56)">
+    <circle cx="50" cy="48" r="32" fill="none" stroke="#F0EAD8" stroke-width="22"></circle>
+    <ellipse cx="50" cy="48" rx="48" ry="20" fill="none" stroke="#C4FF00" stroke-width="9" transform="rotate(-22 50 48)"></ellipse>
+  </g>
+  <text x="350" y="120" class="at-letter" fill="#F0EAD8">MEK</text>
+</svg>

@@ -46,6 +46,7 @@ import { buildWorkspaceEditCandidate } from '../edits';
 import type { WorkspaceEditFileCandidate } from '../edits';
 import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
 import { addManualCheckCommand, addManualCheckResult, buildManualCheckFollowupPrompt, createManualCheckSession, latestManualCheckStatus } from '../checks/manualChecks';
+import { AtomekBrandMark, AtomekWordmark } from '../brand/AtomekBrand';
 import type { ManualCheckSession, ManualCheckStatus } from '../checks/manualChecks';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
@@ -1886,6 +1887,7 @@ export function WorkbenchShell({ host }: Props) {
 function ActivityBar({ active, setActive, openSettings, settingsActive }: { active: ActivityView; setActive: (view: ActivityView) => void; openSettings: () => void; settingsActive: boolean }) {
   return (
     <aside className="workbench-activity-bar" aria-label="Activity Bar">
+      <div className="workbench-activity-brand" title="Atomek"><AtomekBrandMark size={30} variant="cream" /></div>
       <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
       <ActivityButton icon={<Search size={25} />} label="Search" active={active === 'search'} onClick={() => setActive('search')} />
       <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
@@ -2289,9 +2291,15 @@ function MissionControlHome({
   return (
     <div className="workbench-welcome workbench-control-home">
       <section className="workbench-control-hero-main">
-        <div className="workbench-control-kicker">Atomek Agent Team</div>
-        <h1>OpenClaw, Hermes, local agents, one mission.</h1>
-        <p>Atomek is the Tytus resource fabric cockpit: OpenClaw/Hermes pods, local AI CLIs, shared folders, local apps, chat, files, outputs, and approvals around one durable mission folder.</p>
+        <div className="workbench-brand-lockup" aria-label="Atomek">
+          <AtomekBrandMark size={74} variant="acid" />
+          <div>
+            <AtomekWordmark className="workbench-brand-wordmark" />
+            <div className="workbench-control-kicker">Resource Fabric / Agent Team</div>
+          </div>
+        </div>
+        <h1>Split the mission. Ship the build.</h1>
+        <p>Atomek is the Tytus control surface for OpenClaw, Hermes, local AI agents, shared folders, pods, local apps, files, outputs, and approval-gated handoffs around one durable mission folder.</p>
         <div className="workbench-control-goal-row">
           <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} aria-label="Mission goal" />
           <div className="workbench-control-hero-actions">

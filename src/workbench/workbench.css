@@ -1,17 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Permanent+Marker&display=swap');
 
 :root {
-  --workbench-bg: #1e1e1e;
-  --workbench-side: #181818;
-  --workbench-panel: #252526;
-  --workbench-panel-2: #1f1f1f;
-  --workbench-border: #2d2d30;
-  --workbench-border-strong: #3c3c3c;
-  --workbench-text: #cccccc;
-  --workbench-muted: #858585;
-  --workbench-blue: #007acc;
-  --workbench-blue-2: #3794ff;
-  --workbench-purple: #7c4dff;
-  --workbench-input: #3c3c3c;
+  --atomek-void: #0F1012;
+  --atomek-asphalt: #1C1D20;
+  --atomek-concrete: #3A3B3F;
+  --atomek-steel: #6B6B6B;
+  --atomek-chalk: #E5E0D2;
+  --atomek-bone: #F0EAD8;
+  --atomek-acid: #C4FF00;
+  --atomek-fission: #FF2D87;
+  --atomek-hazard: #FF6A1A;
+  --atomek-cobalt: #2438FF;
+  --atomek-font-display: 'Archivo Black', Impact, sans-serif;
+  --atomek-font-body: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --atomek-font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --workbench-bg: var(--atomek-void);
+  --workbench-side: #111214;
+  --workbench-panel: var(--atomek-asphalt);
+  --workbench-panel-2: #151619;
+  --workbench-border: #24262a;
+  --workbench-border-strong: var(--atomek-concrete);
+  --workbench-text: var(--atomek-bone);
+  --workbench-muted: #9b978a;
+  --workbench-blue: var(--atomek-acid);
+  --workbench-blue-2: var(--atomek-acid);
+  --workbench-purple: var(--atomek-acid);
+  --workbench-input: #151619;
 }
 
 .workbench-workbench {
@@ -2698,4 +2712,206 @@ button { font: inherit; }
   justify-content: flex-end;
   gap: 6px !important;
   flex-shrink: 0;
+}
+
+
+/* Atomek brand pass — bone on void, one acid accent, flat street-lab chrome. */
+.workbench-workbench {
+  font-family: var(--atomek-font-body);
+  background: var(--atomek-void);
+  color: var(--atomek-bone);
+}
+.workbench-activity-bar {
+  background: #0b0c0d;
+  border-right-color: rgba(240, 234, 216, 0.10);
+}
+.workbench-activity-brand {
+  width: 48px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(240, 234, 216, 0.08);
+}
+.workbench-activity-brand img,
+.workbench-brand-lockup img {
+  user-select: none;
+  pointer-events: none;
+  object-fit: contain;
+}
+.workbench-activity-button { color: rgba(240, 234, 216, 0.56); }
+.workbench-activity-button:hover,
+.workbench-activity-button.active { color: var(--atomek-bone); }
+.workbench-activity-button.active::before { background: var(--atomek-acid); width: 3px; }
+.workbench-sidebar,
+.workbench-secondary,
+.workbench-tabs,
+.workbench-secondary-tabs,
+.workbench-command-center,
+.workbench-breadcrumb {
+  background: var(--workbench-panel-2);
+  border-color: rgba(240, 234, 216, 0.10);
+}
+.workbench-tab.active,
+.workbench-file-row.active,
+.workbench-tree-row.active {
+  background: rgba(196, 255, 0, 0.10);
+  color: var(--atomek-bone);
+}
+.workbench-input,
+.workbench-control-goal-row textarea,
+.workbench-settings-label select,
+.workbench-settings-label input {
+  background: #0d0e10;
+  border-color: rgba(240, 234, 216, 0.16);
+  color: var(--atomek-bone);
+  border-radius: 4px;
+}
+.workbench-input:focus,
+.workbench-control-goal-row textarea:focus,
+.workbench-settings-label select:focus,
+.workbench-settings-label input:focus {
+  border-color: var(--atomek-acid);
+  box-shadow: 0 0 0 1px rgba(196, 255, 0, 0.15);
+}
+.workbench-button-primary,
+.workbench-button-blue {
+  background: var(--atomek-acid);
+  color: var(--atomek-void);
+  border-radius: 4px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.workbench-button-primary:hover,
+.workbench-button-blue:hover { filter: brightness(0.94); background: var(--atomek-acid); }
+.workbench-button-subtle {
+  background: rgba(240, 234, 216, 0.04);
+  color: var(--atomek-bone);
+  border-color: rgba(240, 234, 216, 0.14);
+  border-radius: 4px;
+}
+.workbench-button-subtle:hover {
+  background: rgba(196, 255, 0, 0.09);
+  border-color: rgba(196, 255, 0, 0.45);
+}
+.workbench-statusbar {
+  background: var(--atomek-acid);
+  color: var(--atomek-void);
+  font-family: var(--atomek-font-mono);
+  font-weight: 700;
+}
+.workbench-welcome { background: var(--atomek-void); color: var(--atomek-bone); }
+.workbench-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 22px);
+  margin-bottom: 16px;
+}
+.workbench-brand-wordmark {
+  display: block;
+  width: min(340px, 54vw);
+  max-height: 76px;
+  object-fit: contain;
+  object-position: left center;
+}
+.workbench-control-home {
+  background:
+    radial-gradient(circle at 86% 4%, rgba(196,255,0,0.10), transparent 30%),
+    var(--atomek-void);
+}
+.workbench-control-hero-main {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(196, 255, 0, 0.28);
+  background: rgba(15, 16, 18, 0.96);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(240, 234, 216, 0.05);
+}
+.workbench-control-hero-main::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -92px;
+  width: 230px;
+  height: 230px;
+  border: 1px solid rgba(196, 255, 0, 0.18);
+  border-radius: 999px;
+  pointer-events: none;
+}
+.workbench-control-kicker {
+  color: var(--atomek-acid);
+  font-family: var(--atomek-font-mono);
+  letter-spacing: 0.16em;
+}
+.workbench-control-hero-main h1,
+.workbench-welcome h1 {
+  font-family: var(--atomek-font-display);
+  text-transform: uppercase;
+  color: var(--atomek-bone);
+  letter-spacing: -0.04em;
+}
+.workbench-control-hero-main p { color: rgba(240, 234, 216, 0.72); }
+.workbench-team-preset-card,
+.workbench-control-card,
+.workbench-control-metric,
+.workbench-control-resource,
+.workbench-control-loop li,
+.workbench-control-preset,
+.workbench-fabric-node,
+.workbench-agent-brand-card {
+  border-color: rgba(240, 234, 216, 0.12);
+  background: rgba(240, 234, 216, 0.035);
+  border-radius: 6px;
+}
+.workbench-team-preset-card.active,
+.workbench-agent-brand-card.ready,
+.workbench-fabric-node.ready {
+  border-color: rgba(196, 255, 0, 0.55);
+  background: rgba(196, 255, 0, 0.075);
+  box-shadow: inset 0 0 0 1px rgba(196, 255, 0, 0.08);
+}
+.workbench-agent-brand-card::after { background: rgba(196, 255, 0, 0.12); }
+.workbench-agent-brand-card span,
+.workbench-fabric-node em,
+.workbench-team-preset-card span,
+.workbench-control-success { color: var(--atomek-acid); }
+.workbench-agent-brand-card.available-when-installed span,
+.workbench-agent-brand-card.not-allocated span,
+.workbench-agent-brand-card.needs-setup span,
+.workbench-fabric-node.needs-setup em,
+.workbench-fabric-node.optional em,
+.workbench-team-preset-card.partial span,
+.workbench-team-preset-card.needs-setup span { color: var(--atomek-hazard); }
+.workbench-agent-brand-card.missing span { color: var(--atomek-fission); }
+.workbench-fabric-node > span {
+  background: var(--atomek-acid);
+  color: var(--atomek-void);
+}
+.workbench-control-card header strong,
+.workbench-control-metric strong,
+.workbench-agent-brand-card strong,
+.workbench-agent-brand-card b,
+.workbench-fabric-node strong { color: var(--atomek-bone); }
+.workbench-control-card header span,
+.workbench-control-metric em,
+.workbench-agent-brand-card p,
+.workbench-fabric-node p,
+.workbench-control-loop span,
+.workbench-team-preset-card p,
+.workbench-team-preset-card small { color: rgba(240, 234, 216, 0.58); }
+.workbench-control-preset:hover {
+  border-color: rgba(196, 255, 0, 0.45);
+  background: rgba(196, 255, 0, 0.08);
+}
+.workbench-start-link,
+.workbench-control-recent button { color: var(--atomek-acid); }
+.workbench-secondary-tab.active,
+.workbench-panel-tabs span:first-child { border-bottom-color: var(--atomek-acid); color: var(--atomek-bone); }
+.workbench-chat-message.user { border-color: rgba(196, 255, 0, 0.30); }
+.workbench-chat-message-actions button.regen { color: var(--atomek-acid); border-color: rgba(196, 255, 0, 0.26); }
+@media (max-width: 720px) {
+  .workbench-brand-lockup { align-items: flex-start; }
+  .workbench-brand-lockup > img { width: 54px !important; height: 54px !important; }
+  .workbench-brand-wordmark { width: min(260px, 70vw); }
 }
