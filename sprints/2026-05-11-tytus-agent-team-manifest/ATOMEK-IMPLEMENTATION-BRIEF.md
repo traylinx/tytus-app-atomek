@@ -102,7 +102,7 @@ Each item is one of:
 
 - Claude/OpenCode: implement
 - Codex/pi/Kimi: review
-- OpenClaw/NemoClaw: independent critique when available
+- OpenClaw: independent critique when available
 - Output: patch proposal + test report
 
 ### Product Brainstorm + Build

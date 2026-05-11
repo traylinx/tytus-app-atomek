@@ -1,0 +1,45 @@
+
+Lope review: sprints/2026-05-11-atomek-final-control-tower/OPEN_CODE_REVIEW_DIFF.diff  (126632 chars)
+Validators: kimi, pi, claude
+Focus: Final validator pass after Ask pod dispatch. Blockers only: no hardcoded model I...
+Timeout: 180s per validator
+
+
+━━━ kimi ━━━
+[ERROR] kimi exited 1: 
+To resume this session: kimi -r b98212ac-f3fc-48e7-b498-8b5a0c745ae7
+
+
+━━━ pi ━━━
+
+
+**PASS**
+
+All six blockers are clean. No changes needed.
+
+**1. No hardcoded model IDs.** `runPodTask()` fetches `/v1/models` from the pod via `host.daemon.callPodEndpoint()` and extracts the live model id with `extractOpenAiModelId()` before sending any completion request. Every model id is runtime-discovered.
+
+**2. Host-bridge-only pod calls / no direct CORS fetches.** `runPodTask()` routes every pod request through `host.daemon.callPodEndpoint()`. The browser never talks to a pod URL directly.
+
+**3. Failure transcript saved.** On pod task failure, the error message and full lines array are written to `runs/` as a failed transcript, indexed in `RUNS.jsonl`, and surfaced in the Runs panel with the failed status. The failure is not silently swallowed.
+
+**4. No arbitrary shell.** The new `runPodTask()` path has no `host.local.runTool()`, no `exec`-equivalent, and no string-to-shell path. It only calls `host.daemon.callPodEndpoint()` for HTTP and `host.missions.write()` for file writes.
+
+**5. No user-facing nemoclaw.** `NemoClaw` / `nemoclaw` are replaced with `OpenClaw` in every user-facing label, preset summary, and breadcrumb. The internal pod type metadata is read but never shown verbatim in UI copy.
+
+**6. Mission protocol / team presets safe.** `pickTeamPresetId()` validates input against `TEAM_PRESET_DEFINITIONS` before use. Team assignments derive from live resource graph reads, not from model output. Mission folder writes use explicit file lists and `writeMissionFileToBrowserDirectory()` for safe nested-path handling. The `RUNS.jsonl` and `runs/` directories are created by tray before any run is dispatched.
+
+━━━ claude ━━━
+PASS.
+
+Walked the six blocker checks against the diff:
+
+- **No hardcoded model IDs** — `runPodTask` fetches `/v1/models` via `host.daemon.callPodEndpoint(podId, '/v1/models', { method: 'GET' })`, runs `extractOpenAiModelId(models)`, and throws if no id comes back. Nothing in the chat-completions body hardcodes a model alias.
+- **Host-bridge-only pod calls** — both pod requests go through `host.daemon.callPodEndpoint(podId, ...)`. No `fetch()` to a pod URL, no `10.42.42.1`, no public model endpoint.
+- **Failure transcript saved** — the catch path in `runPodTask` calls `upsertMissionRun({...status:'failed', exitCode:-1, summary: message, transcriptPath}, launchMission)`, `saveLocalJobOutput('… pod job failed', body)`, and `saveRunTranscriptToMission(..., body, -1, launchMission, transcriptPath)`. The transcript body includes pod id, error message, and the captured `lines` log.
+- **No arbitrary shell** — `runPodTask` only sends chat completions; pod text is captured as a transcript and (via `saveLocalJobOutput`) written as markdown. No `exec`/`spawn` from model output.
+- **No user-facing nemoclaw in product surfaces** — `resourceDisplayLabel` replaces `NemoClaw`/`nemoclaw` with `OpenClaw`, used by every visible call site (resource list rows, mission MD/JSON resource entries, "Selected … for mission" status, audit `resource.selected`, sort key). `resourceAgentFamily` keeps `nemoclaw` as an internal match term but never displays it. Spot-checked the activity bar, `MissionControlHome` brand/fabric grids, presets, and pod-task lines — all say OpenClaw/Hermes.
+- **Mission protocol / team presets safe** — every mission write (home create + `writeMissionPack`) emits the full set: `MISSION.md`, `MISSION.json`, `RESOURCES.md`, `TASKS.md`, `HANDOFF.md`, `INBOX.md`, `OUTBOX.md`, `AUDIT.jsonl`, `RUNS.jsonl`, `runs/`, `outputs/`, `proposals/`, `approvals/`, `NEXT.md`. Browser-path writes use the new `writeMissionFileToBrowserDirectory` so nested paths like `runs/README.md` don't collapse, and the tray side now `create_dir_all`s all four directories. Team presets are derived from `graph.resources` with `isResourceUsable` gating — missing roles surface as `needs-setup` rather than fake-available.
+
+Non-blocker worth noting (not part of Ask-pod scope, won't gate this pass): `tytus-cli/docs/guides/INDEX.md` still has the row "Subscription tiers, nemoclaw vs hermes, available models" — pre-existing, outside the diff's modified lines. Worth a follow-up sweep when the tytus-cli `plans-and-agents.md` page is next touched.
+

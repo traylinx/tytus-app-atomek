@@ -44,13 +44,13 @@ Pods are remote/private agent runtimes connected through the Tytus tunnel and tr
 
 Current live allocation on Sebastian's machine:
 
-- pod `01`: `nemoclaw` / OpenClaw-style agent, ready
-- pod `02`: `nemoclaw` / OpenClaw-style agent, ready
+- pod `01`: OpenClaw agent, ready
+- pod `02`: OpenClaw agent, ready
 - pod `04`: included AIL gateway, ready
 
 Supported agent families in the platform:
 
-- OpenClaw / NemoClaw: lightweight autonomous agent runtime, chat/channel integrations, web/reasoning/tool workflows.
+- OpenClaw: lightweight autonomous agent runtime, chat/channel integrations, web/reasoning/tool workflows.
 - Hermes: heavier Nous/Hermes-style gateway; supported by Tytus, costs 2 units, but not currently allocated in this live snapshot.
 - AIL gateway: model gateway route for chat/completions and app AI calls.
 

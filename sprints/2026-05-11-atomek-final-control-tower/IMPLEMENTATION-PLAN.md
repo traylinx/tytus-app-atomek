@@ -1,4 +1,4 @@
-# Implementation Plan — Atomek Final Control Tower
+# Implementation Plan — Atomek Resource Fabric
 
 ## Guardrail
 
@@ -14,7 +14,7 @@ If a feature does not improve that chain, defer it.
 
 This sprint is split into two layers:
 
-1. **Core Vertical** — the minimum final product that proves Atomek is useful as Tytus Control Tower.
+1. **Core Vertical** — the minimum final product that proves Atomek is useful as Tytus Resource Fabric cockpit.
 2. **Expansion** — app skills, channels, deeper polish after the core works.
 
 Do not spend another week polishing local-only UI before proving pod/local teamwork.
@@ -30,7 +30,7 @@ Repo: `tytus-app-atomek`
 Tasks:
 
 1. Make Team Mission the default landing, not sidebar/tool clutter.
-2. Resolve naming drift: use `Tytus Control Tower` for product, `Team Mission` for create/resume screen, `Mission Board` for active mission.
+2. Resolve naming drift: use `Tytus Resource Fabric cockpit` for product, `Team Mission` for create/resume screen, `Mission Board` for active mission.
 3. First visible CTA: `Start team mission`.
 4. Landing fields:
    - mission goal
@@ -43,7 +43,7 @@ Tasks:
 Acceptance:
 
 - User opens Atomek and understands what to do in 5 seconds.
-- No duplicate “Computer / Agents / Extensions” primary surfaces.
+- No duplicate “Agent Team / App Skills” primary surfaces.
 - Chat is labeled/positioned as mission copilot, not separate product.
 - Layout works at screenshot-sized windows.
 
@@ -179,9 +179,9 @@ Tasks:
 
 Acceptance:
 
-- Atomek can assign one task to local Claude/OpenCode and one task to pod OpenClaw/NemoClaw.
+- Atomek can assign one task to local Claude/OpenCode and one task to pod OpenClaw.
 - Both produce visible run records and transcripts in the same Mission Board.
-- This is the first “real Tytus Control Tower” proof.
+- This is the first “real Tytus Resource Fabric cockpit” proof.
 
 ## Phase 5 — Output/proposal/approval inbox
 

@@ -8,7 +8,7 @@ User says: “Fix this repo, but show me the patch before writing.”
 2. Atomek recommends:
    - implementer: Claude or OpenCode
    - reviewer: Codex or pi
-   - optional remote critique: OpenClaw/NemoClaw pod
+   - optional remote critique: OpenClaw pod
 3. Atomek writes mission pack.
 4. Implementer writes findings + patch proposal to `proposals/`.
 5. Reviewer writes review to `runs/`.

@@ -1,7 +1,7 @@
 {
   "id": "2026-05-11-atomek-final-control-tower",
-  "title": "Atomek Final Control Tower",
-  "status": "ready-for-core-vertical-implementation",
+  "title": "Atomek Resource Fabric",
+  "status": "core-vertical-implemented-validator-passed",
   "createdAt": "2026-05-11",
   "repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
   "coupledRepos": [
@@ -30,18 +30,17 @@
     "no hardcoded model IDs",
     "no fake integrations",
     "no hidden chat-only state",
-    "approval before writes/costs/external messages"
+    "approval before writes/costs/external messages",
+    "OpenClaw and Hermes are first-class user-facing brands; normalize legacy/internal pod ids before display.",
+    "Atomek product center is the Tytus Resource Fabric: local computer, shared folders, Tytus pods, local agents, app skills, and approvals around mission folders."
   ],
   "review": {
-    "lope": "completed-partial",
-    "validators": [
-      "claude",
-      "pi"
-    ],
-    "failed": [
-      "kimi"
-    ],
-    "summaryFile": "LOPE-REVIEW-SUMMARY.md"
+    "opencode": "PASS",
+    "lope": "PASS from claude and pi; kimi runner exited 1; stale public branding note fixed",
+    "files": [
+      "OPEN_CODE_REVIEW.md",
+      "LOPE-FINAL-REVIEW.raw.txt"
+    ]
   },
   "coreVerticalPhases": [
     "Team Mission front door",
@@ -58,5 +57,31 @@
     "Channels for status/approval",
     "Mission Copilot cleanup",
     "Deep visual polish"
-  ]
+  ],
+  "files": [
+    "BRAND-INTEGRATION-REVIEW.md",
+    "RESOURCE-FABRIC-REVIEW.md"
+  ],
+  "implemented": [
+    "Resource Fabric / Agent Team UX",
+    "OpenClaw/Hermes brand normalization",
+    "Team presets from live resource graph",
+    "Mission protocol folders and files",
+    "Nested browser mission writer",
+    "Tray mission directory creation",
+    "Tytus manuals and os-docs regeneration",
+    "Ask pod dispatch with live pod model discovery",
+    "Public docs/MCP branding scrub to OpenClaw/Hermes",
+    "Dynamic AIL model guidance in CLI/MCP docs",
+    "Public CLI --agent openclaw support with legacy backend alias"
+  ],
+  "remainingExpansion": [
+    "streaming pod output instead of non-streaming pod completion",
+    "approval inbox records UI",
+    "rich app-skill drivers",
+    "channels for approvals/status",
+    "deep visual polish"
+  ],
+  "distHash": "24725eb4ccec2d27719c1a687576ba9de07e637bf6f4a0ce1b4736c58bbb71ef",
+  "releaseTarget": "v0.4.19"
 }

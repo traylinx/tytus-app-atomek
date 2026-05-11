@@ -1,4 +1,4 @@
-# Atomek Final Control Tower Sprint
+# Atomek Resource Fabric Sprint
 
 Status: READY FOR CORE VERTICAL IMPLEMENTATION  
 Date: 2026-05-11  
@@ -12,7 +12,7 @@ Current Atomek has many useful primitives, but the product still feels wrong bec
 Final Atomek must be:
 
 ```text
-Tytus Control Tower for autonomous agent teams
+Tytus Resource Fabric cockpit for autonomous agent teams
 ```
 
 Not:

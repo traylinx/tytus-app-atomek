@@ -1,4 +1,4 @@
-# Handoff Prompt — Continue Atomek Final Control Tower Sprint
+# Handoff Prompt — Continue Atomek Resource Fabric Sprint
 
 Work in:
 
@@ -25,7 +25,7 @@ Current repo head when sprint was created:
 
 Goal:
 
-Rebuild Atomek into the Tytus Control Tower for autonomous agent teams. Do not continue the current noisy IDE/options shape.
+Rebuild Atomek into the Tytus Resource Fabric cockpit for autonomous agent teams. Do not continue the current noisy IDE/options shape.
 
 Immediate implementation:
 

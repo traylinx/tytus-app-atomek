@@ -21,7 +21,7 @@ Snapshot source: local Tytus tray APIs on `http://127.0.0.1:4242`, repo inspecti
 | workspace | 1 | 1 | Tytus Home |
 | local-cli | 10 | 9 | Goose missing setup |
 | shared-folder | 1 | 1 | `/Users/sebastian/MAKAKOO/data/shared/` |
-| pod-agent | 2 | 2 | pod 01 + pod 02 OpenClaw/NemoClaw style |
+| pod-agent | 2 | 2 | pod 01 + pod 02 OpenClaw style |
 | ail-route | 1 | 1 | pod 04 AIL gateway |
 | app-skill | 6 | 5 | Blender MCP needs setup |
 
@@ -44,8 +44,8 @@ Snapshot source: local Tytus tray APIs on `http://127.0.0.1:4242`, repo inspecti
 
 | Resource id | Pod | Type | Status | Notes |
 |---|---|---|---|---|
-| `pod-agent.01` | 01 | `nemoclaw` | ready | OpenClaw-style pod agent, 1 unit |
-| `pod-agent.02` | 02 | `nemoclaw` | ready | OpenClaw-style pod agent, 1 unit |
+| `pod-agent.01` | 01 | OpenClaw | ready | OpenClaw pod agent, 1 unit |
+| `pod-agent.02` | 02 | OpenClaw | ready | OpenClaw pod agent, 1 unit |
 | `ail-route.04` | 04 | AIL gateway | ready | included AIL route, no agent unit |
 
 Hermes is supported by Tytus as a 2-unit agent family, but not currently allocated in this live snapshot. Atomek should display Hermes as installable/allocatable only when catalog/state says it is available, not as a live worker.

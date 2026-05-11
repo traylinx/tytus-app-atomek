@@ -1,8 +1,8 @@
 # Atomek
 
-Atomek is the standalone Tytus app that provides the TytusOS workbench: local files, Monaco editing, markdown preview, chat, artifacts, AIL routing, Computer / Agents, and agentic app skills.
+Atomek is the standalone Tytus app that provides the Tytus Resource Fabric cockpit: mission folders, shared folders, OpenClaw/Hermes pods, local AI CLIs, local files, Monaco editing, chat, artifacts, app skills, and approval-gated outputs.
 
-Current published app release: **v0.4.11**.
+Current published app release: **v0.4.19**.
 
 ## What it does
 
@@ -12,7 +12,11 @@ Current published app release: **v0.4.11**.
 - Shows markdown preview and rich chat/artifact output.
 - Lets chat attach active file/open editor context.
 - Routes AI through the Tytus host AI bridge and global AIL settings.
-- Discovers local tools and app skills through the Tytus host bridge.
+- Discovers OpenClaw/Hermes pods, shared folders, local tools, AIL routes, and app skills through the Tytus host bridge.
+- Creates mission folders as the shared context layer between local agents, Tytus pods, and local apps.
+- Generates team presets (Repo Repair, OpenClaw + Local, Creative Production, Research Watch) from the live resource graph.
+- Writes mission run/proposal/output/approval folders so every agent handoff is visible and resumable.
+- Sends selected tasks to OpenAI-compatible pod agents through `host.daemon.callPodEndpoint()` with live model discovery, not hardcoded model IDs.
 - Converts generated edits into artifacts or preview diffs before files are saved.
 
 ## Boundary
@@ -26,6 +30,7 @@ Hard rules:
 - Do not hardcode provider model IDs in Atomek. Use host/global AIL model discovery.
 - Do not direct-fetch remote pod/model endpoints from the browser. Use the Tytus host bridge.
 - Do not turn Atomek into a second local-agent runtime. Control existing tray/local resources.
+- Keep OpenClaw and Hermes as first-class user-facing brands; do not leak internal pod identifiers into UI copy.
 - Do not write AI edits blindly. Return artifacts or preview patches first.
 - Do not modify JULI3TA internals while fixing Atomek.
 
@@ -45,13 +50,13 @@ npm run release:check
 `tytus-app.json` points to the tagged CDN build:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.11/dist/index.js
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.19/dist/index.js
 ```
 
 The catalog should point to the matching immutable manifest tag:
 
 ```text
-https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.11/tytus-app.json
+https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.19/tytus-app.json
 ```
 
 ## Release loop

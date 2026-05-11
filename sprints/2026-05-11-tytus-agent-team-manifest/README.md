@@ -33,7 +33,7 @@ Captured from local Tytus tray on `http://127.0.0.1:4242` on 2026-05-11.
 
 - Account connected: yes.
 - Tunnel active: yes.
-- Allocated pod agents: `pod 01` and `pod 02`, both `nemoclaw` / OpenClaw-style, ready.
+- Allocated pod agents: `pod 01` and `pod 02`, both OpenClaw, ready.
 - Included AIL route: `pod 04`, endpoint `http://10.42.42.1:18080`, ready.
 - Units: `2 / 4` used.
 - Local agents/tools discovered: Terminal, pi, OpenCode, Codex, Claude, Gemini, Qwen, Kimi, Aider ready; Goose missing setup.

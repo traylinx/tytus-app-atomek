@@ -1,52 +1,90 @@
 # Status
 
 - Created: 2026-05-11
-- Phase: planning complete, Lope-reviewed, implementation not started
+- Updated: 2026-05-11
+- Phase: core vertical implemented and validator-passed
+- Release target: Atomek `v0.4.19`
 - Repo state when created: clean on `main` at `6333429`
 - Previous pack: `2026-05-11-tytus-agent-team-manifest`
 
 ## Current conclusion
 
-Atomek has enough backend primitives to become useful, but needs product/UX consolidation around missions and teams.
+Atomek now has a coherent Resource Fabric core vertical instead of a noisy pile of tiny agent/editor controls.
 
-## No blocking questions
+The implemented product center is:
 
-Use conservative defaults:
+```text
+mission folder -> selected team -> task graph -> run transcript -> proposal/output -> approval -> handoff
+```
 
-- mission-first UX
-- resource graph truth only
-- pod dispatch through same-origin tray/host bridge
-- local agents are role/task actions, not raw tool cards
-- app skills only actionable when configured
-- approval-first writes/messages/costs
+## Implemented
 
-## Next executable action
+- Reframed user-facing Atomek copy around **Tytus Resource Fabric / Agent Team**.
+- Made **OpenClaw** and **Hermes** first-class visible brands.
+- Normalized legacy/internal pod type metadata before display.
+- Added home-screen Resource Fabric flow: local computer ↔ shared folders ↔ pods ↔ apps.
+- Added live-resource team presets:
+  - Repo Repair
+  - OpenClaw + Local
+  - Creative Production
+  - Research Watch
+- Added selected-team role mapping: planner, implementer, reviewer, Team Desk, app tool.
+- Added **Ask pod** task dispatch through `host.daemon.callPodEndpoint()` with live `/v1/models` discovery and mission transcript capture.
+- Hardened mission protocol:
+  - `MISSION.md`
+  - `MISSION.json`
+  - `RESOURCES.md`
+  - `TASKS.md`
+  - `HANDOFF.md`
+  - `INBOX.md`
+  - `OUTBOX.md`
+  - `AUDIT.jsonl`
+  - `RUNS.jsonl`
+  - `runs/`
+  - `outputs/`
+  - `proposals/`
+  - `approvals/`
+- Added browser fallback writer for nested mission paths.
+- Updated tray mission creation to create `runs`, `outputs`, `proposals`, and `approvals` directories.
+- Replaced stale Control Tower / Mission Control wording in current app docs and Tytus manuals.
+- Regenerated `tytus-cli/os-docs.md` from updated manuals.
+- Scrubbed public docs/MCP help so **OpenClaw** is the public name and AIL model lists are discovered dynamically, not provider-hardcoded.
 
-Implement Phase 0 and Phase 1:
+## Gates
 
-1. Three-mode IA: Team Mission / Mission Board / Resource Setup.
-2. Complete mission folder protocol and append-safe audit/run files.
-3. Remove duplicate noisy Computer/Agents/Extensions surfaces.
+- Atomek `npm run typecheck` — PASS
+- Atomek `npm run build` — PASS
+- Atomek `npm run release:check` — PASS
+- TytusOS `npm run typecheck` — PASS
+- TytusOS `npm run build` — PASS with existing CSS/chunk warnings only
+- TytusCLI `cargo fmt` — PASS
+- TytusCLI `cargo check -p atomek-cli` — PASS
+- TytusCLI `cargo check -p tytus-mcp` — PASS
+- TytusCLI `cargo check -p tytus-tray` — PASS
+- TytusCLI `scripts/sync-tytus-os-dist.sh --sync && --check` — PASS (`24725eb4ccec2d27719c1a687576ba9de07e637bf6f4a0ce1b4736c58bbb71ef`)
+- OpenCode review — PASS
+- Lope final review — Claude PASS, pi PASS, Kimi runner exited 1
 
-## Must not do
+## Non-blockers fixed
 
-- Do not keep adding small buttons to current clutter.
-- Do not hardcode model IDs.
+- Claude noted possible AIL false-positive matching on strings like `available`; fixed with word-boundary AIL detection.
+- Lope noted a stale public `nemoclaw vs hermes` guide row; fixed the broader public-doc/MCP wording sweep.
+
+## Remaining expansion work
+
+Not blocking this core vertical:
+
+1. Streaming pod output instead of non-streaming pod completion.
+2. Approval Inbox UI backed by proposal decision records.
+3. Rich app-skill drivers for Blender/Remotion/Hypermotion beyond skill attach/setup.
+4. Channel approvals/status broadcasts.
+5. Deeper responsive/visual polish after live use.
+
+## Must not regress
+
+- Do not hardcode AIL model IDs.
+- Do not direct-fetch pod/model endpoints from app browser code.
+- Do not run arbitrary shell from model text.
+- Do not leak `nemoclaw`/`NemoClaw` user-facing; display **OpenClaw**.
 - Do not fake Hermes/Blender/Hypermotion availability.
-- Do not make Atomek a clone of VS Code, Claude, OpenCode, or Antigravity.
-
-
-## Lope review outcome
-
-Accepted corrections:
-
-- Core vertical first; expansion second.
-- Mission Board and approval skeleton earlier.
-- Pod dispatch moved into core proof.
-- Shared folder folded into Team Mission / mission protocol.
-- Chat cleanup folded into IA and Mission Copilot work.
-- Channels explicitly deferred to expansion, not forgotten.
-
-## Revised next executable action
-
-Implement Phase 0a, 0b, and Phase 1 in one coherent branch. Stop before pod/app dispatch unless these gates pass.
+- Do not turn Atomek into a VS Code / Claude / OpenCode clone.

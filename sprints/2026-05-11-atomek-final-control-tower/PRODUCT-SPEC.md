@@ -2,12 +2,12 @@
 
 ## Positioning
 
-Atomek is the Tytus Control Tower for autonomous work.
+Atomek is the Tytus Resource Fabric cockpit for autonomous work.
 
 It coordinates:
 
 - local AI CLIs already installed on the computer
-- Tytus pod agents like OpenClaw/NemoClaw and Hermes
+- Tytus pod agents like OpenClaw and Hermes
 - AIL model routes
 - shared folders / mission folders
 - app skills such as JULI3TA, Blender, Remotion/Hypermotion, API Tester

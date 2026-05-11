@@ -4,7 +4,7 @@
 
 | Feature | Exists now | Current problem | Final decision |
 |---|---|---|---|
-| Product identity | Partial | UI still feels like noisy IDE options | Reframe as Control Tower for agent teams |
+| Product identity | Partial | UI still feels like noisy IDE options | Reframe as Resource Fabric for agent teams |
 | Team Mission start | Partial | Mission creation exists but not the single obvious path | Make Team Mission the default landing flow |
 | Mission folder protocol | Partial | Writes core files but missing explicit outputs/proposals/approvals directories in all paths | Mission folder is source of truth; always create full protocol |
 | Resource graph | Yes | Shown as raw-ish cards; not converted into team recommendations | Use it to recommend team, show who can see what, hide debug details |
@@ -18,7 +18,7 @@
 | Channels | Platform exists | Atomek does not yet make Telegram/Slack/etc. part of missions | Add channel approval/status surface after core run flow |
 | Files/editor | Yes | Good enough as tool, but over-dominates product | Keep editor for context/preview; not default product center |
 | Project index/Cortex | Yes | Useful but hidden in chat controls | Use for mission context recommendations and search |
-| Semantic embeddings | Partial | LocalStorage vector store and embedding discovery exist | Keep optional; no blocker for final Control Tower MVP |
+| Semantic embeddings | Partial | LocalStorage vector store and embedding discovery exist | Keep optional; no blocker for final Resource Fabric MVP |
 | Artifacts/outputs | Yes | Outputs exist, but not tied strongly to mission outputs/proposals | Mission output cards must write to `outputs/` and `proposals/` |
 | Edit preview | Yes | Strong primitive; must become formal approval gate | All file writes go through proposals + preview/apply approval |
 | Run history | Partial | Local run history exists; pod/app/channel runs missing | Normalize every run under one `RunRecord` model |
@@ -34,8 +34,8 @@
 Current evidence:
 
 - Package description says “Monaco workspace with intelligent AIL chat...”
-- Newer UI copy says “Tytus Control Tower” and “Coordinate missions, not tabs.”
-- Activity bar still exposes IDE-ish surfaces: Explorer, Search, Source, Control Tower, Extensions, Chat, Files, Settings.
+- Newer UI copy says “Tytus Resource Fabric cockpit” and “Coordinate missions, not tabs.”
+- Activity bar still exposes IDE-ish surfaces: Explorer, Search, Source, Resource Fabric, App Skills, Chat, Files, Settings.
 
 Problem:
 
@@ -54,7 +54,7 @@ Current evidence:
 
 Problem:
 
-This is close, but still embedded inside a larger IDE frame and duplicated with Control Tower side panel.
+This is close, but still embedded inside a larger IDE frame and duplicated with Resource Fabric side panel.
 
 Final:
 
@@ -123,7 +123,7 @@ Local agents are assigned roles inside a task graph.
 
 Current evidence:
 
-- Live `/api/state` reports two ready `nemoclaw` pods and one AIL route.
+- Live `/api/state` reports two ready OpenClaw pods and one AIL route.
 - Resource graph includes `pod-agent` resources.
 
 Problem:

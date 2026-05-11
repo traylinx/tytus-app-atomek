@@ -1,8 +1,8 @@
 {
   "name": "tytus-app-workbench",
-  "version": "0.4.18",
+  "version": "0.4.19",
   "type": "module",
-  "description": "Monaco workspace with intelligent AIL chat, dynamic file context, project indexing, semantic retrieval, artifacts, markdown preview, and AI edit previews.",
+  "description": "Tytus Resource Fabric cockpit for mission folders, OpenClaw/Hermes pods, local agents, shared files, app skills, chat, artifacts, and approval-gated outputs.",
   "license": "MIT",
   "files": [
     "dist",

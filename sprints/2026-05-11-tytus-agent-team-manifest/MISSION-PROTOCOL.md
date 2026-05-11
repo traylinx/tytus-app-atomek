@@ -74,7 +74,7 @@ Approval records live in `approvals/` and are summarized in `AUDIT.jsonl`.
 | Type | Example | Output |
 |---|---|---|
 | local-agent | Claude/OpenCode/Codex/pi/Kimi run | transcript + proposals |
-| pod-agent | OpenClaw/NemoClaw/Hermes task | transcript + pod artifacts |
+| pod-agent | OpenClaw/Hermes task | transcript + pod artifacts |
 | app-skill | JULI3TA, Blender, Remotion, API Tester | artifact paths + preview |
 | channel | Telegram/Slack approval/status | approved message record |
 | human | Sebastian edits/approves | decision + rationale |
