@@ -47,6 +47,7 @@ import type { WorkspaceEditFileCandidate } from '../edits';
 import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
 import { addManualCheckCommand, addManualCheckResult, buildManualCheckFollowupPrompt, createManualCheckSession, latestManualCheckStatus } from '../checks/manualChecks';
 import { AtomekBrandMark, AtomekWordmark } from '../brand/AtomekBrand';
+import { ATOMEK_EMBEDDED_DOCS, type AtomekEmbeddedDoc } from '../docs/embeddedDocs';
 import type { ManualCheckSession, ManualCheckStatus } from '../checks/manualChecks';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
@@ -1028,6 +1029,24 @@ export function WorkbenchShell({ host }: Props) {
     setCursor({ lineNumber: lineNumber ?? 1, column: 1 });
   }, []);
 
+  const openEmbeddedDoc = useCallback((doc: AtomekEmbeddedDoc) => {
+    const file: WorkbenchFile = {
+      id: `atomek-doc:${doc.id}`,
+      name: doc.fileName,
+      path: `Atomek Docs/${doc.fileName}`,
+      language: 'markdown',
+      content: doc.body,
+      dirty: false,
+      source: 'sample',
+    };
+    setFiles((current) => mergeFiles(current, [file]));
+    openWorkbenchFile(file);
+    setSecondaryTab('chat');
+    setSecondaryVisible(true);
+    setMarkdownPreviewVisible(true);
+    setStatus(`Opened Atomek guide: ${doc.title}`);
+  }, [openWorkbenchFile]);
+
   const revealContextAttachment = useCallback((attachment: ChatContextAttachment) => {
     if (!attachment.fileId) return;
     const target = files.find((file) => file.id === attachment.fileId);
@@ -1735,7 +1754,7 @@ export function WorkbenchShell({ host }: Props) {
                 onClose={closeSettingsTab}
               />
             ) : showWelcome ? (
-              <MissionControlHome host={host} openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} openControlTower={() => { setActivity('computer'); setPrimaryVisible(true); }} openChat={() => { setSecondaryTab('chat'); setSecondaryVisible(true); }} />
+              <MissionControlHome host={host} openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} openControlTower={() => { setActivity('computer'); setPrimaryVisible(true); }} openChat={() => { setSecondaryTab('chat'); setSecondaryVisible(true); }} openEmbeddedDoc={openEmbeddedDoc} />
             ) : (
               <div className="workbench-no-editor">
                 <FileSearch size={34} />
@@ -2168,6 +2187,7 @@ function MissionControlHome({
   setStatus,
   openControlTower,
   openChat,
+  openEmbeddedDoc,
 }: {
   host: HostClient;
   openFile: () => void;
@@ -2178,6 +2198,7 @@ function MissionControlHome({
   setStatus: (status: string) => void;
   openControlTower: () => void;
   openChat: () => void;
+  openEmbeddedDoc: (doc: AtomekEmbeddedDoc) => void;
 }) {
   const [goal, setGoal] = useState('Coordinate a Tytus mission across pods, local agents, shared folders, and app skills.');
   const [graph, setGraph] = useState<TytusResourceGraph | null>(null);
@@ -2357,6 +2378,19 @@ function MissionControlHome({
                 <b>{item.value}</b>
                 <p>{item.detail}</p>
               </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="workbench-control-card wide">
+          <header><strong>Docs & Skills</strong><span>open a guide as a markdown tab, then ask chat about it</span></header>
+          <div className="workbench-doc-grid">
+            {ATOMEK_EMBEDDED_DOCS.map((doc) => (
+              <button key={doc.id} className="workbench-doc-card" onClick={() => openEmbeddedDoc(doc)} title={doc.summary}>
+                <strong>{doc.title}</strong>
+                <p>{doc.summary}</p>
+                <small>{doc.tags.join(' · ')}</small>
+              </button>
             ))}
           </div>
         </article>

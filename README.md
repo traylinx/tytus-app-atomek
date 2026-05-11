@@ -1,8 +1,8 @@
 # Atomek
 
-Atomek is the standalone Tytus app that provides the Tytus Resource Fabric cockpit: mission folders, shared folders, OpenClaw/Hermes pods, local AI CLIs, local files, Monaco editing, chat, artifacts, app skills, and approval-gated outputs.
+Atomek is the standalone Tytus app that provides the Tytus Resource Fabric cockpit: mission folders, shared folders, OpenClaw/Hermes pods, local AI CLIs, local files, Monaco editing, chat, artifacts, embedded docs/skills, app skills, and approval-gated outputs.
 
-Current published app release: **v0.4.20**.
+Current published app release: **v0.4.21**.
 
 ## What it does
 
@@ -59,13 +59,13 @@ npm run release:check
 `tytus-app.json` points to the tagged CDN build:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.20/dist/index.js
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.21/dist/index.js
 ```
 
 The catalog should point to the matching immutable manifest tag:
 
 ```text
-https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.20/tytus-app.json
+https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.21/tytus-app.json
 ```
 
 ## Release loop

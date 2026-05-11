@@ -2,10 +2,10 @@
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
   "id": "atomek",
   "name": "Atomek",
-  "version": "0.4.20",
+  "version": "0.4.21",
   "icon": "atomek:mark",
   "category": "Productivity",
-  "description": "Atomek \u2014 branded Tytus Resource Fabric cockpit for OpenClaw/Hermes pods, local agents, shared folders, app skills, files, chat, artifacts, and approval-gated outputs.",
+  "description": "Atomek \u2014 branded Tytus Resource Fabric cockpit with embedded docs/skills for OpenClaw, Hermes, shared folders, local agents, app skills, files, chat, artifacts, and approval-gated outputs.",
   "window": {
     "defaultSize": {
       "width": 1200,
@@ -28,7 +28,7 @@
     "ai.artifacts"
   ],
   "entry": {
-    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.20/dist/index.js"
+    "url": "https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.21/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [
@@ -113,6 +113,58 @@
           "opencode",
           "pi",
           "kimi"
+        ]
+      },
+      {
+        "id": "atomek.docs-resource-fabric",
+        "title": "Explain Tytus Resource Fabric",
+        "description": "Explain how local computer, pods, shared folders, OpenClaw/Hermes, local agents, app skills, channels, and AIL routes work together.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.docs-resource-fabric.md",
+        "triggers": [
+          "resource fabric",
+          "tytus",
+          "mission",
+          "orchestration"
+        ]
+      },
+      {
+        "id": "atomek.docs-openclaw-hermes",
+        "title": "Explain OpenClaw and Hermes",
+        "description": "Explain how OpenClaw, Hermes, and local agents cooperate through missions and shared folders.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.docs-openclaw-hermes.md",
+        "triggers": [
+          "openclaw",
+          "hermes",
+          "agents",
+          "pods"
+        ]
+      },
+      {
+        "id": "atomek.docs-shared-folders",
+        "title": "Explain shared folders",
+        "description": "Explain shared folders, mission folders, pod inbox/outbox, Garage bindings, and file handoff rules.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.docs-shared-folders.md",
+        "triggers": [
+          "shared folders",
+          "mission folder",
+          "handoff",
+          "files"
+        ]
+      },
+      {
+        "id": "atomek.docs-use-cases",
+        "title": "Explain Tytus use cases",
+        "description": "Explain practical Tytus agent-team workflows for repo repair, documents, creative production, app automation, and research.",
+        "driver": "host-api",
+        "skillUrl": "skills/atomek.docs-use-cases.md",
+        "triggers": [
+          "use cases",
+          "workflow",
+          "repo repair",
+          "creative production"
         ]
       }
     ]
