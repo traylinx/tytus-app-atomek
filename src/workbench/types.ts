@@ -23,11 +23,17 @@ export type WorkbenchLanguage =
   | 'csv'
   | 'text';
 
+export type BrowserHandlePermissionMode = 'read' | 'readwrite';
+
+export type BrowserPermissionState = 'granted' | 'denied' | 'prompt';
+
 export type BrowserFileHandleLike = {
   kind?: 'file';
   name: string;
   getFile: () => Promise<File>;
   createWritable?: () => Promise<{ write: (data: string | Blob) => Promise<void>; close: () => Promise<void> }>;
+  queryPermission?: (descriptor?: { mode?: BrowserHandlePermissionMode }) => Promise<BrowserPermissionState>;
+  requestPermission?: (descriptor?: { mode?: BrowserHandlePermissionMode }) => Promise<BrowserPermissionState>;
 };
 
 export type BrowserDirectoryHandleLike = {
@@ -36,6 +42,8 @@ export type BrowserDirectoryHandleLike = {
   values: () => AsyncIterable<BrowserFileHandleLike | BrowserDirectoryHandleLike>;
   getFileHandle?: (name: string, opts?: { create?: boolean }) => Promise<BrowserFileHandleLike>;
   getDirectoryHandle?: (name: string, opts?: { create?: boolean }) => Promise<BrowserDirectoryHandleLike>;
+  queryPermission?: (descriptor?: { mode?: BrowserHandlePermissionMode }) => Promise<BrowserPermissionState>;
+  requestPermission?: (descriptor?: { mode?: BrowserHandlePermissionMode }) => Promise<BrowserPermissionState>;
 };
 
 export type WorkbenchFile = {

@@ -1,5 +1,5 @@
 import { languageForPath, isProbablyTextFile } from './language';
-import type { BrowserDirectoryHandleLike, BrowserFileHandleLike, WorkbenchFile, WorkbenchFolder } from './types';
+import type { BrowserDirectoryHandleLike, BrowserFileHandleLike, BrowserHandlePermissionMode, WorkbenchFile, WorkbenchFolder } from './types';
 
 type BrowserWindow = Window & {
   showOpenFilePicker?: (options?: unknown) => Promise<BrowserFileHandleLike[]>;
@@ -33,6 +33,28 @@ export async function openFolder(): Promise<WorkbenchFolder> {
   const files: WorkbenchFile[] = [];
   await collectDirectoryFiles(handle, handle.name, files, 0, 320);
   return { name: handle.name, handle, files: sortWorkbenchFiles(files) };
+}
+
+export async function filesFromHandles(handles: BrowserFileHandleLike[]): Promise<WorkbenchFile[]> {
+  const files = await Promise.all(handles.map((handle) => fileFromHandle(handle, handle.name, 'local-file')));
+  return sortWorkbenchFiles(files.filter(Boolean) as WorkbenchFile[]);
+}
+
+export async function folderFromHandle(handle: BrowserDirectoryHandleLike): Promise<WorkbenchFolder> {
+  const files: WorkbenchFile[] = [];
+  await collectDirectoryFiles(handle, handle.name, files, 0, 320);
+  return { name: handle.name, handle, files: sortWorkbenchFiles(files) };
+}
+
+export async function ensureHandlePermission(handle: BrowserFileHandleLike | BrowserDirectoryHandleLike, mode: BrowserHandlePermissionMode = 'readwrite'): Promise<boolean> {
+  try {
+    const query = await handle.queryPermission?.({ mode });
+    if (query === 'granted') return true;
+    const requested = await handle.requestPermission?.({ mode });
+    return requested === 'granted' || (!handle.queryPermission && !handle.requestPermission);
+  } catch {
+    return false;
+  }
 }
 
 function getFileSystemAccessHost(): BrowserWindow | null {

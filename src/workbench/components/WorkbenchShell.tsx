@@ -30,10 +30,10 @@ import {
   UserCircle,
   X,
 } from 'lucide-react';
-import { hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
+import { ensureHandlePermission, filesFromHandles, folderFromHandle, hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, BrowserDirectoryHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
+import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
 import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
@@ -48,6 +48,7 @@ import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embedding
 import { addManualCheckCommand, addManualCheckResult, buildManualCheckFollowupPrompt, createManualCheckSession, latestManualCheckStatus } from '../checks/manualChecks';
 import { AtomekBrandMark, AtomekWordmark } from '../brand/AtomekBrand';
 import { ATOMEK_EMBEDDED_DOCS, type AtomekEmbeddedDoc } from '../docs/embeddedDocs';
+import { getPersistedHandle, savePersistedHandle } from '../persistedHandles';
 import type { ManualCheckSession, ManualCheckStatus } from '../checks/manualChecks';
 
 const WorkbenchMonacoEditor = lazy(() => import('../editor/WorkbenchMonacoEditor').then((module) => ({ default: module.WorkbenchMonacoEditor })));
@@ -64,6 +65,7 @@ const welcomeFile: WorkbenchFile = {
 
 const RECENT_KEY = 'tytus.workspace.recent';
 const LAYOUT_KEY = 'tytus.workspace.layout';
+const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
@@ -85,8 +87,10 @@ const TYTUS_CORE_APP_IDS = {
   settings: 'settings',
 } as const;
 
-type RecentEntry = { name: string; path: string; at: number };
+type RecentEntry = { name: string; path: string; at: number; kind?: 'file' | 'folder'; handleKey?: string };
 type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVisible: boolean; secondaryWidth: number; markdownPreviewVisible: boolean };
+type PersistedWorkbenchFile = Pick<WorkbenchFile, 'id' | 'name' | 'path' | 'language' | 'content' | 'dirty' | 'size' | 'source'>;
+type PersistedSessionState = { activity?: ActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: BottomPanelTab; };
 type PaletteItem = { label: string; detail: string; run: () => void; disabled?: boolean };
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
 type BottomPanelTab = 'problems' | 'output' | 'terminal';
@@ -852,21 +856,23 @@ export function WorkbenchShell({ host }: Props) {
   const workbenchRef = useRef<HTMLDivElement | null>(null);
   const [workbenchWidth, setWorkbenchWidth] = useState(0);
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
-  const [activity, setActivity] = useState<ActivityView>('computer');
+  const initialSession = useMemo(() => readSessionState(), []);
+  const [activity, setActivity] = useState<ActivityView>(initialSession.activity ?? 'computer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
   const [primaryWidth, setPrimaryWidth] = useState(initialLayout.primaryWidth);
-  const [secondaryTab, setSecondaryTab] = useState<SecondaryTab>('chat');
+  const [secondaryTab, setSecondaryTab] = useState<SecondaryTab>(initialSession.secondaryTab ?? 'chat');
   const [secondaryVisible, setSecondaryVisible] = useState(initialLayout.secondaryVisible);
   const [secondaryWidth, setSecondaryWidth] = useState(initialLayout.secondaryWidth);
-  const [bottomPanelVisible, setBottomPanelVisible] = useState(false);
-  const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>('problems');
+  const [bottomPanelVisible, setBottomPanelVisible] = useState(Boolean(initialSession.bottomPanelVisible));
+  const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>(initialSession.bottomPanelTab ?? 'problems');
   const [markdownPreviewVisible, setMarkdownPreviewVisible] = useState(initialLayout.markdownPreviewVisible);
-  const [welcomeClosed, setWelcomeClosed] = useState(false);
-  const [folder, setFolder] = useState<WorkbenchFolder | null>(null);
-  const [files, setFiles] = useState<WorkbenchFile[]>([]);
-  const [openEditorIds, setOpenEditorIds] = useState<string[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  const [welcomeClosed, setWelcomeClosed] = useState(Boolean(initialSession.welcomeClosed));
+  const [folder, setFolder] = useState<WorkbenchFolder | null>(initialSession.folder ? { name: initialSession.folder.name, files: [] } : null);
+  const [currentFolderHandleKey, setCurrentFolderHandleKey] = useState<string | null>(initialSession.folder?.handleKey ?? null);
+  const [files, setFiles] = useState<WorkbenchFile[]>(() => hydrateSessionFiles(initialSession.files));
+  const [openEditorIds, setOpenEditorIds] = useState<string[]>(() => (initialSession.openEditorIds ?? []).filter((id) => (initialSession.files ?? []).some((file) => file.id === id)));
+  const [activeFileId, setActiveFileId] = useState<string | null>(() => initialSession.activeFileId && (initialSession.files ?? []).some((file) => file.id === initialSession.activeFileId) ? initialSession.activeFileId : null);
+  const [query, setQuery] = useState(initialSession.query ?? '');
   const [cursor, setCursor] = useState<CursorPosition>({ lineNumber: 1, column: 1 });
   const [activeSelection, setActiveSelection] = useState<WorkbenchRange | null>(null);
   const [documentVersions, setDocumentVersions] = useState<Record<string, number>>({});
@@ -874,7 +880,7 @@ export function WorkbenchShell({ host }: Props) {
   const [removedContextAttachmentIds, setRemovedContextAttachmentIds] = useState<string[]>([]);
   const [projectContextHits, setProjectContextHits] = useState<ProjectIndexContextHit[]>([]);
   const [pendingPatchPrompt, setPendingPatchPrompt] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState(initialSession.chatInput ?? '');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const [outputs, setOutputs] = useState<OutputArtifact[]>([]);
@@ -1016,10 +1022,12 @@ export function WorkbenchShell({ host }: Props) {
   }, [primaryWidth, workbenchWidth]);
 
   const remember = useCallback((entry: RecentEntry) => {
-    const next = [entry, ...recent.filter((item) => item.path !== entry.path)].slice(0, 6);
-    setRecent(next);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  }, [recent]);
+    setRecent((current) => {
+      const next = [entry, ...current.filter((item) => item.path !== entry.path)].slice(0, 10);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const openWorkbenchFile = useCallback((file: WorkbenchFile, lineNumber?: number) => {
     setOpenEditorIds((ids) => ids.includes(file.id) ? ids : [...ids, file.id]);
@@ -1061,7 +1069,11 @@ export function WorkbenchShell({ host }: Props) {
       const picked = await openFiles();
       if (picked.length === 0) return;
       setFiles((current) => mergeFiles(current, picked));
-      picked.forEach((file) => remember({ name: file.name, path: file.path, at: Date.now() }));
+      await Promise.all(picked.map(async (file) => {
+        const handleKey = file.handle ? `file:${file.path}` : undefined;
+        if (file.handle && handleKey) await savePersistedHandle(handleKey, file.handle);
+        remember({ name: file.name, path: file.path, kind: 'file', handleKey, at: Date.now() });
+      }));
       openWorkbenchFile(picked[0]);
       setStatus(`Opened ${picked.length} local file${picked.length === 1 ? '' : 's'}`);
     } catch (err) {
@@ -1073,12 +1085,15 @@ export function WorkbenchShell({ host }: Props) {
     if (!confirmDiscardDirty(dirtyFiles, 'open another folder')) return;
     try {
       const picked = await openFolder();
+      const handleKey = picked.handle ? `folder:${picked.name}` : null;
+      if (picked.handle && handleKey) await savePersistedHandle(handleKey, picked.handle);
+      setCurrentFolderHandleKey(handleKey);
       setFolder(picked);
       setFiles(picked.files);
       setOpenEditorIds([]);
       setActiveFileId(null);
       setWelcomeClosed(false);
-      remember({ name: picked.name, path: picked.name, at: Date.now() });
+      remember({ name: picked.name, path: picked.name, kind: 'folder', handleKey: handleKey ?? undefined, at: Date.now() });
       setStatus(`${picked.handle ? 'Opened local folder' : 'Opened browser fallback folder'} ${picked.name} (${picked.files.length} text files indexed)`);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') setStatus(`Open folder failed: ${(err as Error).message}`);
@@ -1239,15 +1254,53 @@ export function WorkbenchShell({ host }: Props) {
     })();
   }, [activeFile, ai, buildRequestContextForPrompt, openEditors.length]);
 
-  const reopenRecent = useCallback((entry: RecentEntry) => {
+  const reopenRecent = useCallback(async (entry: RecentEntry) => {
     const existing = files.find((file) => file.path === entry.path || file.name === entry.name);
     if (existing) {
       openWorkbenchFile(existing);
       setStatus(`Opened recent ${existing.name}`);
       return;
     }
-    setStatus('Browser security requires permission again — use Open File or Open Folder to reopen local content.');
-  }, [files, openWorkbenchFile]);
+    if (!entry.handleKey) {
+      setStatus('Recent item has no stored browser permission. Use Open File or Open Folder once, then Atomek can restore it.');
+      return;
+    }
+    try {
+      if (entry.kind === 'folder') {
+        const handle = await getPersistedHandle<BrowserDirectoryHandleLike>(entry.handleKey);
+        if (!handle || !(await ensureHandlePermission(handle, 'readwrite'))) {
+          setStatus('Browser permission expired for this folder. Use Open Folder once to refresh it.');
+          return;
+        }
+        const picked = await folderFromHandle(handle);
+        setCurrentFolderHandleKey(entry.handleKey);
+        setFolder(picked);
+        setFiles(picked.files);
+        setOpenEditorIds([]);
+        setActiveFileId(null);
+        setWelcomeClosed(false);
+        remember({ ...entry, at: Date.now() });
+        setStatus(`Reopened ${picked.name} (${picked.files.length} text files indexed)`);
+        return;
+      }
+      const handle = await getPersistedHandle<BrowserFileHandleLike>(entry.handleKey);
+      if (!handle || !(await ensureHandlePermission(handle, 'readwrite'))) {
+        setStatus('Browser permission expired for this file. Use Open File once to refresh it.');
+        return;
+      }
+      const picked = await filesFromHandles([handle]);
+      if (!picked[0]) {
+        setStatus(`Recent file is not readable text: ${entry.name}`);
+        return;
+      }
+      setFiles((current) => mergeFiles(current, picked));
+      openWorkbenchFile(picked[0]);
+      remember({ ...entry, at: Date.now() });
+      setStatus(`Reopened ${picked[0].name}`);
+    } catch (err) {
+      setStatus(`Open recent failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [files, openWorkbenchFile, remember]);
 
   const askAiWithPrompt = useCallback((prompt: string) => {
     setSecondaryVisible(true);
@@ -1660,6 +1713,45 @@ export function WorkbenchShell({ host }: Props) {
     const prefs: LayoutPrefs = { primaryVisible, primaryWidth, secondaryVisible, secondaryWidth, markdownPreviewVisible };
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(prefs));
   }, [markdownPreviewVisible, primaryVisible, primaryWidth, secondaryVisible, secondaryWidth]);
+  useEffect(() => {
+    if (!initialSession.folder?.handleKey) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const handle = await getPersistedHandle<BrowserDirectoryHandleLike>(initialSession.folder?.handleKey ?? '');
+        if (!handle || !(await ensureHandlePermission(handle, 'readwrite')) || cancelled) return;
+        const restored = await folderFromHandle(handle);
+        if (cancelled) return;
+        setCurrentFolderHandleKey(initialSession.folder?.handleKey ?? null);
+        setFolder(restored);
+        setFiles((current) => mergeRestoredFiles(current, restored.files));
+        setOpenEditorIds((ids) => ids.filter((id) => restored.files.some((file) => file.id === id) || files.some((file) => file.id === id)));
+        setStatus(`Restored ${restored.name} (${restored.files.length} text files indexed)`);
+      } catch (err) {
+        if (!cancelled) setStatus(`Workspace restore failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })();
+    return () => { cancelled = true; };
+  // Restore runs once for the startup snapshot; live changes are persisted by the session effect below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    writeSessionState({
+      activity,
+      folder: folder ? { name: folder.name, handleKey: currentFolderHandleKey } : null,
+      files: serializeSessionFiles(files),
+      openEditorIds,
+      activeFileId,
+      query,
+      chatInput,
+      welcomeClosed,
+      secondaryTab,
+      bottomPanelVisible,
+      bottomPanelTab,
+    });
+  }, [activity, activeFileId, bottomPanelTab, bottomPanelVisible, chatInput, currentFolderHandleKey, files, folder, openEditorIds, query, secondaryTab, welcomeClosed]);
+
 
   useEffect(() => {
     localStorage.setItem(CHAT_AI_SETTINGS_KEY, JSON.stringify(chatSettings));
@@ -1672,7 +1764,14 @@ export function WorkbenchShell({ host }: Props) {
       data-app="workbench-vscode-base"
       style={{ '--workbench-primary-width': `${primaryWidth}px`, '--workbench-secondary-width': `${secondaryWidth}px` } as CSSProperties}
     >
-      <ActivityBar active={activity} setActive={(view) => { setActivity(view); setPrimaryVisible(true); }} openSettings={openSettingsTab} settingsActive={settingsActive} />
+      <ActivityBar active={activity} setActive={(view) => {
+        if (view === activity && primaryVisible) {
+          setPrimaryVisible(false);
+          return;
+        }
+        setActivity(view);
+        setPrimaryVisible(true);
+      }} openSettings={openSettingsTab} settingsActive={settingsActive} />
       {primaryVisible && (
         <div className="workbench-primary-region">
           <PrimarySidebar
@@ -1858,7 +1957,7 @@ export function WorkbenchShell({ host }: Props) {
             { label: 'File: New File', detail: 'Create an untitled Markdown file', run: newUntitled },
             { label: 'File: Open File...', detail: 'Open one or more local files', run: () => { void handleOpenFile(); } },
             { label: 'File: Open Folder...', detail: 'Open a local folder with browser permission', run: () => { void handleOpenFolder(); } },
-            ...recent.map((item) => ({ label: `File: Open Recent — ${item.name}`, detail: item.path, run: () => reopenRecent(item) })),
+            ...recent.map((item) => ({ label: `File: Open Recent — ${item.name}`, detail: item.path, run: () => { void reopenRecent(item); } })),
             { label: 'File: Save All', detail: `${dirtyFiles.length} dirty file${dirtyFiles.length === 1 ? '' : 's'}`, run: () => { void saveAllDirty(); }, disabled: dirtyFiles.length === 0 },
             { label: 'File: Close All Editors', detail: `${openEditors.length} open editor${openEditors.length === 1 ? '' : 's'}`, run: closeAllEditors, disabled: openEditors.length === 0 },
             { label: 'Search: Find in Files', detail: 'Open the VS Code-style search side bar', run: () => { setActivity('search'); setPrimaryVisible(true); } },
@@ -1984,7 +2083,7 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
             <p className="workbench-muted">You have not yet opened a folder.</p>
             <button className="workbench-button-blue" onClick={props.openFolder}>Open Folder</button>
             <button className="workbench-button-blue" onClick={props.openFile}>Open File</button>
-            <button className="workbench-button-blue" onClick={() => props.recent[0] ? props.reopenRecent(props.recent[0]) : props.setStatus('No recent local workspace yet.')}>Open Recent</button>
+            <button className="workbench-button-blue" onClick={() => props.recent[0] ? void props.reopenRecent(props.recent[0]) : props.setStatus('No recent local workspace yet.')}>Open Recent</button>
             <p className="workbench-muted">{props.hasFsAccess ? 'Local files use browser-native File System Access API.' : 'Browser fallback may show a file chooser label.'}</p>
           </>
         ) : (
@@ -2003,7 +2102,7 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
           </>
         )}
         <div className="workbench-section-title">Recent</div>
-        {props.recent.length === 0 ? <p className="workbench-muted">No recent folders yet.</p> : props.recent.map((item) => <button key={`${item.path}-${item.at}`} className="workbench-tree-row" onClick={() => props.reopenRecent(item)}><Folder size={14} /><span className="workbench-row-name">{item.name}</span></button>)}
+        {props.recent.length === 0 ? <p className="workbench-muted">No recent folders yet.</p> : props.recent.map((item) => <button key={`${item.path}-${item.at}`} className="workbench-tree-row" onClick={() => { void props.reopenRecent(item); }} title={item.path}>{item.kind === 'file' ? <FileCode2 size={14} /> : <Folder size={14} />}<span className="workbench-row-name">{item.name}</span></button>)}
       </div>
     </aside>
   );
@@ -2438,7 +2537,7 @@ function MissionControlHome({
           <button className="workbench-start-link" onClick={openFolder}><FolderOpen size={18} />Open workspace folder</button>
           <button className="workbench-start-link" onClick={openFile}><File size={18} />Open file</button>
           <button className="workbench-start-link" onClick={newFile}><FilePlus2 size={18} />New mission note</button>
-          {recent.length ? <div className="workbench-control-recent"><span>Recent</span>{recent.slice(0, 3).map((item) => <button key={`${item.path}-${item.at}`} onClick={() => reopenRecent(item)}>{item.name}</button>)}</div> : null}
+          {recent.length ? <div className="workbench-control-recent"><span>Recent</span>{recent.slice(0, 3).map((item) => <button key={`${item.path}-${item.at}`} onClick={() => { void reopenRecent(item); }}>{item.name}</button>)}</div> : null}
         </article>
 
         <article className="workbench-control-card wide">
@@ -4552,10 +4651,75 @@ function readRecent(): RecentEntry[] {
     const raw = localStorage.getItem(RECENT_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as RecentEntry[];
-    return Array.isArray(parsed) ? parsed.slice(0, 6) : [];
+    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item.name === 'string' && typeof item.path === 'string').slice(0, 10) : [];
   } catch {
     return [];
   }
+}
+
+
+function readSessionState(): PersistedSessionState {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedSessionState;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function hydrateSessionFiles(files: PersistedSessionState['files']): WorkbenchFile[] {
+  if (!Array.isArray(files)) return [];
+  return files
+    .filter((file) => file && typeof file.id === 'string' && typeof file.path === 'string' && typeof file.content === 'string')
+    .map((file) => ({
+      id: file.id,
+      name: file.name,
+      path: file.path,
+      language: file.language,
+      content: file.content,
+      dirty: Boolean(file.dirty),
+      size: file.size,
+      source: file.source,
+    } satisfies WorkbenchFile));
+}
+
+function serializeSessionFiles(files: WorkbenchFile[]): PersistedWorkbenchFile[] {
+  let total = 0;
+  const maxTotal = 2_000_000;
+  return files.slice(0, 160).map((file) => {
+    const canPersistContent = total + file.content.length <= maxTotal;
+    const content = canPersistContent ? file.content : '';
+    total += content.length;
+    return {
+      id: file.id,
+      name: file.name,
+      path: file.path,
+      language: file.language,
+      content,
+      dirty: file.dirty,
+      size: file.size,
+      source: file.source,
+    };
+  });
+}
+
+function writeSessionState(state: PersistedSessionState): void {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  } catch {
+    // Browser storage can be full with large projects. Recent handles still survive in IndexedDB.
+  }
+}
+
+function mergeRestoredFiles(current: WorkbenchFile[], incoming: WorkbenchFile[]): WorkbenchFile[] {
+  const currentById = new Map(current.map((file) => [file.id, file]));
+  return incoming.map((file) => {
+    const existing = currentById.get(file.id);
+    if (!existing) return file;
+    return existing.dirty ? { ...file, content: existing.content, dirty: true } : file;
+  });
 }
 
 function readLayoutPrefs(): LayoutPrefs {
