@@ -1,0 +1,1105 @@
+{
+  "capturedAt": "2026-05-11T08:26:00+02:00",
+  "endpoints": {
+    "/api/local/tools": {
+      "tools": [
+        {
+          "command": "shell",
+          "description": "Browser terminal backed by the Tytus tray PTY bridge.",
+          "id": "terminal",
+          "kind": "terminal",
+          "label": "Tytus Terminal",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "pi",
+          "description": "Local pi agent CLI.",
+          "id": "pi",
+          "kind": "ai-cli",
+          "label": "pi",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "opencode",
+          "description": "Local OpenCode agent CLI.",
+          "id": "opencode",
+          "kind": "ai-cli",
+          "label": "OpenCode",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "codex",
+          "description": "Local Codex CLI.",
+          "id": "codex",
+          "kind": "ai-cli",
+          "label": "Codex",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "claude",
+          "description": "Local Claude Code CLI.",
+          "id": "claude",
+          "kind": "ai-cli",
+          "label": "Claude",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "gemini",
+          "description": "Local Gemini CLI.",
+          "id": "gemini",
+          "kind": "ai-cli",
+          "label": "Gemini",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "qwen",
+          "description": "Local Qwen Code CLI.",
+          "id": "qwen",
+          "kind": "ai-cli",
+          "label": "Qwen",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "kimi",
+          "description": "Local Kimi agent CLI.",
+          "id": "kimi",
+          "kind": "ai-cli",
+          "label": "Kimi",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "aider",
+          "description": "Local Aider CLI.",
+          "id": "aider",
+          "kind": "ai-cli",
+          "label": "Aider",
+          "status": "available",
+          "version": null
+        },
+        {
+          "command": "goose",
+          "description": "Local Goose agent CLI.",
+          "id": "goose",
+          "kind": "ai-cli",
+          "label": "Goose",
+          "status": "missing",
+          "version": null
+        }
+      ]
+    },
+    "/api/missions": {
+      "missions": [
+        {
+          "createdAt": "2026-05-11T06:14:42.010661405+00:00",
+          "goal": "Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.",
+          "missionId": "1778480082-atomek-mission-11-05-2026-08-14-42",
+          "rootPath": "/Users/sebastian/Tytus/Missions/1778480082-atomek-mission-11-05-2026-08-14-42",
+          "runCount": 0,
+          "status": "active",
+          "taskCount": 1,
+          "title": "Atomek mission 11/05/2026, 08:14:42",
+          "updatedAt": "2026-05-11T06:14:42.027189431+00:00"
+        },
+        {
+          "createdAt": "2026-05-11T06:10:16.254199745+00:00",
+          "goal": "Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.",
+          "missionId": "1778479816-atomek-mission-11-05-2026-08-10-16",
+          "rootPath": "/Users/sebastian/Tytus/Missions/1778479816-atomek-mission-11-05-2026-08-10-16",
+          "runCount": 0,
+          "status": "active",
+          "taskCount": 1,
+          "title": "Atomek mission 11/05/2026, 08:10:16",
+          "updatedAt": "2026-05-11T06:10:16.261120924+00:00"
+        },
+        {
+          "createdAt": "2026-05-10T21:04:55.588088801+00:00",
+          "goal": "Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.",
+          "missionId": "1778447095-atomek-mission-10-05-2026-23-04-55",
+          "rootPath": "/Users/sebastian/Tytus/Missions/1778447095-atomek-mission-10-05-2026-23-04-55",
+          "runCount": 0,
+          "status": "active",
+          "taskCount": 1,
+          "title": "Atomek mission 10/05/2026, 23:04:55",
+          "updatedAt": "2026-05-10T21:04:55.593583456+00:00"
+        },
+        {
+          "createdAt": "2026-05-10T18:25:19.598006347+00:00",
+          "goal": "Review the active Atomek context. Return concise findings. If you propose edits, output a unified diff or fenced replacement blocks so Atomek can preview before applying.",
+          "missionId": "1778437519-atomek-mission-10-05-2026-20-25-19",
+          "rootPath": "/Users/sebastian/Tytus/Missions/1778437519-atomek-mission-10-05-2026-20-25-19",
+          "runCount": 0,
+          "status": "active",
+          "taskCount": 1,
+          "title": "Atomek mission 10/05/2026, 20:25:19",
+          "updatedAt": "2026-05-10T18:25:19.604917235+00:00"
+        },
+        {
+          "createdAt": "2026-05-10T13:53:17.618469334+00:00",
+          "goal": "",
+          "missionId": "1778421197-beta29-smoke",
+          "rootPath": "/Users/sebastian/Tytus/Missions/1778421197-beta29-smoke",
+          "runCount": 0,
+          "status": "active",
+          "taskCount": 0,
+          "title": "1778421197-beta29-smoke",
+          "updatedAt": "2026-05-10T13:53:17.655728466+00:00"
+        }
+      ]
+    },
+    "/api/resources": {
+      "generatedAt": "1778481224",
+      "resources": [
+        {
+          "allowedRoots": [
+            "/Users/sebastian/Tytus"
+          ],
+          "capabilities": [
+            "file-read",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "workspace.tytus-home",
+          "kind": "workspace",
+          "label": "Tytus Home",
+          "metadata": {
+            "source": "tray.workspace"
+          },
+          "sandbox": "mission-folder",
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "shell-exec-allowlist"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.terminal",
+          "kind": "local-cli",
+          "label": "Tytus Terminal",
+          "metadata": {
+            "command": "shell",
+            "description": "Browser terminal backed by the Tytus tray PTY bridge.",
+            "id": "terminal",
+            "kind": "terminal",
+            "label": "Tytus Terminal",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.pi",
+          "kind": "local-cli",
+          "label": "pi",
+          "metadata": {
+            "command": "pi",
+            "description": "Local pi agent CLI.",
+            "id": "pi",
+            "kind": "ai-cli",
+            "label": "pi",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.opencode",
+          "kind": "local-cli",
+          "label": "OpenCode",
+          "metadata": {
+            "command": "opencode",
+            "description": "Local OpenCode agent CLI.",
+            "id": "opencode",
+            "kind": "ai-cli",
+            "label": "OpenCode",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.codex",
+          "kind": "local-cli",
+          "label": "Codex",
+          "metadata": {
+            "command": "codex",
+            "description": "Local Codex CLI.",
+            "id": "codex",
+            "kind": "ai-cli",
+            "label": "Codex",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.claude",
+          "kind": "local-cli",
+          "label": "Claude",
+          "metadata": {
+            "command": "claude",
+            "description": "Local Claude Code CLI.",
+            "id": "claude",
+            "kind": "ai-cli",
+            "label": "Claude",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.gemini",
+          "kind": "local-cli",
+          "label": "Gemini",
+          "metadata": {
+            "command": "gemini",
+            "description": "Local Gemini CLI.",
+            "id": "gemini",
+            "kind": "ai-cli",
+            "label": "Gemini",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.qwen",
+          "kind": "local-cli",
+          "label": "Qwen",
+          "metadata": {
+            "command": "qwen",
+            "description": "Local Qwen Code CLI.",
+            "id": "qwen",
+            "kind": "ai-cli",
+            "label": "Qwen",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.kimi",
+          "kind": "local-cli",
+          "label": "Kimi",
+          "metadata": {
+            "command": "kimi",
+            "description": "Local Kimi agent CLI.",
+            "id": "kimi",
+            "kind": "ai-cli",
+            "label": "Kimi",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.aider",
+          "kind": "local-cli",
+          "label": "Aider",
+          "metadata": {
+            "command": "aider",
+            "description": "Local Aider CLI.",
+            "id": "aider",
+            "kind": "ai-cli",
+            "label": "Aider",
+            "status": "available",
+            "version": null
+          },
+          "reason": null,
+          "sandbox": "process",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "code-edit",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "local-cli.goose",
+          "kind": "local-cli",
+          "label": "Goose",
+          "metadata": {
+            "command": "goose",
+            "description": "Local Goose agent CLI.",
+            "id": "goose",
+            "kind": "ai-cli",
+            "label": "Goose",
+            "status": "missing",
+            "version": null
+          },
+          "reason": "command not found on PATH",
+          "sandbox": "process",
+          "setupAction": {
+            "commandPreview": "goose",
+            "label": "Install local CLI"
+          },
+          "status": "needs-setup",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [
+            "/Users/sebastian/MAKAKOO/data/shared/"
+          ],
+          "capabilities": [
+            "file-read",
+            "file-write-preview",
+            "file-write-direct"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "shared-folder-shared-0",
+          "kind": "shared-folder",
+          "label": "shared",
+          "metadata": {
+            "autoSync": true,
+            "bucket": "shared",
+            "id": "shared-folder-shared-0",
+            "label": "shared",
+            "localPath": "/Users/sebastian/MAKAKOO/data/shared/",
+            "podsProvisioned": [
+              "wannolot-01",
+              "wannolot-02",
+              "wannolot-04"
+            ],
+            "status": "ready"
+          },
+          "reason": null,
+          "sandbox": "mission-folder",
+          "status": "ready",
+          "trustTier": "local-private"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "web-fetch"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "tytus-units"
+          },
+          "id": "pod-agent.01",
+          "kind": "pod-agent",
+          "label": "nemoclaw pod 01",
+          "metadata": {
+            "agentType": "nemoclaw",
+            "apiUrl": "https://njc9ctj3zgkn-p01.tytus.traylinx.com/v1",
+            "podId": "01",
+            "publicUrl": "https://njc9ctj3zgkn-p01.tytus.traylinx.com",
+            "units": 1
+          },
+          "reason": null,
+          "sandbox": "pod",
+          "status": "ready",
+          "trustTier": "tytus-pod"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "code-review",
+            "web-fetch"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "tytus-units"
+          },
+          "id": "pod-agent.02",
+          "kind": "pod-agent",
+          "label": "nemoclaw pod 02",
+          "metadata": {
+            "agentType": "nemoclaw",
+            "apiUrl": "https://njc9ctj3zgkn-p02.tytus.traylinx.com/v1",
+            "podId": "02",
+            "publicUrl": "https://njc9ctj3zgkn-p02.tytus.traylinx.com",
+            "units": 1
+          },
+          "reason": null,
+          "sandbox": "pod",
+          "status": "ready",
+          "trustTier": "tytus-pod"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "tytus-units"
+          },
+          "id": "ail-route.04",
+          "kind": "ail-route",
+          "label": "AIL gateway 04",
+          "metadata": {
+            "endpoint": "http://10.42.42.1:18080",
+            "kind": "ail",
+            "podId": "04",
+            "publicUrl": "https://njc9ctj3zgkn-p04.tytus.traylinx.com"
+          },
+          "reason": null,
+          "sandbox": "pod",
+          "status": "ready",
+          "trustTier": "remote-ail"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.atomek.inspect-project",
+          "kind": "app-skill",
+          "label": "Inspect Atomek workspace",
+          "metadata": {
+            "appId": "atomek",
+            "description": "Inspect open files, selected content, project index, and Cortex context safely.",
+            "driver": "host-api",
+            "id": "atomek.inspect-project",
+            "skillUrl": "skills/atomek.inspect-project.md",
+            "source": "app",
+            "status": "available",
+            "title": "Inspect Atomek workspace",
+            "triggers": [
+              "inspect",
+              "project",
+              "workspace",
+              "files",
+              "context"
+            ]
+          },
+          "reason": null,
+          "sandbox": "browser-app",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "third-party-app"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.atomek.generate-patch-preview",
+          "kind": "app-skill",
+          "label": "Generate Atomek patch preview",
+          "metadata": {
+            "appId": "atomek",
+            "description": "Generate diff/replacement output that Atomek can convert into preview edits before applying.",
+            "driver": "host-api",
+            "id": "atomek.generate-patch-preview",
+            "skillUrl": "skills/atomek.generate-patch-preview.md",
+            "source": "app",
+            "status": "available",
+            "title": "Generate Atomek patch preview",
+            "triggers": [
+              "patch",
+              "edit",
+              "preview",
+              "diff",
+              "apply"
+            ]
+          },
+          "reason": null,
+          "sandbox": "browser-app",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "third-party-app"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.atomek.local-agent-job",
+          "kind": "app-skill",
+          "label": "Run local agent job",
+          "metadata": {
+            "appId": "atomek",
+            "description": "Run allowlisted local AI CLIs through Tytus tray and stream output back into Atomek.",
+            "driver": "local-job",
+            "id": "atomek.local-agent-job",
+            "skillUrl": "skills/atomek.local-agent-job.md",
+            "source": "app",
+            "status": "available",
+            "title": "Run local agent job",
+            "triggers": [
+              "agent",
+              "job",
+              "local",
+              "codex",
+              "claude",
+              "opencode",
+              "pi",
+              "kimi"
+            ]
+          },
+          "reason": null,
+          "sandbox": "browser-app",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "third-party-app"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.local.terminal.open",
+          "kind": "app-skill",
+          "label": "Open local tool in Tytus Terminal",
+          "metadata": {
+            "appId": null,
+            "description": "Launch allowlisted local CLIs through the existing tray terminal bridge.",
+            "driver": "terminal",
+            "id": "local.terminal.open",
+            "source": "system",
+            "status": "available",
+            "title": "Open local tool in Tytus Terminal",
+            "triggers": [
+              "terminal",
+              "shell",
+              "pi",
+              "opencode",
+              "codex",
+              "claude"
+            ]
+          },
+          "reason": null,
+          "sandbox": "browser-app",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "third-party-app"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.juli3ta.create-song",
+          "kind": "app-skill",
+          "label": "Create music with JULI3TA",
+          "metadata": {
+            "appId": "juli3ta",
+            "description": "Route music creation intent to the JULI3TA app and its host-backed music pipeline.",
+            "driver": "tytus-app",
+            "id": "juli3ta.create-song",
+            "source": "app",
+            "status": "available",
+            "title": "Create music with JULI3TA",
+            "triggers": [
+              "music",
+              "song",
+              "track",
+              "juli3ta"
+            ]
+          },
+          "reason": null,
+          "sandbox": "browser-app",
+          "setupAction": null,
+          "status": "ready",
+          "trustTier": "third-party-app"
+        },
+        {
+          "allowedRoots": [],
+          "capabilities": [
+            "text-gen",
+            "file-write-preview"
+          ],
+          "cost": {
+            "tier": "low",
+            "unit": "free"
+          },
+          "id": "app-skill.blender-mcp.create-scene",
+          "kind": "app-skill",
+          "label": "Drive Blender via MCP",
+          "metadata": {
+            "appId": null,
+            "description": "Use the installed Blender MCP skill when Blender and the MCP bridge are configured.",
+            "driver": "mcp",
+            "id": "blender-mcp.create-scene",
+            "source": "makakoo",
+            "status": "needs_setup",
+            "title": "Drive Blender via MCP",
+            "triggers": [
+              "blender",
+              "3d",
+              "scene",
+              "model"
+            ]
+          },
+          "reason": "skill driver requires setup",
+          "sandbox": "browser-app",
+          "setupAction": {
+            "label": "Configure skill driver"
+          },
+          "status": "needs-setup",
+          "trustTier": "third-party-app"
+        }
+      ],
+      "warnings": [
+        {
+          "code": "local_tool_missing",
+          "message": "goose is not installed or not on PATH",
+          "resourceId": "local-cli.goose"
+        }
+      ]
+    },
+    "/api/shared-folders": {
+      "bindings": [
+        {
+          "autoSync": true,
+          "bucket": "shared",
+          "id": "shared-folder-shared-0",
+          "label": "shared",
+          "localPath": "/Users/sebastian/MAKAKOO/data/shared/",
+          "podsProvisioned": [
+            "wannolot-01",
+            "wannolot-02",
+            "wannolot-04"
+          ],
+          "status": "ready"
+        }
+      ]
+    },
+    "/api/skills": {
+      "skills": [
+        {
+          "appId": "atomek",
+          "description": "Inspect open files, selected content, project index, and Cortex context safely.",
+          "driver": "host-api",
+          "id": "atomek.inspect-project",
+          "skillUrl": "skills/atomek.inspect-project.md",
+          "source": "app",
+          "status": "available",
+          "title": "Inspect Atomek workspace",
+          "triggers": [
+            "inspect",
+            "project",
+            "workspace",
+            "files",
+            "context"
+          ]
+        },
+        {
+          "appId": "atomek",
+          "description": "Generate diff/replacement output that Atomek can convert into preview edits before applying.",
+          "driver": "host-api",
+          "id": "atomek.generate-patch-preview",
+          "skillUrl": "skills/atomek.generate-patch-preview.md",
+          "source": "app",
+          "status": "available",
+          "title": "Generate Atomek patch preview",
+          "triggers": [
+            "patch",
+            "edit",
+            "preview",
+            "diff",
+            "apply"
+          ]
+        },
+        {
+          "appId": "atomek",
+          "description": "Run allowlisted local AI CLIs through Tytus tray and stream output back into Atomek.",
+          "driver": "local-job",
+          "id": "atomek.local-agent-job",
+          "skillUrl": "skills/atomek.local-agent-job.md",
+          "source": "app",
+          "status": "available",
+          "title": "Run local agent job",
+          "triggers": [
+            "agent",
+            "job",
+            "local",
+            "codex",
+            "claude",
+            "opencode",
+            "pi",
+            "kimi"
+          ]
+        },
+        {
+          "appId": null,
+          "description": "Launch allowlisted local CLIs through the existing tray terminal bridge.",
+          "driver": "terminal",
+          "id": "local.terminal.open",
+          "source": "system",
+          "status": "available",
+          "title": "Open local tool in Tytus Terminal",
+          "triggers": [
+            "terminal",
+            "shell",
+            "pi",
+            "opencode",
+            "codex",
+            "claude"
+          ]
+        },
+        {
+          "appId": "juli3ta",
+          "description": "Route music creation intent to the JULI3TA app and its host-backed music pipeline.",
+          "driver": "tytus-app",
+          "id": "juli3ta.create-song",
+          "source": "app",
+          "status": "available",
+          "title": "Create music with JULI3TA",
+          "triggers": [
+            "music",
+            "song",
+            "track",
+            "juli3ta"
+          ]
+        },
+        {
+          "appId": null,
+          "description": "Use the installed Blender MCP skill when Blender and the MCP bridge are configured.",
+          "driver": "mcp",
+          "id": "blender-mcp.create-scene",
+          "source": "makakoo",
+          "status": "needs_setup",
+          "title": "Drive Blender via MCP",
+          "triggers": [
+            "blender",
+            "3d",
+            "scene",
+            "model"
+          ]
+        }
+      ]
+    },
+    "/api/state": {
+      "active_jobs_per_pod": {},
+      "agents": [
+        {
+          "agent_type": "nemoclaw",
+          "api_url": "https://njc9ctj3zgkn-p01.tytus.traylinx.com/v1",
+          "pod_id": "01",
+          "public_url": "https://njc9ctj3zgkn-p01.tytus.traylinx.com",
+          "status": "ready",
+          "ui_url": "https://njc9ctj3zgkn-p01.tytus.traylinx.com/",
+          "units": 1,
+          "user_key": "[redacted]"
+        },
+        {
+          "agent_type": "nemoclaw",
+          "api_url": "https://njc9ctj3zgkn-p02.tytus.traylinx.com/v1",
+          "pod_id": "02",
+          "public_url": "https://njc9ctj3zgkn-p02.tytus.traylinx.com",
+          "status": "ready",
+          "ui_url": "https://njc9ctj3zgkn-p02.tytus.traylinx.com/",
+          "units": 1,
+          "user_key": "[redacted]"
+        }
+      ],
+      "app_bundle_installed": true,
+      "connected": true,
+      "daemon_pid": 75383,
+      "daemon_running": true,
+      "daemon_started_at": 1778451796,
+      "daemon_version": "0.6.14",
+      "email": "[redacted-email]",
+      "forwarders": [],
+      "included": [
+        {
+          "endpoint": "http://10.42.42.1:18080",
+          "kind": "ail",
+          "pod_id": "04",
+          "public_url": "https://njc9ctj3zgkn-p04.tytus.traylinx.com",
+          "user_key": "[redacted]"
+        }
+      ],
+      "keychain_healthy": "[redacted]",
+      "last_refresh_error": null,
+      "logged_in": true,
+      "tier": "operator",
+      "tunnel_active": true,
+      "units_limit": 4,
+      "units_used": 2,
+      "uptime_secs": 44347
+    }
+  },
+  "source": "http://127.0.0.1:4242",
+  "summary": {
+    "connected": true,
+    "loggedIn": true,
+    "readyResources": [
+      {
+        "id": "workspace.tytus-home",
+        "kind": "workspace",
+        "label": "Tytus Home"
+      },
+      {
+        "id": "local-cli.terminal",
+        "kind": "local-cli",
+        "label": "Tytus Terminal"
+      },
+      {
+        "id": "local-cli.pi",
+        "kind": "local-cli",
+        "label": "pi"
+      },
+      {
+        "id": "local-cli.opencode",
+        "kind": "local-cli",
+        "label": "OpenCode"
+      },
+      {
+        "id": "local-cli.codex",
+        "kind": "local-cli",
+        "label": "Codex"
+      },
+      {
+        "id": "local-cli.claude",
+        "kind": "local-cli",
+        "label": "Claude"
+      },
+      {
+        "id": "local-cli.gemini",
+        "kind": "local-cli",
+        "label": "Gemini"
+      },
+      {
+        "id": "local-cli.qwen",
+        "kind": "local-cli",
+        "label": "Qwen"
+      },
+      {
+        "id": "local-cli.kimi",
+        "kind": "local-cli",
+        "label": "Kimi"
+      },
+      {
+        "id": "local-cli.aider",
+        "kind": "local-cli",
+        "label": "Aider"
+      },
+      {
+        "id": "shared-folder-shared-0",
+        "kind": "shared-folder",
+        "label": "shared"
+      },
+      {
+        "id": "pod-agent.01",
+        "kind": "pod-agent",
+        "label": "nemoclaw pod 01"
+      },
+      {
+        "id": "pod-agent.02",
+        "kind": "pod-agent",
+        "label": "nemoclaw pod 02"
+      },
+      {
+        "id": "ail-route.04",
+        "kind": "ail-route",
+        "label": "AIL gateway 04"
+      },
+      {
+        "id": "app-skill.atomek.inspect-project",
+        "kind": "app-skill",
+        "label": "Inspect Atomek workspace"
+      },
+      {
+        "id": "app-skill.atomek.generate-patch-preview",
+        "kind": "app-skill",
+        "label": "Generate Atomek patch preview"
+      },
+      {
+        "id": "app-skill.atomek.local-agent-job",
+        "kind": "app-skill",
+        "label": "Run local agent job"
+      },
+      {
+        "id": "app-skill.local.terminal.open",
+        "kind": "app-skill",
+        "label": "Open local tool in Tytus Terminal"
+      },
+      {
+        "id": "app-skill.juli3ta.create-song",
+        "kind": "app-skill",
+        "label": "Create music with JULI3TA"
+      }
+    ],
+    "resourceCounts": {
+      "ail-route": 1,
+      "app-skill": 6,
+      "local-cli": 10,
+      "pod-agent": 2,
+      "shared-folder": 1,
+      "workspace": 1
+    },
+    "tier": "operator",
+    "units": {
+      "limit": 4,
+      "used": 2
+    }
+  }
+}
