@@ -27,7 +27,6 @@ import {
   SlidersHorizontal,
   Square,
   RefreshCcw,
-  UserCircle,
   X,
 } from 'lucide-react';
 import { ensureHandlePermission, filesFromHandles, folderFromHandle, hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
@@ -90,7 +89,7 @@ const TYTUS_CORE_APP_IDS = {
 type RecentEntry = { name: string; path: string; at: number; kind?: 'file' | 'folder'; handleKey?: string };
 type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVisible: boolean; secondaryWidth: number; markdownPreviewVisible: boolean };
 type PersistedWorkbenchFile = Pick<WorkbenchFile, 'id' | 'name' | 'path' | 'language' | 'content' | 'dirty' | 'size' | 'source'>;
-type PersistedSessionState = { activity?: ActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: BottomPanelTab; };
+type PersistedSessionState = { activity?: ActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: BottomPanelTab; recent?: RecentEntry[]; };
 type PaletteItem = { label: string; detail: string; run: () => void; disabled?: boolean };
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
 type BottomPanelTab = 'problems' | 'output' | 'terminal';
@@ -857,6 +856,7 @@ export function WorkbenchShell({ host }: Props) {
   const [workbenchWidth, setWorkbenchWidth] = useState(0);
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
   const initialSession = useMemo(() => readSessionState(), []);
+  const initialRecent = useMemo(() => mergeRecentEntries(readRecent(), initialSession.recent), [initialSession.recent]);
   const [activity, setActivity] = useState<ActivityView>(initialSession.activity ?? 'computer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
   const [primaryWidth, setPrimaryWidth] = useState(initialLayout.primaryWidth);
@@ -896,7 +896,7 @@ export function WorkbenchShell({ host }: Props) {
   const [manualCheckStatus, setManualCheckStatus] = useState<ManualCheckStatus>('failed');
   const [revealLine, setRevealLine] = useState<number | null>(null);
   const [status, setStatus] = useState('Ready');
-  const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent());
+  const [recent, setRecent] = useState<RecentEntry[]>(() => initialRecent);
 
   const openEditors = openEditorIds.map((id) => files.find((file) => file.id === id)).filter(Boolean) as WorkbenchFile[];
   const activeFile = activeFileId ? files.find((file) => file.id === activeFileId) ?? null : null;
@@ -1085,7 +1085,7 @@ export function WorkbenchShell({ host }: Props) {
     if (!confirmDiscardDirty(dirtyFiles, 'open another folder')) return;
     try {
       const picked = await openFolder();
-      const handleKey = picked.handle ? `folder:${picked.name}` : null;
+      const handleKey = picked.handle ? `folder:${picked.name}:${Date.now()}` : null;
       if (picked.handle && handleKey) await savePersistedHandle(handleKey, picked.handle);
       setCurrentFolderHandleKey(handleKey);
       setFolder(picked);
@@ -1255,6 +1255,22 @@ export function WorkbenchShell({ host }: Props) {
   }, [activeFile, ai, buildRequestContextForPrompt, openEditors.length]);
 
   const reopenRecent = useCallback(async (entry: RecentEntry) => {
+    if (entry.kind === 'folder') {
+      const folderFiles = files.filter((file) => file.path === entry.path || file.path.startsWith(`${entry.path}/`));
+      if (folder?.name === entry.name || folderFiles.length > 0) {
+        if (folderFiles.length > 0) {
+          setFolder((current) => current?.name === entry.name ? current : { name: entry.name, files: folderFiles });
+          setFiles((current) => mergeFiles(current, folderFiles));
+        }
+        setActivity('explorer');
+        setPrimaryVisible(true);
+        setActiveFileId(null);
+        setWelcomeClosed(false);
+        remember({ ...entry, at: Date.now() });
+        setStatus(`Opened recent folder ${entry.name}`);
+        return;
+      }
+    }
     const existing = files.find((file) => file.path === entry.path || file.name === entry.name);
     if (existing) {
       openWorkbenchFile(existing);
@@ -1269,7 +1285,7 @@ export function WorkbenchShell({ host }: Props) {
       if (entry.kind === 'folder') {
         const handle = await getPersistedHandle<BrowserDirectoryHandleLike>(entry.handleKey);
         if (!handle || !(await ensureHandlePermission(handle, 'readwrite'))) {
-          setStatus('Browser permission expired for this folder. Use Open Folder once to refresh it.');
+          setStatus('Browser permission expired for this folder. Click Open Folder and pick it once to refresh the recent handle.');
           return;
         }
         const picked = await folderFromHandle(handle);
@@ -1285,7 +1301,7 @@ export function WorkbenchShell({ host }: Props) {
       }
       const handle = await getPersistedHandle<BrowserFileHandleLike>(entry.handleKey);
       if (!handle || !(await ensureHandlePermission(handle, 'readwrite'))) {
-        setStatus('Browser permission expired for this file. Use Open File once to refresh it.');
+        setStatus('Browser permission expired for this file. Click Open File and pick it once to refresh the recent handle.');
         return;
       }
       const picked = await filesFromHandles([handle]);
@@ -1300,7 +1316,7 @@ export function WorkbenchShell({ host }: Props) {
     } catch (err) {
       setStatus(`Open recent failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [files, openWorkbenchFile, remember]);
+  }, [files, folder?.name, openWorkbenchFile, remember]);
 
   const askAiWithPrompt = useCallback((prompt: string) => {
     setSecondaryVisible(true);
@@ -1749,8 +1765,9 @@ export function WorkbenchShell({ host }: Props) {
       secondaryTab,
       bottomPanelVisible,
       bottomPanelTab,
+      recent,
     });
-  }, [activity, activeFileId, bottomPanelTab, bottomPanelVisible, chatInput, currentFolderHandleKey, files, folder, openEditorIds, query, secondaryTab, welcomeClosed]);
+  }, [activity, activeFileId, bottomPanelTab, bottomPanelVisible, chatInput, currentFolderHandleKey, files, folder, openEditorIds, query, recent, secondaryTab, welcomeClosed]);
 
 
   useEffect(() => {
@@ -1764,14 +1781,20 @@ export function WorkbenchShell({ host }: Props) {
       data-app="workbench-vscode-base"
       style={{ '--workbench-primary-width': `${primaryWidth}px`, '--workbench-secondary-width': `${secondaryWidth}px` } as CSSProperties}
     >
-      <ActivityBar active={activity} setActive={(view) => {
-        if (view === activity && primaryVisible) {
-          setPrimaryVisible(false);
-          return;
-        }
-        setActivity(view);
-        setPrimaryVisible(true);
-      }} openSettings={openSettingsTab} settingsActive={settingsActive} />
+      <ActivityBar
+        active={activity}
+        setActive={(view) => {
+          if (view === activity && primaryVisible) {
+            setPrimaryVisible(false);
+            return;
+          }
+          setActivity(view);
+          setPrimaryVisible(true);
+        }}
+        togglePrimary={() => setPrimaryVisible((value) => !value)}
+        openSettings={openSettingsTab}
+        settingsActive={settingsActive}
+      />
       {primaryVisible && (
         <div className="workbench-primary-region">
           <PrimarySidebar
@@ -2002,17 +2025,16 @@ export function WorkbenchShell({ host }: Props) {
   );
 }
 
-function ActivityBar({ active, setActive, openSettings, settingsActive }: { active: ActivityView; setActive: (view: ActivityView) => void; openSettings: () => void; settingsActive: boolean }) {
+function ActivityBar({ active, setActive, togglePrimary, openSettings, settingsActive }: { active: ActivityView; setActive: (view: ActivityView) => void; togglePrimary: () => void; openSettings: () => void; settingsActive: boolean }) {
   return (
     <aside className="workbench-activity-bar" aria-label="Activity Bar">
-      <div className="workbench-activity-brand" title="Atomek"><AtomekBrandMark size={30} variant="cream" /></div>
+      <button className="workbench-activity-brand" title="Toggle side bar" aria-label="Toggle side bar" onClick={togglePrimary}><AtomekBrandMark size={30} variant="cream" /></button>
       <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
       <ActivityButton icon={<Search size={25} />} label="Search" active={active === 'search'} onClick={() => setActive('search')} />
       <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
       <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
       <ActivityButton icon={<Bot size={25} />} label="Agent Team" active={active === 'computer'} onClick={() => setActive('computer')} />
       <div className="workbench-activity-spacer" />
-      <ActivityButton icon={<UserCircle size={23} />} label="Accounts" active={false} onClick={() => undefined} />
       <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
     </aside>
   );
@@ -3894,7 +3916,7 @@ function ControlTowerPane({
           : `Opened from Atomek. ${contextSummary}`,
       });
       setStatus(tool.kind === 'ai-cli'
-        ? `Opened ${tool.label} in Tytus Terminal with mission context. Press Enter there to start it.`
+        ? `Started ${tool.label} in a fresh Tytus Terminal with mission context.`
         : 'Opened Tytus Terminal');
     } catch (err) {
       setStatus(`Terminal launch failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -4509,7 +4531,7 @@ function ControlTowerPane({
 
         <div className="workbench-computer-explainer">
           <strong>How launch works</strong>
-          <span><b>Open in Terminal</b>: opens the real Tytus Terminal, changes into the mission folder, types the CLI command, and waits for you to press Enter.</span>
+          <span><b>Open in Terminal</b>: opens a fresh Tytus Terminal, changes into the mission folder, and starts the selected CLI immediately.</span>
           <span><b>Background review</b>: runs the CLI through the tray in read-only/planning mode, streams output here, saves a transcript under <code>runs/</code>, and never applies edits directly.</span>
         </div>
 
@@ -4527,7 +4549,7 @@ function ControlTowerPane({
               </div>
               {tool.description ? <p className="workbench-muted">{tool.description}</p> : null}
               <div className="workbench-computer-actions">
-                <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'} title="Launch this tool in the real Tytus Terminal with mission context prefilled. Atomek types the command; you press Enter to start it.">
+                <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void openToolInTerminal(tool); }} disabled={tool.status !== 'available'} title="Launch this tool in a fresh Tytus Terminal with mission context and execute it immediately.">
                   {actionLabelForTool(tool)}
                 </button>
                 {tool.kind === 'ai-cli' ? (
@@ -4651,10 +4673,35 @@ function readRecent(): RecentEntry[] {
     const raw = localStorage.getItem(RECENT_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as RecentEntry[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item.name === 'string' && typeof item.path === 'string').slice(0, 10) : [];
+    return normalizeRecentEntries(parsed);
   } catch {
     return [];
   }
+}
+
+function normalizeRecentEntries(entries: unknown): RecentEntry[] {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .filter((item): item is RecentEntry => Boolean(item) && typeof item.name === 'string' && typeof item.path === 'string')
+    .map((item) => ({
+      name: item.name,
+      path: item.path,
+      at: typeof item.at === 'number' ? item.at : 0,
+      kind: (item.kind === 'folder' ? 'folder' : 'file') as RecentEntry['kind'],
+      handleKey: typeof item.handleKey === 'string' ? item.handleKey : undefined,
+    }))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 10);
+}
+
+function mergeRecentEntries(...groups: Array<unknown>): RecentEntry[] {
+  const byKey = new Map<string, RecentEntry>();
+  for (const item of groups.flatMap(normalizeRecentEntries)) {
+    const key = `${item.kind ?? 'file'}:${item.handleKey ?? item.path}`;
+    const existing = byKey.get(key);
+    if (!existing || item.at >= existing.at) byKey.set(key, item);
+  }
+  return [...byKey.values()].sort((a, b) => b.at - a.at).slice(0, 10);
 }
 
 

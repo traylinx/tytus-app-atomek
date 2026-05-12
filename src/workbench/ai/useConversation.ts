@@ -16,6 +16,7 @@ type AskAgentOptions = {
 const WORKSPACE_KEY = 'atomek:default';
 const MAX_MEMORY_CHARS = 3_000;
 const THREAD_TITLE_OVERRIDES_KEY = 'tytus.atomek.threadTitleOverrides';
+const SELECTED_THREAD_KEY = 'tytus.atomek.selectedThreadId';
 
 const fallbackStatus: AiStatus = {
   available: false,
@@ -115,6 +116,23 @@ const applyThreadTitleOverrides = (items: AiThread[]): AiThread[] => {
   return items.map((item) => overrides[item.id] ? { ...item, title: overrides[item.id] } : item);
 };
 
+const readSelectedThreadId = (): string | null => {
+  try {
+    const value = localStorage.getItem(SELECTED_THREAD_KEY);
+    return value?.trim() || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeSelectedThreadId = (threadId: string): void => {
+  try {
+    localStorage.setItem(SELECTED_THREAD_KEY, threadId);
+  } catch {
+    // Local-only compatibility fallback; ignore storage failures.
+  }
+};
+
 export function useConversation({ host, requestContext, chatSettings, setStatus }: ConversationOpts) {
   const ai = host.ai;
   const [thread, setThread] = useState<AiThread | null>(null);
@@ -162,6 +180,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
       if (!mounted.current) return;
       const found = threads.find((item) => item.id === threadId) ?? null;
       if (found) setThread(found);
+      writeSelectedThreadId(threadId);
       setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
       setMemoryHits([]);
       await loadArtifacts(threadId);
@@ -174,10 +193,12 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     if (!ai) return;
     try {
       const existing = applyThreadTitleOverrides(await ai.listThreads({ workspaceKey: WORKSPACE_KEY, status: 'active' }));
-      const selected = existing[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
+      const rememberedThreadId = readSelectedThreadId();
+      const selected = existing.find((item) => item.id === rememberedThreadId) ?? existing[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
       if (!mounted.current) return;
       setThreads(existing[0] ? existing : [selected]);
       setThread(selected);
+      writeSelectedThreadId(selected.id);
       const loaded = await ai.listMessages(selected.id);
       if (!mounted.current) return;
       setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
@@ -202,6 +223,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     const created = await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
     if (mounted.current) {
       setThread(created);
+      writeSelectedThreadId(created.id);
       setThreads((current) => [created, ...current.filter((item) => item.id !== created.id)]);
     }
     return created;
@@ -211,6 +233,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     if (!ai) return;
     const created = await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
     setThread(created);
+    writeSelectedThreadId(created.id);
     setThreads((current) => [created, ...current.filter((item) => item.id !== created.id)]);
     setMessages([]);
     setArtifacts([]);
@@ -249,6 +272,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
       if (thread?.id === threadId) {
         const next = remaining[0] ?? await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
         setThread(next);
+        writeSelectedThreadId(next.id);
         setThreads((current) => current.some((item) => item.id === next.id) ? current : [next, ...current]);
         const loaded = await ai.listMessages(next.id);
         setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
@@ -265,6 +289,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     try {
       const activeThread = await ensureThread();
       if (!activeThread) return null;
+      writeSelectedThreadId(activeThread.id);
       const artifact = await ai.createArtifact({
         threadId: activeThread.id,
         messageId: input.messageId ?? null,
@@ -330,6 +355,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     try {
       const activeThread = await ensureThread();
       if (!activeThread) return null;
+      writeSelectedThreadId(activeThread.id);
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
       const baseContext = options.requestContext ?? requestContext;

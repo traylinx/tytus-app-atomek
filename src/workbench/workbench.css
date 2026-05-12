@@ -2731,7 +2731,14 @@ button { font: inherit; }
   display: grid;
   place-items: center;
   margin-bottom: 4px;
+  border: 0;
   border-bottom: 1px solid rgba(240, 234, 216, 0.08);
+  background: transparent;
+  cursor: pointer;
+  color: var(--atomek-bone);
+}
+.workbench-activity-brand:hover {
+  background: rgba(180, 255, 0, 0.08);
 }
 .workbench-activity-brand img,
 .workbench-brand-lockup img {
