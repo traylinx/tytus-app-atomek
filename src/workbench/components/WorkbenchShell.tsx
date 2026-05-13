@@ -68,6 +68,7 @@ const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
+const APP_VERSION = '0.4.24';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
@@ -76,6 +77,23 @@ const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
 const ACTIVITY_BAR_WIDTH = 48;
 
 type Props = { host: HostClient };
+
+type AppUpdateStatus = {
+  appId: string;
+  currentVersion: string | null;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  manifestUrl: string | null;
+  checkedAt: number;
+  source: 'featured-catalog' | 'installed-row' | 'none';
+  error?: string;
+};
+
+type AppUpdateApi = {
+  checkUpdate?: () => Promise<AppUpdateStatus>;
+  updateSelf?: () => Promise<AppUpdateStatus>;
+};
+
 
 // Canonical built-in TytusOS app ids. Source of truth in TytusOS:
 // app/src/components/CommandPalette.tsx and app window registry.
@@ -3294,6 +3312,77 @@ function editPromptWithPatchInstructions(prompt: string): string {
   ].join('\n\n');
 }
 
+
+function AppUpdatePanel({ host, appName, currentVersion }: { host: HostClient & { apps?: AppUpdateApi }; appName: string; currentVersion: string }) {
+  const apps = host.apps;
+  const [status, setStatus] = useState<AppUpdateStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const check = useCallback(async () => {
+    if (!apps?.checkUpdate) {
+      setMessage('Update checks need a newer Tytus OS build.');
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = await apps.checkUpdate();
+      setStatus(next);
+      if (next.error) setMessage(next.error);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [apps]);
+
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  const update = useCallback(async () => {
+    if (!apps?.updateSelf) {
+      setMessage('Update needs a newer Tytus OS build.');
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = await apps.updateSelf();
+      setStatus(next);
+      setMessage(next.error ?? `${appName} updated. Close and reopen the app to load the new bundle.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [apps, appName]);
+
+  const latest = status?.latestVersion ?? currentVersion;
+  const updateAvailable = Boolean(status?.updateAvailable);
+
+  return (
+    <div className="workbench-settings-section">
+      <h3>App version</h3>
+      <p>Installed v{status?.currentVersion ?? currentVersion}. Latest available v{latest}.</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="workbench-button-subtle" onClick={() => void check()} disabled={busy}>
+          <RefreshCcw size={14} />{busy ? 'Checking…' : 'Check for update'}
+        </button>
+        {updateAvailable ? (
+          <button className="workbench-button-primary" onClick={() => void update()} disabled={busy}>
+            {busy ? 'Updating…' : `Update ${appName}`}
+          </button>
+        ) : null}
+      </div>
+      <div className="workbench-settings-note">
+        {message ?? (status ? (updateAvailable ? 'Update available.' : 'You are running the latest available version.') : 'Checking latest version…')}
+      </div>
+    </div>
+  );
+}
+
 function AtomekSettingsPane(props: {
   host: HostClient;
   chatSettings: ChatAiSettings;
@@ -3376,9 +3465,11 @@ function AtomekSettingsPane(props: {
         <header className="workbench-settings-header">
           <SlidersHorizontal size={15} />
           <strong>Atomek Settings</strong>
+          <span style={{ fontSize: 11, color: 'var(--accent-primary)', border: '1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent)', borderRadius: 999, padding: '2px 7px', fontWeight: 800 }}>v{APP_VERSION}</span>
           <button onClick={props.onClose} title="Close"><X size={15} /></button>
         </header>
         <div className="workbench-settings-body">
+          <AppUpdatePanel host={props.host as HostClient & { apps?: AppUpdateApi }} appName="Atomek" currentVersion={APP_VERSION} />
           <div className="workbench-settings-section">
             <h3>Chat AI routing</h3>
             <p>
