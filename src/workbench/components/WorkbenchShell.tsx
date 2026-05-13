@@ -68,7 +68,7 @@ const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
-const APP_VERSION = '0.4.24';
+const APP_VERSION = '0.4.25';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',

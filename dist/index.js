@@ -2126,7 +2126,7 @@ const Ao = Cr(() => import("./WorkbenchMonacoEditor-CJhaNTZX.js").then((e) => e.
   content: "",
   dirty: !1,
   source: "sample"
-}, qa = "tytus.workspace.recent", Ra = "tytus.workspace.layout", Ea = "tytus.atomek.session.v2", Ya = "tytus.atomek.chatAiSettings", Ja = "tytus.atomek.currentMission", yn = "tytus.atomek.currentMissionChanged", aa = "0.4.24", Vt = {
+}, qa = "tytus.workspace.recent", Ra = "tytus.workspace.layout", Ea = "tytus.atomek.session.v2", Ya = "tytus.atomek.chatAiSettings", Ja = "tytus.atomek.currentMission", yn = "tytus.atomek.currentMissionChanged", aa = "0.4.25", Vt = {
   gatewayPreference: "auto",
   model: "",
   embeddingModel: ""
