@@ -1,0 +1,44 @@
+{
+  "id": "2026-05-18-atomek-agent-chat-bridge",
+  "created_at": "2026-05-18",
+  "owner": "Harvey",
+  "goal": "Add reusable Tytus pod-agent chat to Atomek via Host API without duplicating TytusOS Chat logic.",
+  "primary_repo": "/Users/sebastian/Projects/tytus-apps/tytus-app-atomek",
+  "related_repos": [
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-os",
+    "/Users/sebastian/Projects/makakoo/api/ProjectWannolot/services/tytus-cli"
+  ],
+  "docs": [
+    "README.md",
+    "AUDIT.md",
+    "TECH-SPEC.md",
+    "SPRINT.md",
+    "TASKS.md",
+    "VALIDATION.md",
+    "HANDOFF.md"
+  ],
+  "required_capabilities": [
+    "host.daemon.chatAgent",
+    "agent target discovery",
+    "streaming SSE parser",
+    "Cortex first fallback direct",
+    "output sanitizer",
+    "Atomek target selector"
+  ],
+  "security_rules": [
+    "No provider names in user-visible UI",
+    "No droplet/provider ids in user-visible UI",
+    "No model names in user-visible UI",
+    "No private IPs or pod URLs in user-visible UI",
+    "No arbitrary upstream URL access from apps",
+    "No duplicated SSE parser in Atomek"
+  ],
+  "done_when": [
+    "Atomek AI chat still works",
+    "Atomek can chat with OpenClaw",
+    "Atomek can chat with Hermes",
+    "TytusOS Chat still works",
+    "Tests and builds pass",
+    "Releases are published and verified"
+  ]
+}

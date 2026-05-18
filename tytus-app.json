@@ -2,7 +2,7 @@
   "$schema": "https://tytus.traylinx.com/schema/app/v1.json",
   "id": "atomek",
   "name": "Atomek",
-  "version": "0.4.25",
+  "version": "0.4.26",
   "icon": "atomek:mark",
   "category": "Productivity",
   "description": "Atomek — branded Tytus Resource Fabric cockpit with embedded docs/skills for OpenClaw, Hermes, shared folders, local agents, app skills, files, chat, artifacts, and approval-gated outputs.",
@@ -28,7 +28,7 @@
     "ai.artifacts"
   ],
   "entry": {
-    "url": "https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.25/dist/index.js"
+    "url": "https://raw.githubusercontent.com/traylinx/tytus-app-atomek/v0.4.26/dist/index.js"
   },
   "contributes": {
     "fileAssociations": [

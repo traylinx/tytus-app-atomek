@@ -16,7 +16,15 @@ if (pkg.version !== manifest.version) {
 }
 
 if (manifest.id !== 'atomek') fail(`unexpected manifest id ${manifest.id}`);
-if (!manifest.entry?.url?.includes(`tytus-app-atomek@v${manifest.version}/dist/index.js`)) {
+const expectedTagPath = `v${manifest.version}/dist/index.js`;
+const entryUrl = String(manifest.entry?.url ?? '');
+const immutableReleaseUrl =
+  /^https:\/\/cdn\.jsdelivr\.net\/gh\/traylinx\/tytus-app-atomek@v[0-9]+\.[0-9]+\.[0-9]+\/dist\/index\.js$/.test(entryUrl) ||
+  /^https:\/\/raw\.githubusercontent\.com\/traylinx\/tytus-app-atomek\/v[0-9]+\.[0-9]+\.[0-9]+\/dist\/index\.js$/.test(entryUrl);
+if (immutableReleaseUrl && !entryUrl.endsWith(expectedTagPath)) {
+  fail(`manifest entry.url tag does not match version ${manifest.version}`);
+}
+if (!immutableReleaseUrl) {
   fail(`manifest entry.url must pin the immutable release tag ${manifest.version}`);
 }
 if (!fs.existsSync(dist)) fail('dist/index.js missing; run npm run build');

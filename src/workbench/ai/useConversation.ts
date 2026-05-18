@@ -1,16 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AiArtifact, AiContextPart, AiMemoryHit, AiMessage, AiStatus, AiThread, HostClient } from '@tytus/host-api';
-import type { ChatAiSettings, ChatMessage, OutputArtifact } from '../types';
+import type { AgentChatEvent, AiArtifact, AiContextPart, AiMemoryHit, AiMessage, AiStatus, AiThread, HostClient } from '@tytus/host-api';
+import type { ChatAiSettings, ChatMessage, ChatTarget, OutputArtifact } from '../types';
+import { ATOMEK_CHAT_TARGET, friendlyAgentError, sanitizeVisibleAgentText } from './chatTargets';
 
 type ConversationOpts = {
   host: HostClient;
   requestContext: readonly AiContextPart[];
   chatSettings: ChatAiSettings;
+  selectedTarget?: ChatTarget;
   setStatus: (status: string) => void;
 };
 
 type AskAgentOptions = {
   requestContext?: readonly AiContextPart[];
+};
+
+type AgentChatDaemon = {
+  chatAgent: (request: {
+    podId: string;
+    message: string;
+    routeId?: string | null;
+    sessionId?: string | null;
+    mode?: 'operator';
+    target?: 'agent';
+    modelPreference?: 'balanced';
+    signal?: AbortSignal;
+  }) => AsyncIterable<AgentChatEvent>;
 };
 
 const WORKSPACE_KEY = 'atomek:default';
@@ -33,6 +48,7 @@ const toChatMessage = (msg: AiMessage): ChatMessage | null => {
     body: msg.body,
     status: msg.status,
     gatewayLabel: msg.gatewayLabel ?? undefined,
+    sourceLabel: msg.role === 'assistant' ? 'Atomek' : undefined,
     error: msg.error ?? undefined,
     createdAt: msg.createdAt,
   };
@@ -133,7 +149,92 @@ const writeSelectedThreadId = (threadId: string): void => {
   }
 };
 
-export function useConversation({ host, requestContext, chatSettings, setStatus }: ConversationOpts) {
+
+const agentSessionKey = (podId: string): string => `${WORKSPACE_KEY}:agent-session:${podId}`;
+const agentTranscriptKey = (podId: string): string => `${WORKSPACE_KEY}:agent-transcript:${podId}`;
+const MAX_AGENT_TRANSCRIPT_MESSAGES = 100;
+
+const readAgentSessionId = (podId: string): string | null => {
+  try {
+    return localStorage.getItem(agentSessionKey(podId))?.trim() || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeAgentSessionId = (podId: string, sessionId: string): void => {
+  try {
+    localStorage.setItem(agentSessionKey(podId), sessionId);
+  } catch {
+    // Local-only compatibility fallback; ignore storage failures.
+  }
+};
+
+const persistAgentTranscript = (podId: string, messages: ChatMessage[]): void => {
+  try {
+    const raw = localStorage.getItem(agentTranscriptKey(podId));
+    const existing = raw ? JSON.parse(raw) as ChatMessage[] : [];
+    const byId = new Map<string, ChatMessage>();
+    for (const message of [...existing, ...messages]) byId.set(message.id, message);
+    localStorage.setItem(agentTranscriptKey(podId), JSON.stringify([...byId.values()].slice(-MAX_AGENT_TRANSCRIPT_MESSAGES)));
+  } catch {
+    // Transcript persistence is best-effort; live chat remains usable.
+  }
+};
+
+const readAgentTranscript = (podId: string): ChatMessage[] => {
+  try {
+    const raw = localStorage.getItem(agentTranscriptKey(podId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is ChatMessage =>
+        item &&
+        typeof item === 'object' &&
+        (item as ChatMessage).role !== undefined &&
+        typeof (item as ChatMessage).body === 'string',
+      )
+      .slice(-MAX_AGENT_TRANSCRIPT_MESSAGES);
+  } catch {
+    return [];
+  }
+};
+
+const clearAgentTranscript = (podId: string): void => {
+  try {
+    localStorage.removeItem(agentTranscriptKey(podId));
+    localStorage.removeItem(agentSessionKey(podId));
+  } catch {
+    // Local-only compatibility fallback; ignore storage failures.
+  }
+};
+
+const getChatAgentDaemon = (host: HostClient): AgentChatDaemon | null => {
+  const daemon = host.daemon as typeof host.daemon & Partial<AgentChatDaemon>;
+  return typeof daemon.chatAgent === 'function' ? daemon as AgentChatDaemon : null;
+};
+
+const contextPrompt = (parts: readonly AiContextPart[]): string => {
+  const body = parts
+    .map((part) => [`## ${part.title}`, part.text].filter(Boolean).join('\n'))
+    .join('\n\n---\n\n')
+    .trim();
+  if (!body) return '';
+  return [
+    'Atomek workspace context follows. Use it only if relevant. Do not expose internal routing, providers, model names, private network addresses, or pod identifiers.',
+    '',
+    body,
+  ].join('\n');
+};
+
+const agentPrompt = (body: string, parts: readonly AiContextPart[]): string => {
+  const context = contextPrompt(parts);
+  if (!context) return body;
+  return [context, '', 'User message:', body].join('\n');
+};
+
+export function useConversation({ host, requestContext, chatSettings, selectedTarget = ATOMEK_CHAT_TARGET, setStatus }: ConversationOpts) {
   const ai = host.ai;
   const [thread, setThread] = useState<AiThread | null>(null);
   const [threads, setThreads] = useState<AiThread[]>([]);
@@ -217,6 +318,31 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     };
   }, [loadThread, refreshStatus]);
 
+  const selectedPodId = selectedTarget.kind === 'pod-agent' ? selectedTarget.podId : null;
+
+  useEffect(() => {
+    if (selectedTarget.kind === 'pod-agent') {
+      setMessages(readAgentTranscript(selectedTarget.podId));
+      setMemoryHits([]);
+      return;
+    }
+    if (!ai || !thread) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await ai.listMessages(thread.id);
+        if (!cancelled && mounted.current) {
+          setMessages(loaded.map(toChatMessage).filter(Boolean) as ChatMessage[]);
+        }
+      } catch {
+        // Thread load errors are handled by the regular thread loading paths.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ai, selectedTarget, selectedPodId, thread]);
+
   const ensureThread = useCallback(async () => {
     if (!ai) return null;
     if (thread) return thread;
@@ -230,6 +356,13 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
   }, [ai, thread]);
 
   const newChat = useCallback(async () => {
+    if (selectedTarget.kind === 'pod-agent') {
+      clearAgentTranscript(selectedTarget.podId);
+      setMessages([]);
+      setMemoryHits([]);
+      setStatus(`Cleared ${selectedTarget.label} chat`);
+      return;
+    }
     if (!ai) return;
     const created = await ai.createThread({ workspaceKey: WORKSPACE_KEY, title: 'Atomek chat' });
     setThread(created);
@@ -239,7 +372,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
     setArtifacts([]);
     setMemoryHits([]);
     setStatus('New AI chat created');
-  }, [ai, setStatus]);
+  }, [ai, selectedTarget, setStatus]);
 
   const renameThread = useCallback(async (threadId: string, title: string) => {
     if (!ai) return;
@@ -347,18 +480,111 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
 
   const askAgent = useCallback(async (prompt: string, options: AskAgentOptions = {}): Promise<ChatMessage | null> => {
     const body = prompt.trim();
-    if (!body || !ai) return null;
+    if (!body) return null;
+    const target = selectedTarget;
+    if (target.kind === 'atomek-ai' && !ai) return null;
     setBusy(true);
     let finalAssistant: ChatMessage | null = null;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
+      const baseContext = options.requestContext ?? requestContext;
+      if (target.kind === 'pod-agent') {
+        const daemon = getChatAgentDaemon(host);
+        const createdAt = Date.now();
+        const userMessage: ChatMessage = {
+          id: `agent-user-${createdAt}`,
+          role: 'user',
+          body,
+          status: 'complete',
+          createdAt,
+        };
+        const assistantId = `agent-assistant-${createdAt}`;
+        const assistantBase: ChatMessage = {
+          id: assistantId,
+          role: 'assistant',
+          body: '',
+          status: 'streaming',
+          gatewayLabel: 'Tytus pod agent',
+          sourceLabel: target.label,
+          createdAt: createdAt + 1,
+        };
+        setMessages((current) => [...current, userMessage, assistantBase]);
+        persistAgentTranscript(target.podId, [userMessage, assistantBase]);
+        if (!target.available) {
+          const safe = friendlyAgentError(target.description);
+          const failed = { ...assistantBase, body: safe.message, status: 'error' as const, error: safe.message };
+          setMessages((current) => current.map((message) => message.id === assistantId ? failed : message));
+          persistAgentTranscript(target.podId, [failed]);
+          setStatus(safe.message);
+          return failed;
+        }
+        if (!daemon) {
+          const message = 'Agent chat bridge unavailable in this Tytus host build. Update TytusOS host API/runtime to enable OpenClaw and Hermes chat.';
+          const failed = { ...assistantBase, body: message, status: 'error' as const, error: message };
+          setMessages((current) => current.map((item) => item.id === assistantId ? failed : item));
+          persistAgentTranscript(target.podId, [failed]);
+          setStatus('Agent chat bridge unavailable');
+          return failed;
+        }
+        let bodySoFar = '';
+        const finishAgentMessage = (message: ChatMessage, status: string): ChatMessage => {
+          setMessages((current) => current.map((item) => item.id === assistantId ? message : item));
+          persistAgentTranscript(target.podId, [userMessage, message]);
+          setStatus(status);
+          return message;
+        };
+        try {
+          for await (const event of daemon.chatAgent({
+            podId: target.podId,
+            routeId: target.routeId ?? null,
+            sessionId: readAgentSessionId(target.podId),
+            message: agentPrompt(body, baseContext),
+            mode: 'operator',
+            target: 'agent',
+            modelPreference: 'balanced',
+            signal: controller.signal,
+          })) {
+            if (event.type === 'session') {
+              writeAgentSessionId(target.podId, event.sessionId);
+            }
+            if (event.type === 'token') {
+              bodySoFar = sanitizeVisibleAgentText(`${bodySoFar}${event.text}`);
+              setMessages((current) => current.map((message) => (message.id === assistantId ? { ...message, body: bodySoFar, status: 'streaming' } : message)));
+            }
+            if (event.type === 'error') {
+              const safe = friendlyAgentError(event.message);
+              const failed = { ...assistantBase, body: safe.message, status: 'error' as const, error: safe.message };
+              return finishAgentMessage(failed, safe.message);
+            }
+            if (event.type === 'done') {
+              finalAssistant = { ...assistantBase, body: bodySoFar || 'Agent finished without visible output.', status: 'complete' };
+              return finishAgentMessage(finalAssistant, `${target.label} answered`);
+            }
+          }
+        } catch (err) {
+          if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+            finalAssistant = { ...assistantBase, body: bodySoFar || 'Stopped by user.', status: 'complete' };
+            return finishAgentMessage(finalAssistant, `${target.label} response stopped`);
+          }
+          throw err;
+        }
+        if (controller.signal.aborted) {
+          finalAssistant = { ...assistantBase, body: bodySoFar || 'Stopped by user.', status: 'complete' };
+          return finishAgentMessage(finalAssistant, `${target.label} response stopped`);
+        }
+        if (!finalAssistant) {
+          finalAssistant = { ...assistantBase, body: bodySoFar || 'Agent finished without visible output.', status: 'complete' };
+          return finishAgentMessage(finalAssistant, `${target.label} answered`);
+        }
+        return finalAssistant;
+      }
+
       const activeThread = await ensureThread();
-      if (!activeThread) return null;
+      if (!activeThread || !ai) return null;
       writeSelectedThreadId(activeThread.id);
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
-      const baseContext = options.requestContext ?? requestContext;
       const contextParts = memoryPart ? [...baseContext, memoryPart] : [...baseContext];
       let assistantId: string | null = null;
       for await (const event of ai.sendMessage({
@@ -380,7 +606,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
           setMessages((current) => {
             if (current.some((m) => m.id === event.messageId)) {
               return current.map((m) =>
-                m.id === event.messageId ? { ...m, body: event.body, status: 'streaming' } : m,
+                m.id === event.messageId ? { ...m, body: event.body, status: 'streaming', sourceLabel: 'Atomek' } : m,
               );
             }
             return [...current, {
@@ -388,6 +614,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
               role: 'assistant',
               body: event.body,
               status: 'streaming',
+              sourceLabel: 'Atomek',
               createdAt: Date.now(),
             }];
           });
@@ -427,7 +654,7 @@ export function useConversation({ host, requestContext, chatSettings, setStatus 
       if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
     }
-  }, [ai, chatSettings.gatewayPreference, chatSettings.model, ensureThread, recall, refreshStatus, requestContext, setStatus]);
+  }, [ai, chatSettings.gatewayPreference, chatSettings.model, ensureThread, host, recall, refreshStatus, requestContext, selectedTarget, setStatus]);
 
   const stopChat = useCallback(() => {
     abortRef.current?.abort();

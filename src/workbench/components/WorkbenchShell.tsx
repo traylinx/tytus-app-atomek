@@ -32,8 +32,9 @@ import {
 import { ensureHandlePermission, filesFromHandles, folderFromHandle, hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
-import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
+import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, ChatTarget, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
+import { ATOMEK_CHAT_TARGET, buildChatTargets, readSelectedChatTargetId, writeSelectedChatTargetId } from '../ai/chatTargets';
 import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
 import type { ChatContextAttachment, ChatContextScope, ChatContextState } from '../context/chatContextStore';
@@ -66,9 +67,10 @@ const RECENT_KEY = 'tytus.workspace.recent';
 const LAYOUT_KEY = 'tytus.workspace.layout';
 const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
+const CHAT_WORKSPACE_KEY = 'atomek:default';
 const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
-const APP_VERSION = '0.4.25';
+const APP_VERSION = '0.4.26';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
@@ -906,6 +908,8 @@ export function WorkbenchShell({ host }: Props) {
   const [pendingWorkspacePatch, setPendingWorkspacePatch] = useState<PendingWorkspacePatch | null>(null);
   const [settingsTabOpen, setSettingsTabOpen] = useState(false);
   const [chatSettings, setChatSettings] = useState<ChatAiSettings>(() => readChatAiSettings());
+  const [chatTargets, setChatTargets] = useState<ChatTarget[]>([ATOMEK_CHAT_TARGET]);
+  const [selectedChatTargetId, setSelectedChatTargetId] = useState(() => readSelectedChatTargetId(CHAT_WORKSPACE_KEY));
   const [aiDirtyNotice, setAiDirtyNotice] = useState<string | null>(null);
   const [manualCheckSession, setManualCheckSession] = useState<ManualCheckSession | null>(null);
   const [manualCheckCommandInput, setManualCheckCommandInput] = useState('');
@@ -943,7 +947,8 @@ export function WorkbenchShell({ host }: Props) {
     snippet: hit.snippet,
   })), [projectContextHits]);
   const contextAttachments = useMemo(() => [...builtChatContext.attachments, ...indexContextAttachments], [builtChatContext.attachments, indexContextAttachments]);
-  const ai = useConversation({ host, requestContext: builtChatContext.parts, chatSettings, setStatus });
+  const selectedChatTarget = useMemo(() => chatTargets.find((target) => target.id === selectedChatTargetId) ?? ATOMEK_CHAT_TARGET, [chatTargets, selectedChatTargetId]);
+  const ai = useConversation({ host, requestContext: builtChatContext.parts, chatSettings, selectedTarget: selectedChatTarget, setStatus });
   const combinedOutputs = useMemo(
     () => [...ai.artifacts, ...outputs].sort((a, b) => b.createdAt - a.createdAt),
     [ai.artifacts, outputs],
@@ -973,6 +978,36 @@ export function WorkbenchShell({ host }: Props) {
   useEffect(() => {
     setProjectContextHits([]);
   }, [files]);
+
+
+  useEffect(() => {
+    let active = true;
+    const refreshTargets = async () => {
+      const targets = await buildChatTargets(host);
+      if (!active) return;
+      setChatTargets(targets);
+      setSelectedChatTargetId((current) => {
+        const next = targets.some((target) => target.id === current) ? current : ATOMEK_CHAT_TARGET.id;
+        if (next !== current) writeSelectedChatTargetId(CHAT_WORKSPACE_KEY, next);
+        return next;
+      });
+    };
+    void refreshTargets();
+    const dispose = host.daemon.onStateChange(() => {
+      void refreshTargets();
+    });
+    return () => {
+      active = false;
+      dispose?.();
+    };
+  }, [host]);
+
+  const selectChatTarget = useCallback((targetId: string) => {
+    const next = chatTargets.find((target) => target.id === targetId) ?? ATOMEK_CHAT_TARGET;
+    setSelectedChatTargetId(next.id);
+    writeSelectedChatTargetId(CHAT_WORKSPACE_KEY, next.id);
+    setStatus(`Chat target: ${next.label}`);
+  }, [chatTargets, setStatus]);
 
   const removeContextAttachment = useCallback((attachment: ChatContextAttachment) => {
     if (attachment.kind === 'index-hit') {
@@ -1956,6 +1991,9 @@ export function WorkbenchShell({ host }: Props) {
           workspaceFileCount={files.length}
           aiStatus={ai.aiStatus}
           chatSettings={chatSettings}
+          chatTargets={chatTargets}
+          selectedChatTarget={selectedChatTarget}
+          selectChatTarget={selectChatTarget}
           openSettings={openSettingsTab}
           busy={ai.busy}
           memoryHitCount={ai.memoryHits.length}
@@ -2926,6 +2964,9 @@ function SecondarySidebar(props: {
   workspaceFileCount: number;
   aiStatus: { available: boolean; label: string; reason?: string };
   chatSettings: ChatAiSettings;
+  chatTargets: ChatTarget[];
+  selectedChatTarget: ChatTarget;
+  selectChatTarget: (targetId: string) => void;
   openSettings: () => void;
   busy: boolean;
   memoryHitCount: number;
@@ -3061,11 +3102,16 @@ function ChatPane(props: {
   refreshProjectIndex: () => void;
   aiStatus: { available: boolean; label: string; reason?: string };
   chatSettings: ChatAiSettings;
+  chatTargets: ChatTarget[];
+  selectedChatTarget: ChatTarget;
+  selectChatTarget: (targetId: string) => void;
   openSettings: () => void;
   busy: boolean;
   memoryHitCount: number;
 }) {
-  const canSend = props.chatInput.trim().length > 0 && !props.busy;
+  const targetReady = props.selectedChatTarget.available;
+  const isAtomekTarget = props.selectedChatTarget.kind === 'atomek-ai';
+  const canSend = props.chatInput.trim().length > 0 && !props.busy && targetReady;
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const [stickToLatest, setStickToLatest] = useState(true);
   const [hasHiddenNewOutput, setHasHiddenNewOutput] = useState(false);
@@ -3106,52 +3152,72 @@ function ChatPane(props: {
   return (
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-threadbar">
+        {isAtomekTarget ? (
+          <select
+            value={props.chatThread?.id ?? ''}
+            onChange={(event) => props.selectThread(event.target.value)}
+            disabled={props.busy || props.chatThreads.length === 0}
+            title="Select chat thread"
+          >
+            {props.chatThreads.length === 0 ? <option value="">No chats</option> : null}
+            {props.chatThreads.map((thread) => (
+              <option key={thread.id} value={thread.id}>
+                {thread.title} · {formatThreadDate(thread.lastMessageAt ?? thread.updatedAt)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="workbench-chat-route-summary">{props.selectedChatTarget.label} session</span>
+        )}
         <select
-          value={props.chatThread?.id ?? ''}
-          onChange={(event) => props.selectThread(event.target.value)}
-          disabled={props.busy || props.chatThreads.length === 0}
-          title="Select chat thread"
+          value={props.selectedChatTarget.id}
+          onChange={(event) => props.selectChatTarget(event.target.value)}
+          disabled={props.busy}
+          title="Select chat target"
         >
-          {props.chatThreads.length === 0 ? <option value="">No chats</option> : null}
-          {props.chatThreads.map((thread) => (
-            <option key={thread.id} value={thread.id}>
-              {thread.title} · {formatThreadDate(thread.lastMessageAt ?? thread.updatedAt)}
+          {props.chatTargets.map((target) => (
+            <option key={target.id} value={target.id} disabled={!target.available}>
+              {target.label}{target.kind === 'pod-agent' && target.status !== 'running' ? ` · ${target.status}` : ''}
             </option>
           ))}
         </select>
-        <button
-          onClick={() => {
-            if (!props.chatThread) return;
-            const title = window.prompt('Rename chat', props.chatThread.title);
-            if (title !== null) props.renameThread(props.chatThread.id, title);
-          }}
-          disabled={!props.chatThread || props.busy}
-        >
-          Rename
-        </button>
-        <button
-          onClick={() => {
-            if (!props.chatThread) return;
-            if (window.confirm(`Delete chat "${props.chatThread.title}"?`)) props.deleteThread(props.chatThread.id);
-          }}
-          disabled={!props.chatThread || props.busy}
-        >
-          Delete
-        </button>
+        {isAtomekTarget ? (
+          <>
+            <button
+              onClick={() => {
+                if (!props.chatThread) return;
+                const title = window.prompt('Rename chat', props.chatThread.title);
+                if (title !== null) props.renameThread(props.chatThread.id, title);
+              }}
+              disabled={!props.chatThread || props.busy}
+            >
+              Rename
+            </button>
+            <button
+              onClick={() => {
+                if (!props.chatThread) return;
+                if (window.confirm(`Delete chat "${props.chatThread.title}"?`)) props.deleteThread(props.chatThread.id);
+              }}
+              disabled={!props.chatThread || props.busy}
+            >
+              Delete
+            </button>
+          </>
+        ) : null}
       </div>
       <div ref={transcriptRef} className="workbench-chat-transcript" onScroll={handleTranscriptScroll}>
         {props.chatMessages.length === 0 ? (
           <div className="workbench-chat-empty">
             <div>
               <MessageSquareText size={48} />
-              <h3>Build with Agent</h3>
-              <p>Ask about open files, request a plan, or draft an artifact.</p>
+              <h3>Build with {props.selectedChatTarget.label}</h3>
+              <p>{props.selectedChatTarget.kind === 'atomek-ai' ? 'Ask about open files, request a plan, or draft an artifact.' : 'Chat with the selected pod agent from this same Atomek panel.'}</p>
               <p className="workbench-chat-empty-link">{props.aiStatus.available ? props.aiStatus.label : props.aiStatus.reason ?? props.aiStatus.label}</p>
             </div>
           </div>
         ) : props.chatMessages.map((msg) => (
           <div key={msg.id} className={`workbench-chat-message ${msg.role}`}>
-            <strong>{msg.role === 'user' ? 'You' : 'Atomek'}</strong>
+            <strong>{msg.role === 'user' ? 'You' : msg.sourceLabel ?? 'Atomek'}</strong>
             {msg.status === 'streaming' ? <em> streaming</em> : null}
             {msg.status === 'error' ? <em> error</em> : null}
             <br />
@@ -3178,9 +3244,11 @@ function ChatPane(props: {
       </div>
       <div className="workbench-chat-composer">
         <div className="workbench-chat-tip">
+          <span>Target</span>
+          <strong>{props.selectedChatTarget.label}</strong>
+          <em>{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</em>
           <span>Context</span>
           <strong>{contextScopeLabel(props.contextScope)}</strong>
-          <em>{chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount)}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
@@ -3253,11 +3321,11 @@ function ChatPane(props: {
                 if (!props.busy) props.askAgent();
               }
             }}
-            placeholder="Ask Atomek about the open file or describe what to build..."
+            placeholder={props.selectedChatTarget.kind === 'atomek-ai' ? 'Ask Atomek about the open file or describe what to build...' : `Ask ${props.selectedChatTarget.label}…`}
             rows={3}
           />
           <div className="workbench-chat-toolbar compact">
-            <span className="workbench-chat-route-summary">{chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount)}</span>
+            <span className="workbench-chat-route-summary">{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</span>
             <span />
             {props.busy ? (
               <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop"><Square size={14} /></button>
@@ -3278,12 +3346,11 @@ function chatGatewayLabel(preference: ChatGatewayPreference): string {
 }
 
 function chatSettingsSummary(settings: ChatAiSettings, statusLabel: string, memoryHitCount: number): string {
-  const model = settings.model.trim();
+  void settings.model;
   const routing = settings.gatewayPreference === 'auto'
     ? statusLabel
     : chatGatewayLabel(settings.gatewayPreference);
   const parts = [routing];
-  if (model) parts.push(model);
   if (memoryHitCount > 0) parts.push(`${memoryHitCount} memories`);
   return parts.join(' · ');
 }

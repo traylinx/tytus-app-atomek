@@ -9,6 +9,30 @@ export type ChatAiSettings = {
   embeddingModel: string;
 };
 
+export type ChatTargetAgentFamily = 'openclaw' | 'hermes';
+
+export type PodAgentChatStatus = 'running' | 'warming' | 'stopped' | 'unknown';
+
+export type ChatTarget =
+  | {
+      kind: 'atomek-ai';
+      id: 'atomek';
+      label: 'Atomek';
+      description: 'Workspace assistant';
+      available: true;
+    }
+  | {
+      kind: 'pod-agent';
+      id: string;
+      podId: string;
+      routeId?: string | null;
+      agentFamily: ChatTargetAgentFamily;
+      label: string;
+      description: string;
+      status: PodAgentChatStatus;
+      available: boolean;
+    };
+
 export type WorkbenchLanguage =
   | 'markdown'
   | 'json'
@@ -70,6 +94,7 @@ export type ChatMessage = {
   body: string;
   status?: 'pending' | 'streaming' | 'complete' | 'error';
   gatewayLabel?: string;
+  sourceLabel?: string;
   error?: string;
   createdAt?: number;
 };
