@@ -83,8 +83,10 @@ function metadataString(meta: Record<string, unknown> | undefined, ...keys: stri
 function resourcePodId(resource: TytusResource): string {
   const fromMeta = metadataString(resource.metadata, 'podId', 'pod_id', 'pod', 'id');
   if (fromMeta) return fromMeta;
-  const match = resource.id.match(/(?:pod-agent|ail-route)\.([^.]+)/);
-  return match?.[1] ?? resource.id;
+  const parts = resource.id.split('.').filter(Boolean);
+  if (parts[0] === 'pod-agent') return parts[parts.length - 1] ?? resource.id;
+  if (parts[0] === 'ail-route') return parts[1] ?? resource.id;
+  return resource.id;
 }
 
 function resourceRouteId(resource: TytusResource): string | null {
@@ -167,11 +169,12 @@ function targetsFromResources(graph: TytusResourceGraph | null): ChatTarget[] {
     const status = statusFromResource(resource);
     const podId = resourcePodId(resource);
     if (!podId) return [];
+    const routeId = resourceRouteId(resource);
     return [{
       kind: 'pod-agent' as const,
-      id: `pod-agent:${podId}`,
+      id: `pod-agent:${agentFamily}:${podId}`,
       podId,
-      routeId: resourceRouteId(resource),
+      routeId,
       agentFamily,
       label: baseLabel(resource, agentFamily),
       description: descriptionFor(agentFamily, status),

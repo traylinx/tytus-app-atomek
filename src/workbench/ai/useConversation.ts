@@ -154,9 +154,14 @@ const agentSessionKey = (podId: string): string => `${WORKSPACE_KEY}:agent-sessi
 const agentTranscriptKey = (podId: string): string => `${WORKSPACE_KEY}:agent-transcript:${podId}`;
 const MAX_AGENT_TRANSCRIPT_MESSAGES = 100;
 
-const readAgentSessionId = (podId: string): string | null => {
+const readAgentSessionId = (targetId: string, legacyPodId?: string | null): string | null => {
   try {
-    return localStorage.getItem(agentSessionKey(podId))?.trim() || null;
+    const current = localStorage.getItem(agentSessionKey(targetId))?.trim();
+    if (current) return current;
+    if (legacyPodId && legacyPodId !== targetId) {
+      return localStorage.getItem(agentSessionKey(legacyPodId))?.trim() || null;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -182,29 +187,38 @@ const persistAgentTranscript = (podId: string, messages: ChatMessage[]): void =>
   }
 };
 
-const readAgentTranscript = (podId: string): ChatMessage[] => {
+const parseAgentTranscript = (raw: string | null): ChatMessage[] => {
+  if (!raw) return [];
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((item): item is ChatMessage =>
+      item &&
+      typeof item === 'object' &&
+      (item as ChatMessage).role !== undefined &&
+      typeof (item as ChatMessage).body === 'string',
+    )
+    .slice(-MAX_AGENT_TRANSCRIPT_MESSAGES);
+};
+
+const readAgentTranscript = (targetId: string, legacyPodId?: string | null): ChatMessage[] => {
   try {
-    const raw = localStorage.getItem(agentTranscriptKey(podId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item): item is ChatMessage =>
-        item &&
-        typeof item === 'object' &&
-        (item as ChatMessage).role !== undefined &&
-        typeof (item as ChatMessage).body === 'string',
-      )
-      .slice(-MAX_AGENT_TRANSCRIPT_MESSAGES);
+    const current = parseAgentTranscript(localStorage.getItem(agentTranscriptKey(targetId)));
+    if (current.length > 0 || !legacyPodId || legacyPodId === targetId) return current;
+    return parseAgentTranscript(localStorage.getItem(agentTranscriptKey(legacyPodId)));
   } catch {
     return [];
   }
 };
 
-const clearAgentTranscript = (podId: string): void => {
+const clearAgentTranscript = (targetId: string, legacyPodId?: string | null): void => {
   try {
-    localStorage.removeItem(agentTranscriptKey(podId));
-    localStorage.removeItem(agentSessionKey(podId));
+    localStorage.removeItem(agentTranscriptKey(targetId));
+    localStorage.removeItem(agentSessionKey(targetId));
+    if (legacyPodId && legacyPodId !== targetId) {
+      localStorage.removeItem(agentTranscriptKey(legacyPodId));
+      localStorage.removeItem(agentSessionKey(legacyPodId));
+    }
   } catch {
     // Local-only compatibility fallback; ignore storage failures.
   }
@@ -322,7 +336,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
 
   useEffect(() => {
     if (selectedTarget.kind === 'pod-agent') {
-      setMessages(readAgentTranscript(selectedTarget.podId));
+      setMessages(readAgentTranscript(selectedTarget.id, selectedTarget.podId));
       setMemoryHits([]);
       return;
     }
@@ -357,7 +371,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
 
   const newChat = useCallback(async () => {
     if (selectedTarget.kind === 'pod-agent') {
-      clearAgentTranscript(selectedTarget.podId);
+      clearAgentTranscript(selectedTarget.id, selectedTarget.podId);
       setMessages([]);
       setMemoryHits([]);
       setStatus(`Cleared ${selectedTarget.label} chat`);
@@ -510,12 +524,12 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
           createdAt: createdAt + 1,
         };
         setMessages((current) => [...current, userMessage, assistantBase]);
-        persistAgentTranscript(target.podId, [userMessage, assistantBase]);
+        persistAgentTranscript(target.id, [userMessage, assistantBase]);
         if (!target.available) {
           const safe = friendlyAgentError(target.description);
           const failed = { ...assistantBase, body: safe.message, status: 'error' as const, error: safe.message };
           setMessages((current) => current.map((message) => message.id === assistantId ? failed : message));
-          persistAgentTranscript(target.podId, [failed]);
+          persistAgentTranscript(target.id, [failed]);
           setStatus(safe.message);
           return failed;
         }
@@ -523,14 +537,14 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
           const message = 'Agent chat bridge unavailable in this Tytus host build. Update TytusOS host API/runtime to enable OpenClaw and Hermes chat.';
           const failed = { ...assistantBase, body: message, status: 'error' as const, error: message };
           setMessages((current) => current.map((item) => item.id === assistantId ? failed : item));
-          persistAgentTranscript(target.podId, [failed]);
+          persistAgentTranscript(target.id, [failed]);
           setStatus('Agent chat bridge unavailable');
           return failed;
         }
         let bodySoFar = '';
         const finishAgentMessage = (message: ChatMessage, status: string): ChatMessage => {
           setMessages((current) => current.map((item) => item.id === assistantId ? message : item));
-          persistAgentTranscript(target.podId, [userMessage, message]);
+          persistAgentTranscript(target.id, [userMessage, message]);
           setStatus(status);
           return message;
         };
@@ -538,7 +552,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
           for await (const event of daemon.chatAgent({
             podId: target.podId,
             routeId: target.routeId ?? null,
-            sessionId: readAgentSessionId(target.podId),
+            sessionId: readAgentSessionId(target.id, target.podId),
             message: agentPrompt(body, baseContext),
             mode: 'operator',
             target: 'agent',
@@ -546,7 +560,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
             signal: controller.signal,
           })) {
             if (event.type === 'session') {
-              writeAgentSessionId(target.podId, event.sessionId);
+              writeAgentSessionId(target.id, event.sessionId);
             }
             if (event.type === 'token') {
               bodySoFar = sanitizeVisibleAgentText(`${bodySoFar}${event.text}`);
