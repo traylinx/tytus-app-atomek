@@ -28,6 +28,7 @@ type AgentChatDaemon = {
   }) => AsyncIterable<AgentChatEvent>;
 };
 
+const APP_ID = 'atomek';
 const WORKSPACE_KEY = 'atomek:default';
 const MAX_MEMORY_CHARS = 3_000;
 const THREAD_TITLE_OVERRIDES_KEY = 'tytus.atomek.threadTitleOverrides';
@@ -150,16 +151,20 @@ const writeSelectedThreadId = (threadId: string): void => {
 };
 
 
-const agentSessionKey = (podId: string): string => `${WORKSPACE_KEY}:agent-session:${podId}`;
-const agentTranscriptKey = (podId: string): string => `${WORKSPACE_KEY}:agent-transcript:${podId}`;
+const legacyAgentSessionKey = (podId: string): string => `${WORKSPACE_KEY}:agent-session:${podId}`;
+const legacyAgentTranscriptKey = (podId: string): string => `${WORKSPACE_KEY}:agent-transcript:${podId}`;
+const agentSessionKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-session:${targetId}`;
+const agentTranscriptKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:${targetId}`;
 const MAX_AGENT_TRANSCRIPT_MESSAGES = 100;
 
 const readAgentSessionId = (targetId: string, legacyPodId?: string | null): string | null => {
   try {
     const current = localStorage.getItem(agentSessionKey(targetId))?.trim();
     if (current) return current;
+    const legacyTarget = localStorage.getItem(legacyAgentSessionKey(targetId))?.trim();
+    if (legacyTarget) return legacyTarget;
     if (legacyPodId && legacyPodId !== targetId) {
-      return localStorage.getItem(agentSessionKey(legacyPodId))?.trim() || null;
+      return localStorage.getItem(legacyAgentSessionKey(legacyPodId))?.trim() || null;
     }
     return null;
   } catch {
@@ -204,8 +209,10 @@ const parseAgentTranscript = (raw: string | null): ChatMessage[] => {
 const readAgentTranscript = (targetId: string, legacyPodId?: string | null): ChatMessage[] => {
   try {
     const current = parseAgentTranscript(localStorage.getItem(agentTranscriptKey(targetId)));
-    if (current.length > 0 || !legacyPodId || legacyPodId === targetId) return current;
-    return parseAgentTranscript(localStorage.getItem(agentTranscriptKey(legacyPodId)));
+    if (current.length > 0) return current;
+    const legacyTarget = parseAgentTranscript(localStorage.getItem(legacyAgentTranscriptKey(targetId)));
+    if (legacyTarget.length > 0 || !legacyPodId || legacyPodId === targetId) return legacyTarget;
+    return parseAgentTranscript(localStorage.getItem(legacyAgentTranscriptKey(legacyPodId)));
   } catch {
     return [];
   }
@@ -215,9 +222,11 @@ const clearAgentTranscript = (targetId: string, legacyPodId?: string | null): vo
   try {
     localStorage.removeItem(agentTranscriptKey(targetId));
     localStorage.removeItem(agentSessionKey(targetId));
+    localStorage.removeItem(legacyAgentTranscriptKey(targetId));
+    localStorage.removeItem(legacyAgentSessionKey(targetId));
     if (legacyPodId && legacyPodId !== targetId) {
-      localStorage.removeItem(agentTranscriptKey(legacyPodId));
-      localStorage.removeItem(agentSessionKey(legacyPodId));
+      localStorage.removeItem(legacyAgentTranscriptKey(legacyPodId));
+      localStorage.removeItem(legacyAgentSessionKey(legacyPodId));
     }
   } catch {
     // Local-only compatibility fallback; ignore storage failures.
