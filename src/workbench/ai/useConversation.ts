@@ -568,6 +568,22 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
             modelPreference: 'balanced',
             signal: controller.signal,
           })) {
+            // Sprint 2026-05-21-chat-with-pods-local-cortex-parity:
+            // tray daemon emits `event: profile` as the first frame. We
+            // rewrite the assistant message's gatewayLabel so the user
+            // can see which Cortex served the response. Tolerate older
+            // host builds that never emit the frame — label stays at the
+            // default "Tytus pod agent".
+            if (event.type === 'profile') {
+              const label = event.profile === 'local' ? 'Local Cortex' : 'Cloud Cortex';
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, gatewayLabel: label }
+                    : message,
+                ),
+              );
+            }
             if (event.type === 'session') {
               writeAgentSessionId(target.id, event.sessionId);
             }
