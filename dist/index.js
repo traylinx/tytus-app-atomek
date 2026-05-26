@@ -704,7 +704,7 @@ function Ga(e) {
     const c = ri(a);
     return [{
       kind: "pod-agent",
-      id: `pod-agent:${s}:${o}`,
+      id: `pod-agent:${s}:${c || o}`,
       podId: o,
       routeId: c,
       agentFamily: s,

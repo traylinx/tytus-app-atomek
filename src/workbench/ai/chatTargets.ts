@@ -170,9 +170,13 @@ function targetsFromResources(graph: TytusResourceGraph | null): ChatTarget[] {
     const podId = resourcePodId(resource);
     if (!podId) return [];
     const routeId = resourceRouteId(resource);
+    // route_id is globally unique across pods that share pod_id (each
+    // droplet can host its own "01"); fall back to pod_id only when the
+    // host hasn't populated route_id yet.
+    const targetKey = routeId || podId;
     return [{
       kind: 'pod-agent' as const,
-      id: `pod-agent:${agentFamily}:${podId}`,
+      id: `pod-agent:${agentFamily}:${targetKey}`,
       podId,
       routeId,
       agentFamily,
