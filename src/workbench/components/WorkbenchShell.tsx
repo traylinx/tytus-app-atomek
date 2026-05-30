@@ -1,5 +1,6 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { AiContextPart, AiThread, HostClient, TytusMission, TytusMissionRun, TytusMissionSummary, TytusResource, TytusResourceGraph } from '@tytus/host-api';
 import {
@@ -10,6 +11,8 @@ import {
   Copy,
   File,
   FileCode2,
+  ArrowUp,
+  Clock,
   FilePlus2,
   FileSearch,
   Folder,
@@ -17,6 +20,7 @@ import {
   GitBranch,
   Eye,
   MessageSquareText,
+  Mic,
   MoreHorizontal,
   PanelRight,
   Paperclip,
@@ -27,6 +31,7 @@ import {
   SlidersHorizontal,
   Square,
   RefreshCcw,
+  Trash2,
   X,
 } from 'lucide-react';
 import { ensureHandlePermission, filesFromHandles, folderFromHandle, hasFileSystemAccessApi, openFiles, openFolder, saveWorkbenchFile } from '../fileAccess';
@@ -35,6 +40,8 @@ import { markdownToHtml } from '../markdown';
 import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, ChatTarget, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
 import { ATOMEK_CHAT_TARGET, buildChatTargets, readSelectedChatTargetId, writeSelectedChatTargetId } from '../ai/chatTargets';
+import { listAgentTranscripts, clearAgentTranscriptForTarget } from '../ai/useConversation';
+import type { AgentTranscriptSummary } from '../ai/useConversation';
 import { buildDocumentRegistry } from '../context/documentRegistry';
 import { DEFAULT_CHAT_CONTEXT_SCOPE, contextScopeLabel } from '../context/chatContextStore';
 import type { ChatContextAttachment, ChatContextScope, ChatContextState } from '../context/chatContextStore';
@@ -222,13 +229,17 @@ function workbenchLayoutLimits(width: number): { primaryMin: number; primaryMax:
   const usable = Math.max(0, safeWidth - ACTIVITY_BAR_WIDTH);
   const compact = usable < 1180;
   const primaryMin = compact ? 200 : 240;
-  const secondaryMin = compact ? 300 : 340;
-  const editorTargetMin = compact ? 420 : 560;
+  const secondaryMin = compact ? 280 : 300;
+  const editorTargetMin = compact ? 360 : 420;
   const primaryMax = Math.max(primaryMin, Math.min(compact ? 340 : 420, Math.floor(usable * 0.28)));
   const assumedPrimary = Math.min(300, primaryMax);
-  const secondaryByRatio = Math.floor(usable * (compact ? 0.34 : 0.36));
+  // Antigravity-style wide resize: let the chat column take up to ~half (compact)
+  // / ~two-thirds (regular) of the usable width. The real ceiling is
+  // secondaryByEditor, which only guarantees the editor keeps editorTargetMin —
+  // so the splitter drags across a big range instead of snapping to a narrow band.
+  const secondaryByRatio = Math.floor(usable * (compact ? 0.5 : 0.62));
   const secondaryByEditor = usable - assumedPrimary - editorTargetMin;
-  const secondaryMax = Math.max(secondaryMin, Math.min(compact ? 500 : 640, secondaryByRatio, secondaryByEditor));
+  const secondaryMax = Math.max(secondaryMin, Math.min(compact ? 1000 : 1400, secondaryByRatio, secondaryByEditor));
   return { primaryMin, primaryMax, secondaryMin, secondaryMax };
 }
 
@@ -2995,6 +3006,137 @@ function SecondarySidebar(props: {
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onClose: () => void;
 }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [agentTranscripts, setAgentTranscripts] = useState<AgentTranscriptSummary[]>([]);
+  const historyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const historyPopRef = useRef<HTMLDivElement | null>(null);
+  const historyInputRef = useRef<HTMLInputElement | null>(null);
+  const [historyPos, setHistoryPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+
+  type AtomekHistoryItem = { kind: 'atomek-thread'; id: string; title: string; lastActivityAt: number; thread: AiThread };
+  type AgentHistoryItem = { kind: 'pod-agent'; id: string; title: string; subtitle: string; lastActivityAt: number; targetId: string };
+  type HistoryItem = AtomekHistoryItem | AgentHistoryItem;
+
+  const atomekHistoryItems = useMemo<AtomekHistoryItem[]>(
+    () => props.chatThreads.map((thread) => ({
+      kind: 'atomek-thread' as const,
+      id: `thread:${thread.id}`,
+      title: thread.title,
+      lastActivityAt: thread.lastMessageAt ?? thread.updatedAt ?? 0,
+      thread,
+    })),
+    [props.chatThreads],
+  );
+  const agentHistoryItems = useMemo<AgentHistoryItem[]>(() => {
+    return agentTranscripts
+      .map((summary): AgentHistoryItem | null => {
+        const target = props.chatTargets.find((t) => t.id === summary.targetId);
+        if (!target) return null;
+        return {
+          kind: 'pod-agent' as const,
+          id: `agent:${summary.targetId}`,
+          title: target.label,
+          subtitle: summary.preview || target.description || `${summary.messageCount} messages`,
+          lastActivityAt: summary.lastActivityAt,
+          targetId: summary.targetId,
+        };
+      })
+      .filter((item): item is AgentHistoryItem => item !== null);
+  }, [agentTranscripts, props.chatTargets]);
+  const allHistoryItems = useMemo<HistoryItem[]>(() => {
+    return [...atomekHistoryItems, ...agentHistoryItems].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  }, [atomekHistoryItems, agentHistoryItems]);
+
+  const currentItem = useMemo<HistoryItem | null>(() => {
+    if (props.selectedChatTarget.kind === 'atomek-ai' && props.chatThread) {
+      return allHistoryItems.find((item) => item.kind === 'atomek-thread' && item.thread.id === props.chatThread?.id) ?? null;
+    }
+    if (props.selectedChatTarget.kind !== 'atomek-ai') {
+      return allHistoryItems.find((item) => item.kind === 'pod-agent' && item.targetId === props.selectedChatTarget.id) ?? null;
+    }
+    return null;
+  }, [allHistoryItems, props.selectedChatTarget, props.chatThread]);
+
+  const matches = useCallback((item: HistoryItem, q: string): boolean => {
+    if (!q) return true;
+    const haystack = `${item.title} ${(item.kind === 'pod-agent' ? item.subtitle : '')}`.toLowerCase();
+    return haystack.includes(q);
+  }, []);
+  const historyQueryLower = historyQuery.trim().toLowerCase();
+  const currentMatches = currentItem ? matches(currentItem, historyQueryLower) : false;
+  const recentItems = useMemo(() => {
+    return allHistoryItems
+      .filter((item) => item.id !== currentItem?.id)
+      .filter((item) => matches(item, historyQueryLower));
+  }, [allHistoryItems, currentItem, historyQueryLower, matches]);
+
+  const refreshAgentTranscripts = useCallback(() => {
+    setAgentTranscripts(listAgentTranscripts());
+  }, []);
+
+  const pickItem = useCallback((item: HistoryItem) => {
+    setHistoryOpen(false);
+    if (item.kind === 'atomek-thread') {
+      if (props.selectedChatTarget.kind !== 'atomek-ai') {
+        props.selectChatTarget(ATOMEK_CHAT_TARGET.id);
+      }
+      props.selectThread(item.thread.id);
+    } else {
+      props.selectChatTarget(item.targetId);
+    }
+    if (props.tab !== 'chat') props.setTab('chat');
+  }, [props]);
+
+  const deleteItem = useCallback((item: HistoryItem) => {
+    if (!window.confirm(`Delete conversation "${item.title}"?`)) return;
+    if (item.kind === 'atomek-thread') {
+      props.deleteThread(item.thread.id);
+    } else {
+      clearAgentTranscriptForTarget(item.targetId);
+      refreshAgentTranscripts();
+    }
+  }, [props, refreshAgentTranscripts]);
+
+  useEffect(() => {
+    if (!historyOpen) {
+      setHistoryQuery('');
+      return;
+    }
+    refreshAgentTranscripts();
+    const reposition = () => {
+      const btn = historyButtonRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      setHistoryPos({
+        top: rect.bottom + 6,
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    };
+    reposition();
+    window.setTimeout(() => historyInputRef.current?.focus(), 0);
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (historyPopRef.current?.contains(target)) return;
+      if (historyButtonRef.current?.contains(target)) return;
+      setHistoryOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHistoryOpen(false);
+    };
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [historyOpen]);
+
   return (
     <aside className="workbench-secondary">
       <div className="workbench-secondary-resizer" onPointerDown={props.onResizeStart} title="Resize Chat" />
@@ -3006,10 +3148,106 @@ function SecondarySidebar(props: {
         </div>
         <div className="workbench-secondary-actions">
           <button title="New Chat" onClick={props.newChat}><Plus size={15} /></button>
+          <button
+            ref={historyButtonRef}
+            title="Past Conversations"
+            aria-label="Past Conversations"
+            aria-expanded={historyOpen}
+            onClick={() => { refreshAgentTranscripts(); setHistoryOpen((open) => !open); }}
+            className={historyOpen ? 'is-active' : ''}
+          >
+            <Clock size={15} />
+          </button>
           <button title="Chat Settings" onClick={props.openSettings}><MoreHorizontal size={16} /></button>
           <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
+      {historyOpen && typeof document !== 'undefined' ? createPortal(
+        <div
+          ref={historyPopRef}
+          className="workbench-history-portal"
+          style={{ top: historyPos.top, right: historyPos.right }}
+          role="menu"
+        >
+          <div className="workbench-history-portal-search">
+            <Search size={14} />
+            <input
+              ref={historyInputRef}
+              type="text"
+              placeholder="Search all conversations..."
+              value={historyQuery}
+              onChange={(event) => setHistoryQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  const firstHit = (currentMatches && currentItem) ? currentItem : recentItems[0];
+                  if (firstHit) pickItem(firstHit);
+                }
+              }}
+            />
+          </div>
+          <div className="workbench-history-portal-list">
+            {currentItem && currentMatches ? (
+              <>
+                <div className="workbench-history-portal-group">Current</div>
+                <div
+                  className="workbench-history-portal-item active"
+                  role="menuitem"
+                  onClick={() => pickItem(currentItem)}
+                  title={currentItem.title}
+                >
+                  <span className="workbench-history-portal-title">
+                    {currentItem.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">Agent</span> : null}
+                    {currentItem.title}
+                  </span>
+                  <small>{formatThreadDate(currentItem.lastActivityAt)}</small>
+                  <button
+                    className="workbench-history-portal-delete"
+                    onClick={(event) => { event.stopPropagation(); deleteItem(currentItem); }}
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
+                  ><Trash2 size={13} /></button>
+                </div>
+              </>
+            ) : null}
+            {recentItems.length > 0 ? (
+              <>
+                <div className="workbench-history-portal-group">Recent</div>
+                {recentItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="workbench-history-portal-item"
+                    role="menuitem"
+                    onClick={() => pickItem(item)}
+                    title={item.title}
+                  >
+                    <span className="workbench-history-portal-title">
+                      {item.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">Agent</span> : null}
+                      {item.title}
+                    </span>
+                    <small>{formatThreadDate(item.lastActivityAt)}</small>
+                    <button
+                      className="workbench-history-portal-delete"
+                      onClick={(event) => { event.stopPropagation(); deleteItem(item); }}
+                      title="Delete conversation"
+                      aria-label="Delete conversation"
+                    ><Trash2 size={13} /></button>
+                  </div>
+                ))}
+              </>
+            ) : null}
+            {!currentMatches && recentItems.length === 0 ? (
+              <div className="workbench-history-portal-empty">
+                {historyQuery.trim() ? 'No matches' : 'No conversations yet — start chatting with any agent.'}
+              </div>
+            ) : null}
+          </div>
+          <div className="workbench-history-portal-footer">
+            <span><kbd>↩</kbd> open</span>
+            <span><kbd>Esc</kbd> close</span>
+          </div>
+        </div>,
+        document.body
+      ) : null}
       {props.tab === 'chat' ? (
         <ChatPane {...props} />
       ) : props.tab === 'agents' ? (
@@ -3080,6 +3318,7 @@ function ChatPane(props: {
   chatThreads: AiThread[];
   askAgent: () => void;
   stopChat: () => void;
+  newChat: () => void;
   regenerateMessage: (message: ChatMessage) => void;
   selectThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
@@ -3115,6 +3354,91 @@ function ChatPane(props: {
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const [stickToLatest, setStickToLatest] = useState(true);
   const [hasHiddenNewOutput, setHasHiddenNewOutput] = useState(false);
+  const attachMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const targetMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const recognitionRef = useRef<unknown>(null);
+  const recordingTimerRef = useRef<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const voiceSupported = typeof window !== 'undefined' && Boolean((window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition || (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+
+  const stopRecording = useCallback(() => {
+    const rec = recognitionRef.current as { stop?: () => void } | null;
+    try { rec?.stop?.(); } catch { /* ignore */ }
+    recognitionRef.current = null;
+    if (recordingTimerRef.current !== null) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+  }, []);
+
+  const startRecording = useCallback(() => {
+    if (!voiceSupported || isRecording) return;
+    const Ctor = (window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }).SpeechRecognition
+      || (window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }).webkitSpeechRecognition;
+    if (!Ctor) return;
+    const rec = new Ctor() as {
+      lang?: string;
+      interimResults?: boolean;
+      continuous?: boolean;
+      start: () => void;
+      stop?: () => void;
+      onresult?: (event: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>; resultIndex: number }) => void;
+      onerror?: (event: unknown) => void;
+      onend?: () => void;
+    };
+    rec.lang = navigator.language || 'en-US';
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const r = event.results[i];
+        if (r.isFinal) transcript += r[0].transcript;
+      }
+      if (transcript) {
+        const next = props.chatInput.trim().length > 0 ? `${props.chatInput} ${transcript}` : transcript;
+        props.setChatInput(next);
+      }
+    };
+    rec.onerror = () => { stopRecording(); };
+    rec.onend = () => { stopRecording(); };
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = window.setInterval(() => setRecordingTime((s) => s + 1), 1000) as unknown as number;
+    } catch {
+      stopRecording();
+    }
+  }, [voiceSupported, isRecording, props, stopRecording]);
+
+  useEffect(() => () => {
+    if (recordingTimerRef.current !== null) window.clearInterval(recordingTimerRef.current);
+    const rec = recognitionRef.current as { stop?: () => void } | null;
+    try { rec?.stop?.(); } catch { /* ignore */ }
+  }, []);
+
+  const formatRecordingTime = (sec: number): string => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(1, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const closeAttachMenu = () => attachMenuRef.current?.removeAttribute('open');
+  const closeTargetMenu = () => targetMenuRef.current?.removeAttribute('open');
+  const pickScope = (scope: ChatContextScope) => {
+    props.setContextScope(scope);
+    if (scope === 'indexed-project') props.refreshProjectIndex();
+    closeAttachMenu();
+  };
+  const pickTarget = (id: string) => {
+    props.selectChatTarget(id);
+    closeTargetMenu();
+  };
   const transcriptSignal = useMemo(() => props.chatMessages.map((message) => `${message.id}:${message.status ?? ''}:${message.body.length}`).join('|'), [props.chatMessages]);
 
   useEffect(() => {
@@ -3149,61 +3473,75 @@ function ChatPane(props: {
     void copyTextToClipboard(message.body);
   }, []);
 
+  const historyMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const closeHistoryMenu = () => historyMenuRef.current?.removeAttribute('open');
   return (
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-threadbar">
-        {isAtomekTarget ? (
-          <select
-            value={props.chatThread?.id ?? ''}
-            onChange={(event) => props.selectThread(event.target.value)}
-            disabled={props.busy || props.chatThreads.length === 0}
-            title="Select chat thread"
-          >
-            {props.chatThreads.length === 0 ? <option value="">No chats</option> : null}
-            {props.chatThreads.map((thread) => (
-              <option key={thread.id} value={thread.id}>
-                {thread.title} · {formatThreadDate(thread.lastMessageAt ?? thread.updatedAt)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="workbench-chat-route-summary">{props.selectedChatTarget.label} session</span>
-        )}
-        <select
-          value={props.selectedChatTarget.id}
-          onChange={(event) => props.selectChatTarget(event.target.value)}
-          disabled={props.busy}
-          title="Select chat target"
-        >
-          {props.chatTargets.map((target) => (
-            <option key={target.id} value={target.id} disabled={!target.available}>
-              {target.label}{target.kind === 'pod-agent' && target.status !== 'running' ? ` · ${target.status}` : ''}
-            </option>
-          ))}
-        </select>
-        {isAtomekTarget ? (
-          <>
-            <button
-              onClick={() => {
-                if (!props.chatThread) return;
-                const title = window.prompt('Rename chat', props.chatThread.title);
-                if (title !== null) props.renameThread(props.chatThread.id, title);
-              }}
-              disabled={!props.chatThread || props.busy}
-            >
-              Rename
-            </button>
-            <button
-              onClick={() => {
-                if (!props.chatThread) return;
-                if (window.confirm(`Delete chat "${props.chatThread.title}"?`)) props.deleteThread(props.chatThread.id);
-              }}
-              disabled={!props.chatThread || props.busy}
-            >
-              Delete
-            </button>
-          </>
-        ) : null}
+        <span className="workbench-chat-thread-title" title={props.chatThread?.title ?? props.selectedChatTarget.label}>
+          {isAtomekTarget ? (props.chatThread?.title ?? 'Atomek chat') : `${props.selectedChatTarget.label} session`}
+        </span>
+        <span className="workbench-chat-thread-actions">
+          <button
+            className="workbench-chat-iconbtn"
+            onClick={() => { void props.newChat(); }}
+            disabled={props.busy}
+            title={isAtomekTarget ? 'New conversation' : 'Clear conversation'}
+            aria-label="New conversation"
+          ><Plus size={15} /></button>
+          {isAtomekTarget && props.chatThreads.length > 0 ? (
+            <details ref={historyMenuRef} className="workbench-chat-iconmenu">
+              <summary className="workbench-chat-iconbtn" title="Chat history" aria-label="Chat history">
+                <Clock size={15} />
+              </summary>
+              <div className="workbench-chat-history-pop" role="menu">
+                <div className="workbench-chat-history-header">Chats ({props.chatThreads.length})</div>
+                {props.chatThreads.map((thread) => (
+                  <button
+                    key={thread.id}
+                    className={thread.id === props.chatThread?.id ? 'active' : ''}
+                    onClick={() => { props.selectThread(thread.id); closeHistoryMenu(); }}
+                    title={thread.title}
+                  >
+                    <span className="workbench-chat-history-title">{thread.title}</span>
+                    <small>{formatThreadDate(thread.lastMessageAt ?? thread.updatedAt)}</small>
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
+          {isAtomekTarget ? (
+            <details className="workbench-chat-iconmenu">
+              <summary className="workbench-chat-iconbtn" title="Chat actions" aria-label="Chat actions">
+                <MoreHorizontal size={15} />
+              </summary>
+              <div className="workbench-chat-threadmenu-pop">
+                <button
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                    if (!props.chatThread) return;
+                    const title = window.prompt('Rename chat', props.chatThread.title);
+                    if (title !== null) props.renameThread(props.chatThread.id, title);
+                  }}
+                  disabled={!props.chatThread || props.busy}
+                >
+                  Rename
+                </button>
+                <button
+                  className="danger"
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                    if (!props.chatThread) return;
+                    if (window.confirm(`Delete chat "${props.chatThread.title}"?`)) props.deleteThread(props.chatThread.id);
+                  }}
+                  disabled={!props.chatThread || props.busy}
+                >
+                  Delete
+                </button>
+              </div>
+            </details>
+          ) : null}
+        </span>
       </div>
       <div ref={transcriptRef} className="workbench-chat-transcript" onScroll={handleTranscriptScroll}>
         {props.chatMessages.length === 0 ? (
@@ -3225,17 +3563,17 @@ function ChatPane(props: {
             {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
             {msg.role === 'assistant' && msg.status !== 'streaming' && msg.status !== 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy this answer"><Copy size={12} /> Copy</button>
-                <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title="Save this answer as an output artifact"><FilePlus2 size={12} /> Save</button>
-                <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store this answer in Atomek memory"><GitBranch size={12} /> Remember</button>
-                <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title="Preview an editable patch from this answer"><Eye size={12} /> Preview</button>
-                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Regenerate this answer"><RefreshCcw size={12} /> Regenerate</button>
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy answer" aria-label="Copy answer"><Copy size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title="Save as output artifact" aria-label="Save as output artifact"><FilePlus2 size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store in Atomek memory" aria-label="Remember"><GitBranch size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title="Preview an editable patch" aria-label="Preview patch"><Eye size={14} /></button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Regenerate answer" aria-label="Regenerate"><RefreshCcw size={14} /></button>
               </div>
             ) : null}
             {msg.role === 'assistant' && msg.status === 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy this error"><Copy size={12} /> Copy</button>
-                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy}><RefreshCcw size={12} /> Retry</button>
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy error" aria-label="Copy error"><Copy size={14} /></button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Retry" aria-label="Retry"><RefreshCcw size={14} /></button>
               </div>
             ) : null}
           </div>
@@ -3246,9 +3584,10 @@ function ChatPane(props: {
         <div className="workbench-chat-tip">
           <span>Target</span>
           <strong>{props.selectedChatTarget.label}</strong>
-          <em>{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</em>
+          <span className="workbench-chat-tip-sep">·</span>
           <span>Context</span>
           <strong>{contextScopeLabel(props.contextScope)}</strong>
+          <em>{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</em>
         </div>
         <div className="workbench-chat-box">
           <div className="workbench-chat-attachments">
@@ -3324,14 +3663,71 @@ function ChatPane(props: {
             placeholder={props.selectedChatTarget.kind === 'atomek-ai' ? 'Ask Atomek about the open file or describe what to build...' : `Ask ${props.selectedChatTarget.label}…`}
             rows={3}
           />
-          <div className="workbench-chat-toolbar compact">
-            <span className="workbench-chat-route-summary">{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</span>
-            <span />
-            {props.busy ? (
-              <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop"><Square size={14} /></button>
+          <div className="workbench-chat-toolbar atomek-input">
+            <details ref={attachMenuRef} className="workbench-chat-attach">
+              <summary title="Add context" aria-label="Add context"><Plus size={16} /></summary>
+              <div className="workbench-chat-attach-menu" role="menu">
+                <button onClick={() => pickScope('active-file')} disabled={!props.activeFile} title="Use active file as context">Active file</button>
+                <button onClick={() => pickScope('active-selection')} disabled={!props.activeFile} title="Use current selection">Selection</button>
+                <button onClick={() => pickScope('open-editors')} title="All open editors">Open editors</button>
+                <button onClick={() => pickScope('indexed-project')} title="Project-wide retrieval (semantic + keyword)">Indexed project</button>
+                <button onClick={() => pickScope('none')} title="No file context">No context</button>
+              </div>
+            </details>
+
+            {isRecording ? (
+              <div className="workbench-chat-recording">
+                <button className="workbench-chat-recording-cancel" onClick={stopRecording} title="Cancel recording" aria-label="Cancel recording"><X size={14} /></button>
+                <span className="workbench-chat-recording-wave" aria-hidden="true">
+                  {Array.from({ length: 14 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.05}s` }} />)}
+                </span>
+                <span className="workbench-chat-recording-dot" aria-hidden="true" />
+                <span className="workbench-chat-recording-time">{formatRecordingTime(recordingTime)}</span>
+              </div>
             ) : (
-              <button className={`workbench-chat-send ${canSend ? 'ready' : ''}`} onClick={props.askAgent} title="Send" disabled={!canSend} aria-label="Send message"><Send size={16} /></button>
+              <span className="workbench-chat-route-summary">{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</span>
             )}
+
+            <div className="workbench-chat-toolbar-right">
+              {!isRecording ? (
+                <button
+                  className="workbench-chat-mic"
+                  onClick={startRecording}
+                  disabled={!voiceSupported || props.busy}
+                  title={voiceSupported ? 'Voice input' : 'Voice input not supported in this browser'}
+                  aria-label="Voice input"
+                >
+                  <Mic size={16} />
+                </button>
+              ) : null}
+
+              <details ref={targetMenuRef} className="workbench-chat-target">
+                <summary title="Choose chat target" aria-label="Choose chat target">
+                  <span className="workbench-chat-target-label">{props.selectedChatTarget.label}</span>
+                  <ChevronDown size={14} />
+                </summary>
+                <div className="workbench-chat-target-menu" role="menu">
+                  {props.chatTargets.map((target) => (
+                    <button
+                      key={target.id}
+                      onClick={() => pickTarget(target.id)}
+                      disabled={!target.available}
+                      className={target.id === props.selectedChatTarget.id ? 'active' : ''}
+                      title={target.description}
+                    >
+                      <span className="workbench-chat-target-row-label">{target.label}</span>
+                      {target.kind === 'pod-agent' && target.status !== 'running' ? <small>{target.status}</small> : null}
+                    </button>
+                  ))}
+                </div>
+              </details>
+
+              {props.busy ? (
+                <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop" aria-label="Stop"><Square size={14} /></button>
+              ) : (
+                <button className={`workbench-chat-send ${canSend ? 'ready' : ''}`} onClick={props.askAgent} title="Send" disabled={!canSend} aria-label="Send message"><ArrowUp size={18} /></button>
+              )}
+            </div>
           </div>
         </div>
       </div>

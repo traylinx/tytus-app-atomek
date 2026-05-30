@@ -27,6 +27,35 @@ self.MonacoEnvironment = {
   },
 };
 
+let __monacoErrorHandlerInstalled = false;
+function isWorkerEvent(value: unknown): boolean {
+  if (!(value instanceof Event)) return false;
+  const t = (value as Event).target as unknown;
+  if (t instanceof Worker) return true;
+  return Boolean(t && typeof t === 'object' && 'postMessage' in (t as object) && 'terminate' in (t as object));
+}
+function installMonacoErrorHandler() {
+  if (__monacoErrorHandlerInstalled || typeof window === 'undefined') return;
+  __monacoErrorHandlerInstalled = true;
+  window.addEventListener('error', (event) => {
+    if (isWorkerEvent(event.error) || isWorkerEvent((event as unknown as { target?: unknown }).target)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return false;
+    }
+    return undefined;
+  }, true);
+  window.addEventListener('unhandledrejection', (event) => {
+    if (isWorkerEvent(event.reason)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return false;
+    }
+    return undefined;
+  }, true);
+}
+installMonacoErrorHandler();
+
 export function WorkbenchMonacoEditor({ file, revealLine, onChange, onCursorChange, onSelectionChange, onSave }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);

@@ -431,14 +431,30 @@ button { font: inherit; }
 }
 .workbench-secondary-resizer {
   position: absolute;
-  left: -4px;
+  left: -6px;
   top: 0;
   bottom: 0;
-  width: 7px;
+  /* Wider hit area so the splitter is easy to grab — a 7px sliver under the
+     editor edge was hard to catch, which made resizing feel like it only
+     snapped between a couple of positions. */
+  width: 12px;
   cursor: col-resize;
   z-index: 4;
+  touch-action: none;
 }
-.workbench-secondary-resizer:hover { background: var(--workbench-blue); }
+.workbench-secondary-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.workbench-secondary-resizer:hover::after,
+.workbench-secondary-resizer:active::after { background: var(--workbench-blue); }
 .workbench-secondary-tabs {
   display: flex;
   align-items: end;
@@ -446,6 +462,10 @@ button { font: inherit; }
   border-bottom: 1px solid var(--workbench-border);
   padding-left: 12px;
   padding-right: 8px;
+  min-width: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 5;
 }
 .workbench-secondary-tab-group { display: flex; align-items: end; }
 .workbench-secondary-tab {
@@ -474,37 +494,297 @@ button { font: inherit; }
   cursor: pointer;
 }
 .workbench-secondary-actions button:hover { background: #2d2d2d; color: #fff; }
+.workbench-secondary-actions button.is-active {
+  background: var(--tytus-hover);
+  border-color: var(--border-focus, rgba(124, 77, 255, 0.55));
+  color: #fff;
+}
+.workbench-history-portal {
+  position: fixed;
+  z-index: 2147483600;
+  width: 440px;
+  max-width: calc(100vw - 16px);
+  max-height: min(540px, calc(100vh - 80px));
+  background: var(--bg-elevated, #1f1f22);
+  border: 1px solid var(--border-subtle, #34343a);
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary, #e6e6ea);
+  font-family: inherit;
+}
+.workbench-history-portal-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle, #34343a);
+  color: var(--workbench-muted, #8a8a93);
+}
+.workbench-history-portal-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary, #e6e6ea);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 0;
+}
+.workbench-history-portal-search input::placeholder {
+  color: var(--workbench-muted, #8a8a93);
+}
+.workbench-history-portal-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.workbench-history-portal-group {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--workbench-muted, #8a8a93);
+}
+.workbench-history-portal-item {
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  user-select: none;
+}
+.workbench-history-portal-item:hover {
+  background: rgba(124, 77, 255, 0.14);
+}
+.workbench-history-portal-item.active {
+  background: rgba(124, 77, 255, 0.22);
+}
+.workbench-history-portal-title {
+  grid-column: 1 / 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-primary, #e6e6ea);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.workbench-history-portal-badge {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(124, 77, 255, 0.22);
+  color: #d9c8ff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.workbench-history-portal-item small {
+  grid-column: 2 / 3;
+  color: var(--workbench-muted, #8a8a93);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.workbench-history-portal-delete {
+  grid-column: 3 / 4;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--workbench-muted, #8a8a93);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease, background .12s ease, color .12s ease;
+}
+.workbench-history-portal-item:hover .workbench-history-portal-delete {
+  opacity: 1;
+}
+.workbench-history-portal-delete:hover {
+  background: rgba(244, 67, 54, 0.18);
+  color: #f44336;
+}
+.workbench-history-portal-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--workbench-muted, #8a8a93);
+  font-size: 12px;
+}
+.workbench-history-portal-footer {
+  display: flex;
+  gap: 14px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle, #34343a);
+  font-size: 11px;
+  color: var(--workbench-muted, #8a8a93);
+}
+.workbench-history-portal-footer kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border-subtle, #34343a);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-primary, #e6e6ea);
+  margin-right: 4px;
+}
 .workbench-chat-empty { height: 100%; display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box; color: #bdbdbd; }
 .workbench-chat-empty svg { color: #cfcfcf; margin-bottom: 16px; }
 .workbench-chat-empty h3 { margin: 0 0 8px; font-size: 15px; color: var(--workbench-text); }
 .workbench-chat-empty p { margin: 4px auto; max-width: 260px; line-height: 1.45; }
 .workbench-chat-empty-link { color: var(--workbench-blue-2); }
-.workbench-chat-wrap { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+/* CRITICAL: min-width:0 lets the chat content column shrink to the panel
+   width. Without it the grid child takes its min-content width (the widest
+   message/toolbar), overflows the .workbench-secondary track, and — since
+   the chat is the last grid column at the window's right edge — spills
+   off-screen and gets clipped by .workbench-workbench's overflow:hidden.
+   overflow:hidden is the backstop for any element that still can't shrink. */
+.workbench-chat-wrap { min-width: 0; min-height: 0; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .workbench-chat-threadbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   gap: 6px;
   padding: 10px 12px 0;
   background: var(--workbench-side);
-}
-.workbench-chat-threadbar select,
-.workbench-chat-threadbar button {
-  height: 26px;
   min-width: 0;
-  border: 1px solid var(--workbench-border-strong);
-  border-radius: 5px;
-  background: #252526;
-  color: var(--workbench-text);
-  font-size: 11px;
 }
-.workbench-chat-threadbar select { padding: 0 7px; }
-.workbench-chat-threadbar button { padding: 0 8px; cursor: pointer; }
-.workbench-chat-threadbar button:disabled,
-.workbench-chat-threadbar select:disabled { opacity: 0.5; cursor: not-allowed; }
+.workbench-chat-thread-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--workbench-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.workbench-chat-thread-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.workbench-chat-iconbtn {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--workbench-muted, #9a9aa3);
+  cursor: pointer;
+  list-style: none;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.workbench-chat-iconbtn::-webkit-details-marker { display: none; }
+.workbench-chat-iconbtn:hover:not(:disabled) {
+  background: rgba(124, 77, 255, 0.14);
+  color: #fff;
+  border-color: rgba(124, 77, 255, 0.40);
+}
+.workbench-chat-iconbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.workbench-chat-iconmenu {
+  position: relative;
+}
+.workbench-chat-iconmenu[open] > summary {
+  background: rgba(124, 77, 255, 0.18);
+  color: #fff;
+  border-color: rgba(124, 77, 255, 0.55);
+}
+.workbench-chat-history-pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--bg-elevated, #1f1f22);
+  border: 1px solid var(--border-subtle, #34343a);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.workbench-chat-history-header {
+  padding: 6px 8px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--workbench-muted, #8a8a93);
+}
+.workbench-chat-history-pop button {
+  height: auto;
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary, #e6e6ea);
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.workbench-chat-history-pop button:hover {
+  background: rgba(124, 77, 255, 0.16);
+}
+.workbench-chat-history-pop button.active {
+  background: rgba(124, 77, 255, 0.24);
+  color: #fff;
+}
+.workbench-chat-history-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.workbench-chat-history-pop button small {
+  color: var(--workbench-muted, #8a8a93);
+  font-size: 10px;
+}
 .workbench-chat-transcript {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
+  min-width: 0;
   min-height: 0;
   user-select: text;
   -webkit-user-select: text;
@@ -518,6 +798,10 @@ button { font: inherit; }
   line-height: 1.45;
   user-select: text;
   -webkit-user-select: text;
+  /* Long unbroken tokens (URLs, model ids) must wrap, not widen the bubble
+     past the chat column. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .workbench-chat-message.user { border-color: #315f8a; }
 .workbench-chat-message-actions {
@@ -675,6 +959,7 @@ button { font: inherit; }
   padding: 0 12px 12px;
   border-top: 1px solid var(--workbench-border);
   background: var(--workbench-side);
+  min-width: 0;
 }
 .workbench-chat-tip {
   margin: 10px 0 6px;
@@ -685,11 +970,21 @@ button { font: inherit; }
   font-size: 12px;
   background: #252526;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Right column (the agent description / "… · ready") must be allowed to
+     shrink + ellipsis on a narrow column rather than forcing the tip wider
+     than the panel. */
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .workbench-chat-tip span { color: var(--workbench-blue-2); font-weight: 700; }
+.workbench-chat-tip em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .workbench-chat-tip strong {
   min-width: 0;
   overflow: hidden;
@@ -712,8 +1007,15 @@ button { font: inherit; }
   min-height: 28px;
   display: flex;
   align-items: center;
+  /* Wrap the context select + Explain/Improve/Edit/Draft chips onto multiple
+     rows instead of overflowing off the right edge of a narrow chat column.
+     Without this the row is a fixed single line wider than the panel and the
+     trailing buttons (and send) get clipped by the window edge. */
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 6px;
   padding: 5px 8px 0;
+  min-width: 0;
 }
 .workbench-chat-attachments button,
 .workbench-chat-send,
@@ -774,10 +1076,11 @@ button { font: inherit; }
 .workbench-chat-toolbar {
   height: 32px;
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: minmax(0, auto) auto 1fr auto;
   align-items: center;
   gap: 6px;
   padding: 0 8px 8px;
+  min-width: 0;
 }
 .workbench-chat-mode { height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; color: #cfcfcf; }
 .workbench-chat-send { width: 28px; height: 26px; display: grid; place-items: center; background: #2d2d2d; color: white; }
@@ -1812,29 +2115,55 @@ button { font: inherit; }
 .workbench-chat-tip { border-radius: var(--tytus-radius-sm) var(--tytus-radius-sm) 0 0; }
 .workbench-chat-box { border-radius: 0 0 var(--tytus-radius-md) var(--tytus-radius-md); }
 .workbench-chat-send {
-  width: 34px;
-  height: 30px;
-  border-radius: 10px;
-  background: var(--bg-elevated, #2b2b2d);
-  color: var(--text-secondary, #c9c9d0);
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--bg-elevated, #232326);
+  color: var(--text-secondary, #8a8a93);
   border: 1px solid var(--border-subtle, #34343a);
   box-shadow: none;
-  transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease, color .12s ease;
+}
+.workbench-chat-send svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+.workbench-chat-send:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  background: transparent;
+  color: var(--text-secondary, #6a6a72);
+  border-color: var(--border-subtle, #34343a);
 }
 .workbench-chat-send.ready {
-  background: linear-gradient(135deg, rgba(124, 77, 255, 0.18), rgba(216, 92, 174, 0.14));
+  background: linear-gradient(135deg, #8b5cff 0%, #d85cae 100%);
   color: #fff;
-  border-color: rgba(216, 92, 174, 0.46);
-  box-shadow: 0 0 0 1px rgba(124, 77, 255, 0.18), 0 8px 18px rgba(0, 0, 0, 0.20);
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(124, 77, 255, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
 }
 .workbench-chat-send.ready:hover {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, rgba(124, 77, 255, 0.24), rgba(216, 92, 174, 0.22));
-  box-shadow: 0 0 0 1px rgba(216, 92, 174, 0.28), 0 10px 22px rgba(0, 0, 0, 0.24);
+  background: linear-gradient(135deg, #9a6fff 0%, #e472be 100%);
+  box-shadow: 0 8px 20px rgba(124, 77, 255, 0.42), 0 2px 4px rgba(0, 0, 0, 0.24);
+}
+.workbench-chat-send.ready:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(124, 77, 255, 0.30), inset 0 1px 2px rgba(0, 0, 0, 0.20);
 }
 .workbench-chat-send.stop {
-  background: linear-gradient(135deg, #b64a4a, #ef6f6f);
-  border-color: rgba(255, 255, 255, 0.10);
+  background: linear-gradient(135deg, #b64a4a 0%, #ef6f6f 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(182, 74, 74, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
+}
+.workbench-chat-send.stop:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #c75555 0%, #f48080 100%);
+  box-shadow: 0 8px 20px rgba(182, 74, 74, 0.42), 0 2px 4px rgba(0, 0, 0, 0.24);
 }
 @media (max-width: 1200px) {
   .workbench-editor-split { grid-template-columns: minmax(0, 1fr); }
@@ -1911,6 +2240,216 @@ button { font: inherit; }
   white-space: nowrap;
   color: var(--workbench-muted);
   font-size: 11px;
+}
+
+/* Traylinx-style chat input toolbar (Atomek port) */
+.workbench-chat-toolbar.atomek-input {
+  height: auto;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 8px;
+}
+.workbench-chat-toolbar.atomek-input .workbench-chat-route-summary {
+  font-size: 11px;
+}
+.workbench-chat-toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* + (attach / context picker) button */
+.workbench-chat-attach,
+.workbench-chat-target {
+  position: relative;
+}
+.workbench-chat-attach > summary,
+.workbench-chat-target > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border: 1px solid var(--border-subtle, #34343a);
+  background: var(--bg-elevated, #2b2b2d);
+  color: var(--text-secondary, #c9c9d0);
+  border-radius: 8px;
+  user-select: none;
+}
+.workbench-chat-attach > summary {
+  width: 30px;
+  justify-content: center;
+}
+.workbench-chat-attach > summary::-webkit-details-marker,
+.workbench-chat-target > summary::-webkit-details-marker { display: none; }
+.workbench-chat-attach > summary:hover,
+.workbench-chat-target > summary:hover {
+  background: #3a3a3d;
+  color: #fff;
+  border-color: rgba(124, 77, 255, 0.45);
+}
+.workbench-chat-attach[open] > summary,
+.workbench-chat-target[open] > summary {
+  background: rgba(124, 77, 255, 0.18);
+  border-color: rgba(124, 77, 255, 0.55);
+  color: #fff;
+}
+
+.workbench-chat-attach-menu,
+.workbench-chat-target-menu {
+  position: absolute;
+  z-index: 30;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--bg-elevated, #1f1f22);
+  border: 1px solid var(--border-subtle, #34343a);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.workbench-chat-attach-menu {
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+.workbench-chat-target-menu {
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+}
+.workbench-chat-attach-menu button,
+.workbench-chat-target-menu button {
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary, #e6e6ea);
+  text-align: left;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.workbench-chat-attach-menu button:hover:not(:disabled),
+.workbench-chat-target-menu button:hover:not(:disabled) {
+  background: rgba(124, 77, 255, 0.16);
+}
+.workbench-chat-attach-menu button:disabled,
+.workbench-chat-target-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.workbench-chat-target-menu button.active {
+  background: rgba(124, 77, 255, 0.24);
+  color: #fff;
+}
+.workbench-chat-target-menu button small {
+  margin-left: auto;
+  font-size: 10px;
+  color: #f6c177;
+}
+
+/* Mic (voice input) button */
+.workbench-chat-mic {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border-subtle, #34343a);
+  background: var(--bg-elevated, #2b2b2d);
+  color: var(--text-secondary, #c9c9d0);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.workbench-chat-mic:hover:not(:disabled) {
+  background: rgba(124, 77, 255, 0.16);
+  color: #fff;
+  border-color: rgba(124, 77, 255, 0.45);
+}
+.workbench-chat-mic:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Target picker chip */
+.workbench-chat-target > summary {
+  padding: 0 8px 0 10px;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 220px;
+}
+.workbench-chat-target-label {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-chat-target-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Recording bar (Mistral-style — replaces the route summary when active) */
+.workbench-chat-recording {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  height: 30px;
+  min-width: 0;
+}
+.workbench-chat-recording-cancel {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(244, 67, 54, 0.18);
+  color: #f44336;
+  cursor: pointer;
+}
+.workbench-chat-recording-cancel:hover { background: rgba(244, 67, 54, 0.32); }
+.workbench-chat-recording-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+}
+.workbench-chat-recording-wave span {
+  width: 3px;
+  border-radius: 2px;
+  background: #7c4dff;
+  animation: workbenchChatWave 0.7s ease-in-out infinite alternate;
+  height: 30%;
+}
+.workbench-chat-recording-wave span:nth-child(3n) { background: #d85cae; }
+@keyframes workbenchChatWave {
+  0% { height: 20%; }
+  100% { height: 90%; }
+}
+.workbench-chat-recording-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f44336;
+  animation: workbenchChatPulse 1s ease-in-out infinite;
+}
+@keyframes workbenchChatPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.workbench-chat-recording-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--workbench-muted);
 }
 
 .workbench-manual-check-panel {
@@ -2052,6 +2591,105 @@ button { font: inherit; }
   max-width: 100%;
   box-sizing: border-box;
 }
+/* ── Chat panel responsive containment (2026-05-29) ───────────────────
+   The chat lives in the rightmost workbench grid column, which can be as
+   narrow as ~290px. Three things were forcing the content to a ~520px
+   min-width so it spilled/clipped past the panel's right edge:
+     1. .workbench-chat-wrap was display:grid with ONLY rows defined, so its
+        single implicit column sized to max-content (520px) and handed that
+        width to its children — which is why none of the inner flex-wrap /
+        ellipsis rules ever triggered. Bounding the column to minmax(0,1fr)
+        ties it to the panel width and lets everything below it reflow.
+     2. .workbench-chat-attachments' flex-wrap:wrap was being lost in the
+        cascade (there is NO nowrap rule that matches it — likely an @layer
+        / runtime-injection-order issue), so the context-select +
+        Explain/Improve/Edit/Draft sat on one unbreakable 494px line. Forced.
+     3. The threadbar packed thread+target selects + Rename/Delete into a
+        rigid 3-column grid; flex-wrap lets them flow into more rows.
+   Verified with a headless render: 0 horizontal overflow at panel widths
+   down to 273px (was 130px of clipped content before). */
+.workbench-chat-wrap { grid-template-columns: minmax(0, 1fr); }
+.workbench-chat-attachments { flex-wrap: wrap !important; }
+.workbench-chat-chip { max-width: 100%; }
+.workbench-chat-threadbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.workbench-chat-threadbar > select { flex: 1 1 150px; min-width: 0; width: auto; }
+.workbench-chat-threadbar > .workbench-chat-route-summary { flex: 1 1 100%; }
+.workbench-chat-threadbar > button { flex: 0 0 auto; }
+.workbench-chat-threadbar > details { flex: 0 0 auto; }
+
+/* ── Chat light-declutter (Antigravity-leaning, 2026-05-29) ───────────
+   Trim chrome without changing structure: thread Rename/Delete fold into
+   a ⋯ menu, message actions go icon-only, the Target/Context tip is one
+   compact line with the gateway summary pushed right + ellipsised. */
+
+/* ⋯ thread-actions menu (native <details> popover) */
+.workbench-chat-threadmenu { position: relative; flex: 0 0 auto; }
+.workbench-chat-threadmenu > summary {
+  list-style: none;
+  height: 26px;
+  width: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--workbench-border-strong);
+  border-radius: 5px;
+  background: #252526;
+  color: var(--workbench-text);
+  cursor: pointer;
+}
+.workbench-chat-threadmenu > summary::-webkit-details-marker { display: none; }
+.workbench-chat-threadmenu > summary::marker { content: ''; }
+.workbench-chat-threadmenu[open] > summary { border-color: var(--workbench-blue, #4a9eff); }
+.workbench-chat-threadmenu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 4px;
+  border: 1px solid var(--workbench-border-strong);
+  border-radius: 6px;
+  background: #2a2d2e;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+}
+.workbench-chat-threadmenu-pop button {
+  text-align: left;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--workbench-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.workbench-chat-threadmenu-pop button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+.workbench-chat-threadmenu-pop button.danger:hover:not(:disabled) { background: rgba(216, 92, 174, 0.18); color: #f2d2ec; }
+.workbench-chat-threadmenu-pop button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* icon-only message actions */
+.workbench-chat-message-actions button {
+  width: 30px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
+/* Target/Context tip → one compact line, gateway summary right + ellipsis */
+.workbench-chat-tip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+}
+.workbench-chat-tip > em { margin-left: auto; }
+.workbench-chat-tip-sep { color: var(--workbench-muted); opacity: 0.55; }
 .workbench-rich-body,
 .workbench-rich-markdown {
   max-width: 100%;

@@ -218,6 +218,39 @@ const readAgentTranscript = (targetId: string, legacyPodId?: string | null): Cha
   }
 };
 
+export interface AgentTranscriptSummary {
+  targetId: string;
+  lastActivityAt: number;
+  messageCount: number;
+  preview: string;
+}
+
+export function listAgentTranscripts(): AgentTranscriptSummary[] {
+  const prefix = `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:`;
+  const summaries: AgentTranscriptSummary[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const messages = parseAgentTranscript(localStorage.getItem(key));
+      if (messages.length === 0) continue;
+      const last = messages[messages.length - 1];
+      const firstUser = messages.find((m) => m.role === 'user');
+      summaries.push({
+        targetId: key.slice(prefix.length),
+        lastActivityAt: typeof last?.createdAt === 'number' ? last.createdAt : Date.now(),
+        messageCount: messages.length,
+        preview: (firstUser?.body ?? last?.body ?? '').trim().slice(0, 80),
+      });
+    }
+  } catch { /* localStorage unavailable */ }
+  return summaries.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+}
+
+export function clearAgentTranscriptForTarget(targetId: string): void {
+  clearAgentTranscript(targetId, null);
+}
+
 const clearAgentTranscript = (targetId: string, legacyPodId?: string | null): void => {
   try {
     localStorage.removeItem(agentTranscriptKey(targetId));
@@ -622,6 +655,28 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
       const activeThread = await ensureThread();
       if (!activeThread || !ai) return null;
       writeSelectedThreadId(activeThread.id);
+      // Auto-derive a meaningful thread title from the first user message
+      // (replaces the placeholder "Atomek chat" once the user actually
+      // tells us what the conversation is about).
+      const currentTitle = (activeThread.title ?? '').trim();
+      const isDefaultTitle = !currentTitle || currentTitle === 'Atomek chat';
+      if (isDefaultTitle && body.trim()) {
+        const derived = titleFromBody(body, 'Atomek chat');
+        if (derived && derived !== currentTitle) {
+          void (async () => {
+            try {
+              const updateThread = (ai as typeof ai & { updateThread?: (input: { threadId: string; title?: string }) => Promise<AiThread> }).updateThread;
+              const updated = typeof updateThread === 'function'
+                ? await updateThread({ threadId: activeThread.id, title: derived })
+                : { ...activeThread, title: derived, updatedAt: Date.now() } as AiThread;
+              if (typeof updateThread !== 'function') writeThreadTitleOverride(activeThread.id, derived);
+              if (!mounted.current) return;
+              setThread((current) => current?.id === updated.id ? updated : current);
+              setThreads((current) => current.map((t) => t.id === updated.id ? updated : t));
+            } catch { /* non-fatal */ }
+          })();
+        }
+      }
       const hits = await recall(body).catch(() => [] as AiMemoryHit[]);
       const memoryPart = memoryContextPart(hits);
       const contextParts = memoryPart ? [...baseContext, memoryPart] : [...baseContext];
