@@ -1,6 +1,6 @@
 {
   "name": "tytus-app-workbench",
-  "version": "0.4.31",
+  "version": "0.4.32",
   "type": "module",
   "description": "Tytus Resource Fabric cockpit for mission folders, OpenClaw/Hermes pods, local agents, shared files, app skills, chat, artifacts, and approval-gated outputs.",
   "license": "MIT",

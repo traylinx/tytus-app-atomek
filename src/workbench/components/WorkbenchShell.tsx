@@ -54,6 +54,7 @@ import type { WorkspaceEditFileCandidate } from '../edits';
 import { embeddingUnavailableReason, listEmbeddingModels } from '../ai/embeddingCapability';
 import { addManualCheckCommand, addManualCheckResult, buildManualCheckFollowupPrompt, createManualCheckSession, latestManualCheckStatus } from '../checks/manualChecks';
 import { AtomekBrandMark, AtomekWordmark } from '../brand/AtomekBrand';
+import { useAtomekT } from '../../i18n';
 import { ATOMEK_EMBEDDED_DOCS, type AtomekEmbeddedDoc } from '../docs/embeddedDocs';
 import { getPersistedHandle, savePersistedHandle } from '../persistedHandles';
 import type { ManualCheckSession, ManualCheckStatus } from '../checks/manualChecks';
@@ -77,7 +78,7 @@ const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CHAT_WORKSPACE_KEY = 'atomek:default';
 const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
-const APP_VERSION = '0.4.28';
+const APP_VERSION = '0.4.32';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
@@ -883,6 +884,7 @@ function buildMissionJson(mission: MissionFolderState, graph: TytusResourceGraph
 }
 
 export function WorkbenchShell({ host }: Props) {
+  const t = useAtomekT();
   const workbenchRef = useRef<HTMLDivElement | null>(null);
   const [workbenchWidth, setWorkbenchWidth] = useState(0);
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
@@ -1882,11 +1884,11 @@ export function WorkbenchShell({ host }: Props) {
             saveLocalJobOutput={saveLocalJobOutput}
             activeFile={activeFile}
           />
-          <div className="workbench-primary-resizer" onPointerDown={beginPrimaryResize} title="Resize Explorer" />
+          <div className="workbench-primary-resizer" onPointerDown={beginPrimaryResize} title={t('shell.resizeExplorer')} />
         </div>
       )}
       <main className="workbench-editor-area">
-        <button className="workbench-command-center" onClick={() => setCommandPaletteOpen(true)}>Workspace</button>
+        <button className="workbench-command-center" onClick={() => setCommandPaletteOpen(true)}>{t('app.workspace')}</button>
         <section className="workbench-editor-stack">
           <EditorTabs
             openEditors={openEditors}
@@ -1910,15 +1912,15 @@ export function WorkbenchShell({ host }: Props) {
           {aiDirtyNotice && dirtyFiles.length > 0 ? (
             <div className="workbench-ai-dirty-banner">
               <span>{aiDirtyNotice}</span>
-              <button onClick={() => { void saveAllDirty(); }}>Save all</button>
-              <button onClick={() => setAiDirtyNotice(null)} title="Dismiss"><X size={13} /></button>
+              <button onClick={() => { void saveAllDirty(); }}>{t('shell.saveAll')}</button>
+              <button onClick={() => setAiDirtyNotice(null)} title={t('shell.dismiss')}><X size={13} /></button>
             </div>
           ) : null}
           <div className="workbench-editor-content">
             {activeFile ? (
               <div className={activeFile.language === 'markdown' && markdownPreviewVisible ? 'workbench-editor-split' : 'workbench-editor-single'}>
                 <div className="workbench-editor-pane">
-                  <Suspense fallback={<div className="workbench-empty-pane">Loading editor…</div>}>
+                  <Suspense fallback={<div className="workbench-empty-pane">{t('shell.loadingEditor')}</div>}>
                     <WorkbenchMonacoEditor
                       key={activeFile.id}
                       file={activeFile}
@@ -1944,8 +1946,8 @@ export function WorkbenchShell({ host }: Props) {
             ) : (
               <div className="workbench-no-editor">
                 <FileSearch size={34} />
-                <p>No editor open</p>
-                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>Show Agent Team</button>
+                <p>{t('shell.noEditor')}</p>
+                <button className="workbench-button-subtle" onClick={() => setWelcomeClosed(false)}>{t('shell.showAgentTeam')}</button>
               </div>
             )}
           </div>
@@ -2093,16 +2095,17 @@ export function WorkbenchShell({ host }: Props) {
 }
 
 function ActivityBar({ active, setActive, togglePrimary, openSettings, settingsActive }: { active: ActivityView; setActive: (view: ActivityView) => void; togglePrimary: () => void; openSettings: () => void; settingsActive: boolean }) {
+  const t = useAtomekT();
   return (
-    <aside className="workbench-activity-bar" aria-label="Activity Bar">
-      <button className="workbench-activity-brand" title="Toggle side bar" aria-label="Toggle side bar" onClick={togglePrimary}><AtomekBrandMark size={30} variant="cream" /></button>
-      <ActivityButton icon={<File size={25} />} label="Explorer" active={active === 'explorer'} onClick={() => setActive('explorer')} />
-      <ActivityButton icon={<Search size={25} />} label="Search" active={active === 'search'} onClick={() => setActive('search')} />
-      <ActivityButton icon={<GitBranch size={25} />} label="Source Control" active={active === 'source-control'} onClick={() => setActive('source-control')} />
-      <ActivityButton icon={<Bug size={25} />} label="Run and Debug" active={active === 'run'} onClick={() => setActive('run')} />
-      <ActivityButton icon={<Bot size={25} />} label="Agent Team" active={active === 'computer'} onClick={() => setActive('computer')} />
+    <aside className="workbench-activity-bar" aria-label={t('activity.aria')}>
+      <button className="workbench-activity-brand" title={t('activity.toggleSidebar')} aria-label={t('activity.toggleSidebar')} onClick={togglePrimary}><AtomekBrandMark size={30} variant="cream" /></button>
+      <ActivityButton icon={<File size={25} />} label={t('activity.explorer')} active={active === 'explorer'} onClick={() => setActive('explorer')} />
+      <ActivityButton icon={<Search size={25} />} label={t('activity.search')} active={active === 'search'} onClick={() => setActive('search')} />
+      <ActivityButton icon={<GitBranch size={25} />} label={t('activity.sourceControl')} active={active === 'source-control'} onClick={() => setActive('source-control')} />
+      <ActivityButton icon={<Bug size={25} />} label={t('activity.runDebug')} active={active === 'run'} onClick={() => setActive('run')} />
+      <ActivityButton icon={<Bot size={25} />} label={t('app.agentTeam')} active={active === 'computer'} onClick={() => setActive('computer')} />
       <div className="workbench-activity-spacer" />
-      <ActivityButton icon={<Settings size={23} />} label="Settings" active={settingsActive} onClick={openSettings} />
+      <ActivityButton icon={<Settings size={23} />} label={t('app.settings')} active={settingsActive} onClick={openSettings} />
     </aside>
   );
 }
@@ -2132,14 +2135,16 @@ function PrimarySidebar(props: {
   saveLocalJobOutput: (title: string, body: string) => void;
   activeFile: WorkbenchFile | null;
 }) {
+  const t = useAtomekT();
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
-  if (props.activity === 'source-control') return <PlaceholderPane title="SOURCE CONTROL" body="No source control provider registered. Git belongs here, not as a fake demo." />;
-  if (props.activity === 'run') return <PlaceholderPane title="RUN AND DEBUG" body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
+  if (props.activity === 'source-control') return <PlaceholderPane title={t('activity.sourceControl').toUpperCase()} body="No source control provider registered. Git belongs here, not as a fake demo." />;
+  if (props.activity === 'run') return <PlaceholderPane title={t('activity.runDebug').toUpperCase()} body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
   if (props.activity === 'computer') return <ControlTowerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
 
 function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activity'>) {
+  const t = useAtomekT();
   const noFolder = !props.folder;
   const tree = useMemo(() => buildFileTree(props.files, props.folder?.name), [props.files, props.folder?.name]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set());
@@ -2164,34 +2169,34 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
 
   return (
     <aside className="workbench-sidebar">
-      <div className="workbench-sidebar-title">EXPLORER</div>
+      <div className="workbench-sidebar-title">{t('explorer.title')}</div>
       <div className="workbench-sidebar-scroll">
         {noFolder ? (
           <>
-            <p style={{ fontWeight: 600, margin: '10px 0' }}>NO FOLDER OPENED</p>
-            <p className="workbench-muted">You have not yet opened a folder.</p>
-            <button className="workbench-button-blue" onClick={props.openFolder}>Open Folder</button>
-            <button className="workbench-button-blue" onClick={props.openFile}>Open File</button>
-            <button className="workbench-button-blue" onClick={() => props.recent[0] ? void props.reopenRecent(props.recent[0]) : props.setStatus('No recent local workspace yet.')}>Open Recent</button>
-            <p className="workbench-muted">{props.hasFsAccess ? 'Local files use browser-native File System Access API.' : 'Browser fallback may show a file chooser label.'}</p>
+            <p style={{ fontWeight: 600, margin: '10px 0' }}>{t('explorer.noFolder')}</p>
+            <p className="workbench-muted">{t('explorer.noFolderBody')}</p>
+            <button className="workbench-button-blue" onClick={props.openFolder}>{t('explorer.openFolder')}</button>
+            <button className="workbench-button-blue" onClick={props.openFile}>{t('explorer.openFile')}</button>
+            <button className="workbench-button-blue" onClick={() => props.recent[0] ? void props.reopenRecent(props.recent[0]) : props.setStatus(t('explorer.noRecentWorkspace'))}>{t('explorer.openRecent')}</button>
+            <p className="workbench-muted">{props.hasFsAccess ? t('explorer.fsAccess') : t('explorer.browserFallback')}</p>
           </>
         ) : (
           <>
             <div className="workbench-sidebar-actions">
-              <button className="workbench-button-subtle" onClick={props.openFile}><FilePlus2 size={14} />Open File</button>
-              <button className="workbench-button-subtle" onClick={props.openFolder}><FolderOpen size={14} />Open Folder</button>
+              <button className="workbench-button-subtle" onClick={props.openFile}><FilePlus2 size={14} />{t('explorer.openFile')}</button>
+              <button className="workbench-button-subtle" onClick={props.openFolder}><FolderOpen size={14} />{t('explorer.openFolder')}</button>
             </div>
-            <input className="workbench-input" value={props.query} onChange={(event) => props.setQuery(event.target.value)} placeholder="Search files" />
-            <div className="workbench-section-title"><ChevronDown size={12} /> Open Editors</div>
-            {props.openEditors.length === 0 ? <p className="workbench-muted">No open editors</p> : props.openEditors.map((file) => (
+            <input className="workbench-input" value={props.query} onChange={(event) => props.setQuery(event.target.value)} placeholder={t('explorer.searchFiles')} />
+            <div className="workbench-section-title"><ChevronDown size={12} /> {t('explorer.openEditors')}</div>
+            {props.openEditors.length === 0 ? <p className="workbench-muted">{t('explorer.noOpenEditors')}</p> : props.openEditors.map((file) => (
               <FileRow key={file.id} file={file} active={file.id === props.activeFileId} onOpen={() => props.openWorkbenchFile(file)} label={file.name} detail={file.path} />
             ))}
-            <div className="workbench-section-title"><ChevronDown size={12} /> {props.folder?.name ?? 'Workspace'}</div>
-            {tree.length === 0 ? <p className="workbench-muted">No readable text files found.</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile, expandedDirs, toggleDir)}
+            <div className="workbench-section-title"><ChevronDown size={12} /> {props.folder?.name ?? t('app.workspace')}</div>
+            {tree.length === 0 ? <p className="workbench-muted">{t('explorer.noReadableFiles')}</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile, expandedDirs, toggleDir)}
           </>
         )}
-        <div className="workbench-section-title">Recent</div>
-        {props.recent.length === 0 ? <p className="workbench-muted">No recent folders yet.</p> : props.recent.map((item) => <button key={`${item.path}-${item.at}`} className="workbench-tree-row" onClick={() => { void props.reopenRecent(item); }} title={item.path}>{item.kind === 'file' ? <FileCode2 size={14} /> : <Folder size={14} />}<span className="workbench-row-name">{item.name}</span></button>)}
+        <div className="workbench-section-title">{t('explorer.recent')}</div>
+        {props.recent.length === 0 ? <p className="workbench-muted">{t('explorer.noRecentFolders')}</p> : props.recent.map((item) => <button key={`${item.path}-${item.at}`} className="workbench-tree-row" onClick={() => { void props.reopenRecent(item); }} title={item.path}>{item.kind === 'file' ? <FileCode2 size={14} /> : <Folder size={14} />}<span className="workbench-row-name">{item.name}</span></button>)}
       </div>
     </aside>
   );
@@ -2275,11 +2280,12 @@ function renderTreeNodes(
 }
 
 function BreadcrumbBar({ file, folder, showWelcome }: { file: WorkbenchFile | null; folder: WorkbenchFolder | null; showWelcome: boolean }) {
-  const parts = showWelcome ? ['Agent Team'] : (file?.path.split('/').filter(Boolean) ?? []);
+  const t = useAtomekT();
+  const parts = showWelcome ? [t('app.agentTeam')] : (file?.path.split('/').filter(Boolean) ?? []);
   const normalized = folder && parts[0] === folder.name ? parts.slice(1) : parts;
   return (
     <div className="workbench-breadcrumb">
-      {normalized.length === 0 ? <span>Workspace</span> : normalized.map((part, index) => (
+      {normalized.length === 0 ? <span>{t('app.workspace')}</span> : normalized.map((part, index) => (
         <span key={`${part}-${index}`} className="workbench-breadcrumb-part">
           {index > 0 && <span className="workbench-breadcrumb-sep">›</span>}
           {part}
@@ -2307,19 +2313,20 @@ function EditorTabs(props: {
   previewVisible: boolean;
   togglePreview: () => void;
 }) {
+  const t = useAtomekT();
   return (
     <div className="workbench-tabs">
       {props.showWelcome && (
         <button className="workbench-tab active">
           <FileSearch size={15} />
-          <span className="workbench-tab-name">Agent Team</span>
+          <span className="workbench-tab-name">{t('app.agentTeam')}</span>
           <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeWelcome(); }}><X size={13} /></span>
         </button>
       )}
       {props.settingsOpen && (
-        <button className={`workbench-tab ${props.settingsActive ? 'active' : ''}`} onClick={props.openSettings} title="Atomek Settings">
+        <button className={`workbench-tab ${props.settingsActive ? 'active' : ''}`} onClick={props.openSettings} title={t('tabs.atomekSettings')}>
           <SlidersHorizontal size={15} />
-          <span className="workbench-tab-name">Atomek Settings</span>
+          <span className="workbench-tab-name">{t('tabs.atomekSettings')}</span>
           <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeSettings(); }}><X size={13} /></span>
         </button>
       )}
@@ -2327,13 +2334,13 @@ function EditorTabs(props: {
         <button key={file.id} className={`workbench-tab ${file.id === props.activeFileId ? 'active' : ''}`} onClick={() => props.setActiveFileId(file.id)} title={file.path}>
           <FileCode2 size={15} />
           <span className="workbench-tab-name">{file.dirty && <span className="workbench-dirty-dot">●</span>}{file.name}</span>
-          {file.dirty && <span className="workbench-tab-save" role="button" tabIndex={0} title="Save" onClick={(event) => { event.stopPropagation(); props.saveFile(file.id); }}>Save</span>}
+          {file.dirty && <span className="workbench-tab-save" role="button" tabIndex={0} title={t('tabs.save')} onClick={(event) => { event.stopPropagation(); props.saveFile(file.id); }}>{t('tabs.save')}</span>}
           <span className="workbench-tab-close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); props.closeEditor(file.id); }}><X size={13} /></span>
         </button>
       ))}
       <div style={{ flex: 1 }} />
-      {props.canPreview && <button className={`workbench-editor-action ${props.previewVisible ? 'active' : ''}`} title="Toggle Markdown Preview" onClick={props.togglePreview}><Eye size={16} /></button>}
-      <button className={`workbench-editor-action ${props.secondaryVisible ? 'active' : ''}`} title="Toggle Chat" onClick={props.toggleSecondary}><PanelRight size={16} /></button>
+      {props.canPreview && <button className={`workbench-editor-action ${props.previewVisible ? 'active' : ''}`} title={t('tabs.toggleMarkdownPreview')} onClick={props.togglePreview}><Eye size={16} /></button>}
+      <button className={`workbench-editor-action ${props.secondaryVisible ? 'active' : ''}`} title={t('tabs.toggleChat')} onClick={props.toggleSecondary}><PanelRight size={16} /></button>
     </div>
   );
 }
@@ -2676,6 +2683,7 @@ function MissionControlHome({
 }
 
 function SearchPane({ files, query, setQuery, openWorkbenchFile, activeFileId }: { files: WorkbenchFile[]; query: string; setQuery: (value: string) => void; openWorkbenchFile: (file: WorkbenchFile, lineNumber?: number) => void; activeFileId: string | null }) {
+  const t = useAtomekT();
   const results = useMemo(() => buildSearchResults(files, query), [files, query]);
   const grouped = useMemo(() => {
     const byFile = new Map<string, SearchResult[]>();
@@ -2684,11 +2692,11 @@ function SearchPane({ files, query, setQuery, openWorkbenchFile, activeFileId }:
   }, [results]);
   return (
     <aside className="workbench-sidebar">
-      <div className="workbench-sidebar-title">SEARCH</div>
+      <div className="workbench-sidebar-title">{t('search.title')}</div>
       <div className="workbench-sidebar-scroll">
-        <input className="workbench-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files and text" autoFocus />
-        <div className="workbench-section-title"><FileSearch size={12} /> Results</div>
-        {!query.trim() ? <p className="workbench-muted">Type to search filenames and text in the opened workspace.</p> : grouped.length === 0 ? <p className="workbench-muted">No matches.</p> : grouped.map((group) => {
+        <input className="workbench-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('search.placeholder')} autoFocus />
+        <div className="workbench-section-title"><FileSearch size={12} /> {t('search.results')}</div>
+        {!query.trim() ? <p className="workbench-muted">{t('search.help')}</p> : grouped.length === 0 ? <p className="workbench-muted">{t('search.noMatches')}</p> : grouped.map((group) => {
           const file = group[0].file;
           return (
             <div key={file.id} className="workbench-search-group">
@@ -2699,7 +2707,7 @@ function SearchPane({ files, query, setQuery, openWorkbenchFile, activeFileId }:
                   <span>{result.line}</span>
                 </button>
               ))}
-              {group.length > 5 && <div className="workbench-search-more">+{group.length - 5} more matches</div>}
+              {group.length > 5 && <div className="workbench-search-more">{t('search.moreMatches', { count: group.length - 5 })}</div>}
             </div>
           );
         })}
@@ -3006,6 +3014,7 @@ function SecondarySidebar(props: {
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onClose: () => void;
 }) {
+  const t = useAtomekT();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState('');
   const [agentTranscripts, setAgentTranscripts] = useState<AgentTranscriptSummary[]>([]);
@@ -3139,27 +3148,27 @@ function SecondarySidebar(props: {
 
   return (
     <aside className="workbench-secondary">
-      <div className="workbench-secondary-resizer" onPointerDown={props.onResizeStart} title="Resize Chat" />
+      <div className="workbench-secondary-resizer" onPointerDown={props.onResizeStart} title={t('shell.resizeChat')} />
       <div className="workbench-secondary-tabs">
         <div className="workbench-secondary-tab-group">
-          <button className={`workbench-secondary-tab ${props.tab === 'chat' ? 'active' : ''}`} onClick={() => props.setTab('chat')}>CHAT</button>
-          <button className={`workbench-secondary-tab ${props.tab === 'agents' ? 'active' : ''}`} onClick={() => props.setTab('agents')}>AGENTS</button>
-          <button className={`workbench-secondary-tab ${props.tab === 'outputs' ? 'active' : ''}`} onClick={() => props.setTab('outputs')}>OUTPUTS</button>
+          <button className={`workbench-secondary-tab ${props.tab === 'chat' ? 'active' : ''}`} onClick={() => props.setTab('chat')}>{t('secondary.chat')}</button>
+          <button className={`workbench-secondary-tab ${props.tab === 'agents' ? 'active' : ''}`} onClick={() => props.setTab('agents')}>{t('secondary.agents')}</button>
+          <button className={`workbench-secondary-tab ${props.tab === 'outputs' ? 'active' : ''}`} onClick={() => props.setTab('outputs')}>{t('secondary.outputs')}</button>
         </div>
         <div className="workbench-secondary-actions">
-          <button title="New Chat" onClick={props.newChat}><Plus size={15} /></button>
+          <button title={t('secondary.newChat')} onClick={props.newChat}><Plus size={15} /></button>
           <button
             ref={historyButtonRef}
-            title="Past Conversations"
-            aria-label="Past Conversations"
+            title={t('secondary.pastConversations')}
+            aria-label={t('secondary.pastConversations')}
             aria-expanded={historyOpen}
             onClick={() => { refreshAgentTranscripts(); setHistoryOpen((open) => !open); }}
             className={historyOpen ? 'is-active' : ''}
           >
             <Clock size={15} />
           </button>
-          <button title="Chat Settings" onClick={props.openSettings}><MoreHorizontal size={16} /></button>
-          <button title="Close Chat" onClick={props.onClose}><X size={15} /></button>
+          <button title={t('secondary.chatSettings')} onClick={props.openSettings}><MoreHorizontal size={16} /></button>
+          <button title={t('secondary.closeChat')} onClick={props.onClose}><X size={15} /></button>
         </div>
       </div>
       {historyOpen && typeof document !== 'undefined' ? createPortal(
@@ -3174,7 +3183,7 @@ function SecondarySidebar(props: {
             <input
               ref={historyInputRef}
               type="text"
-              placeholder="Search all conversations..."
+              placeholder={t('history.search')}
               value={historyQuery}
               onChange={(event) => setHistoryQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -3188,7 +3197,7 @@ function SecondarySidebar(props: {
           <div className="workbench-history-portal-list">
             {currentItem && currentMatches ? (
               <>
-                <div className="workbench-history-portal-group">Current</div>
+                <div className="workbench-history-portal-group">{t('history.current')}</div>
                 <div
                   className="workbench-history-portal-item active"
                   role="menuitem"
@@ -3196,22 +3205,22 @@ function SecondarySidebar(props: {
                   title={currentItem.title}
                 >
                   <span className="workbench-history-portal-title">
-                    {currentItem.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">Agent</span> : null}
+                    {currentItem.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">{t('history.agent')}</span> : null}
                     {currentItem.title}
                   </span>
                   <small>{formatThreadDate(currentItem.lastActivityAt)}</small>
                   <button
                     className="workbench-history-portal-delete"
                     onClick={(event) => { event.stopPropagation(); deleteItem(currentItem); }}
-                    title="Delete conversation"
-                    aria-label="Delete conversation"
+                    title={t('history.deleteConversation')}
+                    aria-label={t('history.deleteConversation')}
                   ><Trash2 size={13} /></button>
                 </div>
               </>
             ) : null}
             {recentItems.length > 0 ? (
               <>
-                <div className="workbench-history-portal-group">Recent</div>
+                <div className="workbench-history-portal-group">{t('history.recent')}</div>
                 {recentItems.map((item) => (
                   <div
                     key={item.id}
@@ -3221,15 +3230,15 @@ function SecondarySidebar(props: {
                     title={item.title}
                   >
                     <span className="workbench-history-portal-title">
-                      {item.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">Agent</span> : null}
+                      {item.kind === 'pod-agent' ? <span className="workbench-history-portal-badge">{t('history.agent')}</span> : null}
                       {item.title}
                     </span>
                     <small>{formatThreadDate(item.lastActivityAt)}</small>
                     <button
                       className="workbench-history-portal-delete"
                       onClick={(event) => { event.stopPropagation(); deleteItem(item); }}
-                      title="Delete conversation"
-                      aria-label="Delete conversation"
+                      title={t('history.deleteConversation')}
+                      aria-label={t('history.deleteConversation')}
                     ><Trash2 size={13} /></button>
                   </div>
                 ))}
@@ -3237,13 +3246,13 @@ function SecondarySidebar(props: {
             ) : null}
             {!currentMatches && recentItems.length === 0 ? (
               <div className="workbench-history-portal-empty">
-                {historyQuery.trim() ? 'No matches' : 'No conversations yet — start chatting with any agent.'}
+                {historyQuery.trim() ? t('history.noMatches') : t('history.empty')}
               </div>
             ) : null}
           </div>
           <div className="workbench-history-portal-footer">
-            <span><kbd>↩</kbd> open</span>
-            <span><kbd>Esc</kbd> close</span>
+            <span><kbd>↩</kbd> {t('history.open')}</span>
+            <span><kbd>Esc</kbd> {t('history.close')}</span>
           </div>
         </div>,
         document.body
@@ -3348,6 +3357,7 @@ function ChatPane(props: {
   busy: boolean;
   memoryHitCount: number;
 }) {
+  const t = useAtomekT();
   const targetReady = props.selectedChatTarget.available;
   const isAtomekTarget = props.selectedChatTarget.kind === 'atomek-ai';
   const canSend = props.chatInput.trim().length > 0 && !props.busy && targetReady;
@@ -3479,23 +3489,23 @@ function ChatPane(props: {
     <div className="workbench-chat-wrap">
       <div className="workbench-chat-threadbar">
         <span className="workbench-chat-thread-title" title={props.chatThread?.title ?? props.selectedChatTarget.label}>
-          {isAtomekTarget ? (props.chatThread?.title ?? 'Atomek chat') : `${props.selectedChatTarget.label} session`}
+          {isAtomekTarget ? (props.chatThread?.title ?? t('chat.atomekChat')) : t('chat.session', { name: props.selectedChatTarget.label })}
         </span>
         <span className="workbench-chat-thread-actions">
           <button
             className="workbench-chat-iconbtn"
             onClick={() => { void props.newChat(); }}
             disabled={props.busy}
-            title={isAtomekTarget ? 'New conversation' : 'Clear conversation'}
-            aria-label="New conversation"
+            title={isAtomekTarget ? t('chat.newConversation') : t('chat.clearConversation')}
+            aria-label={t('chat.newConversation')}
           ><Plus size={15} /></button>
           {isAtomekTarget && props.chatThreads.length > 0 ? (
             <details ref={historyMenuRef} className="workbench-chat-iconmenu">
-              <summary className="workbench-chat-iconbtn" title="Chat history" aria-label="Chat history">
+              <summary className="workbench-chat-iconbtn" title={t('chat.history')} aria-label={t('chat.history')}>
                 <Clock size={15} />
               </summary>
               <div className="workbench-chat-history-pop" role="menu">
-                <div className="workbench-chat-history-header">Chats ({props.chatThreads.length})</div>
+                <div className="workbench-chat-history-header">{t('chat.chats', { count: props.chatThreads.length })}</div>
                 {props.chatThreads.map((thread) => (
                   <button
                     key={thread.id}
@@ -3512,7 +3522,7 @@ function ChatPane(props: {
           ) : null}
           {isAtomekTarget ? (
             <details className="workbench-chat-iconmenu">
-              <summary className="workbench-chat-iconbtn" title="Chat actions" aria-label="Chat actions">
+              <summary className="workbench-chat-iconbtn" title={t('chat.actions')} aria-label={t('chat.actions')}>
                 <MoreHorizontal size={15} />
               </summary>
               <div className="workbench-chat-threadmenu-pop">
@@ -3520,7 +3530,7 @@ function ChatPane(props: {
                   onClick={(event) => {
                     event.currentTarget.closest('details')?.removeAttribute('open');
                     if (!props.chatThread) return;
-                    const title = window.prompt('Rename chat', props.chatThread.title);
+                    const title = window.prompt(t('chat.renamePrompt'), props.chatThread.title);
                     if (title !== null) props.renameThread(props.chatThread.id, title);
                   }}
                   disabled={!props.chatThread || props.busy}
@@ -3548,44 +3558,44 @@ function ChatPane(props: {
           <div className="workbench-chat-empty">
             <div>
               <MessageSquareText size={48} />
-              <h3>Build with {props.selectedChatTarget.label}</h3>
-              <p>{props.selectedChatTarget.kind === 'atomek-ai' ? 'Ask about open files, request a plan, or draft an artifact.' : 'Chat with the selected pod agent from this same Atomek panel.'}</p>
+              <h3>{t('chat.buildWith', { name: props.selectedChatTarget.label })}</h3>
+              <p>{props.selectedChatTarget.kind === 'atomek-ai' ? t('chat.emptyAtomek') : t('chat.emptyPod')}</p>
               <p className="workbench-chat-empty-link">{props.aiStatus.available ? props.aiStatus.label : props.aiStatus.reason ?? props.aiStatus.label}</p>
             </div>
           </div>
         ) : props.chatMessages.map((msg) => (
           <div key={msg.id} className={`workbench-chat-message ${msg.role}`}>
-            <strong>{msg.role === 'user' ? 'You' : msg.sourceLabel ?? 'Atomek'}</strong>
-            {msg.status === 'streaming' ? <em> streaming</em> : null}
-            {msg.status === 'error' ? <em> error</em> : null}
+            <strong>{msg.role === 'user' ? t('chat.you') : msg.sourceLabel ?? 'Atomek'}</strong>
+            {msg.status === 'streaming' ? <em> {t('chat.streaming')}</em> : null}
+            {msg.status === 'error' ? <em> {t('chat.error')}</em> : null}
             <br />
             <RichMessageBody body={msg.body} />
             {msg.gatewayLabel ? <><br /><small>{msg.gatewayLabel}</small></> : null}
             {msg.role === 'assistant' && msg.status !== 'streaming' && msg.status !== 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy answer" aria-label="Copy answer"><Copy size={14} /></button>
-                <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title="Save as output artifact" aria-label="Save as output artifact"><FilePlus2 size={14} /></button>
-                <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store in Atomek memory" aria-label="Remember"><GitBranch size={14} /></button>
-                <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title="Preview an editable patch" aria-label="Preview patch"><Eye size={14} /></button>
-                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Regenerate answer" aria-label="Regenerate"><RefreshCcw size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title={t('chat.copyAnswer')} aria-label={t('chat.copyAnswer')}><Copy size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.saveMessageAsArtifact(msg)} title={t('chat.saveArtifact')} aria-label={t('chat.saveArtifact')}><FilePlus2 size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.rememberMessage(msg)} title="Store in Atomek memory" aria-label={t('chat.remember')}><GitBranch size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => props.previewEditFromMessage(msg)} disabled={props.workspaceFileCount === 0} title={t('chat.previewPatch')} aria-label={t('chat.previewPatch')}><Eye size={14} /></button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title={t('chat.regenerate')} aria-label={t('chat.regenerate')}><RefreshCcw size={14} /></button>
               </div>
             ) : null}
             {msg.role === 'assistant' && msg.status === 'error' ? (
               <div className="workbench-chat-message-actions">
-                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title="Copy error" aria-label="Copy error"><Copy size={14} /></button>
-                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title="Retry" aria-label="Retry"><RefreshCcw size={14} /></button>
+                <button className="workbench-chat-message-action" onClick={() => copyWholeMessage(msg)} title={t('chat.copyError')} aria-label={t('chat.copyError')}><Copy size={14} /></button>
+                <button className="workbench-chat-message-action regen" onClick={() => props.regenerateMessage(msg)} disabled={props.busy} title={t('chat.retry')} aria-label={t('chat.retry')}><RefreshCcw size={14} /></button>
               </div>
             ) : null}
           </div>
         ))}
-        {hasHiddenNewOutput ? <button className="workbench-chat-jump" onClick={jumpToLatest}>Jump to latest</button> : null}
+        {hasHiddenNewOutput ? <button className="workbench-chat-jump" onClick={jumpToLatest}>{t('chat.jumpLatest')}</button> : null}
       </div>
       <div className="workbench-chat-composer">
         <div className="workbench-chat-tip">
-          <span>Target</span>
+          <span>{t('chat.target')}</span>
           <strong>{props.selectedChatTarget.label}</strong>
           <span className="workbench-chat-tip-sep">·</span>
-          <span>Context</span>
+          <span>{t('chat.context')}</span>
           <strong>{contextScopeLabel(props.contextScope)}</strong>
           <em>{props.selectedChatTarget.kind === 'atomek-ai' ? chatSettingsSummary(props.chatSettings, props.aiStatus.label, props.memoryHitCount) : props.selectedChatTarget.description}</em>
         </div>
@@ -3598,24 +3608,24 @@ function ChatPane(props: {
               disabled={props.busy}
               title="Context scope for next message"
             >
-              <option value="none">No context</option>
-              <option value="active-selection">Selection</option>
-              <option value="active-file">Active file</option>
-              <option value="open-editors">Open editors</option>
-              <option value="indexed-project">Indexed project</option>
+              <option value="none">{t('chat.noContext')}</option>
+              <option value="active-selection">{t('chat.selection')}</option>
+              <option value="active-file">{t('chat.activeFile')}</option>
+              <option value="open-editors">{t('chat.openEditors')}</option>
+              <option value="indexed-project">{t('chat.indexedProject')}</option>
             </select>
             {props.contextScope === 'indexed-project' ? (
               <>
                 <button className="workbench-chat-chip-button" onClick={props.refreshProjectIndex} disabled={props.busy}>
-                  <RefreshCcw size={12} /> Index
+                  <RefreshCcw size={12} /> {t('chat.index')}
                 </button>
                 <span className={`workbench-chat-chip ${props.projectIndexStale ? 'warn' : 'muted'}`} title="Project index used for query-scoped retrieval">
-                  <FileSearch size={13} /> {props.projectIndexSummary}{props.projectIndexStale ? ' · stale' : ''}
+                  <FileSearch size={13} /> {props.projectIndexSummary}{props.projectIndexStale ? ` · ${t('chat.stale')}` : ''}
                 </span>
               </>
             ) : null}
             {props.contextAttachments.length === 0 ? (
-              <span className="workbench-chat-chip muted"><Paperclip size={13} /> No file context</span>
+              <span className="workbench-chat-chip muted"><Paperclip size={13} /> {t('chat.noFileContext')}</span>
             ) : props.contextAttachments.map((attachment) => {
               const score = typeof attachment.score === 'number' ? attachment.score.toFixed(2) : null;
               const vectorScore = typeof attachment.vectorScore === 'number' ? attachment.vectorScore.toFixed(2) : null;
@@ -3631,23 +3641,23 @@ function ChatPane(props: {
               ].filter(Boolean).join(' · ');
               return (
                 <span key={attachment.id} className="workbench-chat-chip" title={title}>
-                  <button className="workbench-chat-chip-open" onClick={() => props.revealContextAttachment(attachment)} disabled={!attachment.fileId} title="Reveal context"><Paperclip size={13} /></button>
+                  <button className="workbench-chat-chip-open" onClick={() => props.revealContextAttachment(attachment)} disabled={!attachment.fileId} title={t('chat.revealContext')}><Paperclip size={13} /></button>
                   {attachment.label}
                   {score ? <small>{score}</small> : null}
                   {attachment.snippet ? <small>{attachment.snippet.slice(0, 60)}{attachment.snippet.length > 60 ? '…' : ''}</small> : null}
-                  {attachment.dirty ? <small>dirty</small> : null}
-                  {attachment.removable ? <button className="workbench-chat-chip-remove" onClick={() => props.removeContextAttachment(attachment)} title="Remove context"><X size={11} /></button> : null}
+                  {attachment.dirty ? <small>{t('chat.dirty')}</small> : null}
+                  {attachment.removable ? <button className="workbench-chat-chip-remove" onClick={() => props.removeContextAttachment(attachment)} title={t('chat.removeContext')}><X size={11} /></button> : null}
                 </span>
               );
             })}
-            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>Explain</button>
-            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>Improve</button>
-            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>Edit</button>
-            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('draft')} disabled={props.busy}>Draft</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('explain')} disabled={!props.activeFile || props.busy}>{t('chat.explain')}</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('improve')} disabled={!props.activeFile || props.busy}>{t('chat.improve')}</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('edit')} disabled={!props.activeFile || props.busy}>{t('chat.edit')}</button>
+            <button className="workbench-chat-chip-button" onClick={() => props.runQuickPrompt('draft')} disabled={props.busy}>{t('chat.draft')}</button>
           </div>
           {props.pendingPatchPrompt ? (
             <button className="workbench-chat-generate-patch" onClick={props.generatePatchPrompt} disabled={props.busy}>
-              Generate patch for last edit request
+              {t('chat.generatePatch')}
             </button>
           ) : null}
           <textarea
@@ -3660,24 +3670,24 @@ function ChatPane(props: {
                 if (!props.busy) props.askAgent();
               }
             }}
-            placeholder={props.selectedChatTarget.kind === 'atomek-ai' ? 'Ask Atomek about the open file or describe what to build...' : `Ask ${props.selectedChatTarget.label}…`}
+            placeholder={props.selectedChatTarget.kind === 'atomek-ai' ? t('chat.askAtomek') : t('chat.askTarget', { name: props.selectedChatTarget.label })}
             rows={3}
           />
           <div className="workbench-chat-toolbar atomek-input">
             <details ref={attachMenuRef} className="workbench-chat-attach">
-              <summary title="Add context" aria-label="Add context"><Plus size={16} /></summary>
+              <summary title={t('chat.addContext')} aria-label={t('chat.addContext')}><Plus size={16} /></summary>
               <div className="workbench-chat-attach-menu" role="menu">
-                <button onClick={() => pickScope('active-file')} disabled={!props.activeFile} title="Use active file as context">Active file</button>
-                <button onClick={() => pickScope('active-selection')} disabled={!props.activeFile} title="Use current selection">Selection</button>
-                <button onClick={() => pickScope('open-editors')} title="All open editors">Open editors</button>
-                <button onClick={() => pickScope('indexed-project')} title="Project-wide retrieval (semantic + keyword)">Indexed project</button>
-                <button onClick={() => pickScope('none')} title="No file context">No context</button>
+                <button onClick={() => pickScope('active-file')} disabled={!props.activeFile} title={t('chat.useActiveFile')}>{t('chat.activeFile')}</button>
+                <button onClick={() => pickScope('active-selection')} disabled={!props.activeFile} title={t('chat.useSelection')}>{t('chat.selection')}</button>
+                <button onClick={() => pickScope('open-editors')} title={t('chat.useOpenEditors')}>{t('chat.openEditors')}</button>
+                <button onClick={() => pickScope('indexed-project')} title={t('chat.useIndexedProject')}>{t('chat.indexedProject')}</button>
+                <button onClick={() => pickScope('none')} title={t('chat.noContext')}>{t('chat.noContext')}</button>
               </div>
             </details>
 
             {isRecording ? (
               <div className="workbench-chat-recording">
-                <button className="workbench-chat-recording-cancel" onClick={stopRecording} title="Cancel recording" aria-label="Cancel recording"><X size={14} /></button>
+                <button className="workbench-chat-recording-cancel" onClick={stopRecording} title={t('chat.cancelRecording')} aria-label={t('chat.cancelRecording')}><X size={14} /></button>
                 <span className="workbench-chat-recording-wave" aria-hidden="true">
                   {Array.from({ length: 14 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.05}s` }} />)}
                 </span>
@@ -3694,15 +3704,15 @@ function ChatPane(props: {
                   className="workbench-chat-mic"
                   onClick={startRecording}
                   disabled={!voiceSupported || props.busy}
-                  title={voiceSupported ? 'Voice input' : 'Voice input not supported in this browser'}
-                  aria-label="Voice input"
+                  title={voiceSupported ? t('chat.voiceInput') : t('chat.voiceUnsupported')}
+                  aria-label={t('chat.voiceInput')}
                 >
                   <Mic size={16} />
                 </button>
               ) : null}
 
               <details ref={targetMenuRef} className="workbench-chat-target">
-                <summary title="Choose chat target" aria-label="Choose chat target">
+                <summary title={t('chat.chooseTarget')} aria-label={t('chat.chooseTarget')}>
                   <span className="workbench-chat-target-label">{props.selectedChatTarget.label}</span>
                   <ChevronDown size={14} />
                 </summary>
@@ -3723,9 +3733,9 @@ function ChatPane(props: {
               </details>
 
               {props.busy ? (
-                <button className="workbench-chat-send stop" onClick={props.stopChat} title="Stop" aria-label="Stop"><Square size={14} /></button>
+                <button className="workbench-chat-send stop" onClick={props.stopChat} title={t('chat.stop')} aria-label={t('chat.stop')}><Square size={14} /></button>
               ) : (
-                <button className={`workbench-chat-send ${canSend ? 'ready' : ''}`} onClick={props.askAgent} title="Send" disabled={!canSend} aria-label="Send message"><ArrowUp size={18} /></button>
+                <button className={`workbench-chat-send ${canSend ? 'ready' : ''}`} onClick={props.askAgent} title={t('chat.send')} disabled={!canSend} aria-label={t('chat.sendMessage')}><ArrowUp size={18} /></button>
               )}
             </div>
           </div>
@@ -4011,6 +4021,7 @@ function AtomekSettingsPane(props: {
 }
 
 function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, captureManualCheck, openOutputAsFile, previewEditFromOutput, canPreviewEdit = false, compact = false }: { outputs: OutputArtifact[]; clearOutputs: () => void; deleteArtifact: (id: string) => void; runAiSynthesis: () => void; captureManualCheck: () => void; openOutputAsFile: (output: OutputArtifact) => void; previewEditFromOutput?: (output: OutputArtifact) => void; canPreviewEdit?: boolean; compact?: boolean }) {
+  const t = useAtomekT();
   return (
     <div className={`workbench-panel-list ${compact ? 'compact' : ''}`}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -4034,7 +4045,7 @@ function OutputsPane({ outputs, clearOutputs, deleteArtifact, runAiSynthesis, ca
                 {looksEditable(output.body) ? 'Preview/apply edit' : 'Preview edit'}
               </button>
             ) : null}
-            {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>Delete</button> : null}
+            {output.source === 'ai' ? <button onClick={() => deleteArtifact(output.id)}>{t('chat.delete')}</button> : null}
           </div>
           <RichMessageBody body={output.body} />
         </div>
@@ -5157,15 +5168,17 @@ function PlaceholderPane({ title, body }: { title: string; body: string }) {
 }
 
 function StatusBar({ status, file, cursor, fileCount, dirtyCount }: { status: string; file: WorkbenchFile; cursor: CursorPosition; fileCount: number; dirtyCount: number }) {
+  const t = useAtomekT();
+  const shownStatus = status === 'Ready' ? t('app.ready') : status;
   return (
     <footer className="workbench-statusbar">
       <span>main</span>
-      <span>{fileCount} files</span>
-      {dirtyCount > 0 && <span>{dirtyCount} unsaved</span>}
+      <span>{t('status.files', { count: fileCount })}</span>
+      {dirtyCount > 0 && <span>{t('status.unsaved', { count: dirtyCount })}</span>}
       <span className="workbench-status-spacer" />
-      <span>{status}</span>
-      <span>Ln {cursor.lineNumber}, Col {cursor.column}</span>
-      <span>Spaces: 2</span>
+      <span>{shownStatus}</span>
+      <span>{t('status.lineColumn', { line: cursor.lineNumber, column: cursor.column })}</span>
+      <span>{t('status.spaces')}</span>
       <span>UTF-8</span>
       <span>LF</span>
       <span>{labelForLanguage(file.language)}</span>
