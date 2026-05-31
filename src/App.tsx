@@ -1,5 +1,6 @@
 import type { HostClient } from '@tytus/host-api';
 import { WorkbenchShell } from './workbench/components/WorkbenchShell';
+import { AtomekI18nProvider } from './i18n';
 import './workbench/workbench.css';
 
 interface AppProps {
@@ -7,5 +8,9 @@ interface AppProps {
 }
 
 export function App({ host }: AppProps) {
-  return <WorkbenchShell host={host} />;
+  return (
+    <AtomekI18nProvider host={host}>
+      <WorkbenchShell host={host} />
+    </AtomekI18nProvider>
+  );
 }
