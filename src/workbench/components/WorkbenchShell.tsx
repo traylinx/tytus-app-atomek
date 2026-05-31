@@ -39,7 +39,7 @@ import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
 import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, ChatTarget, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import { useConversation } from '../ai/useConversation';
-import { ATOMEK_CHAT_TARGET, buildChatTargets, readSelectedChatTargetId, writeSelectedChatTargetId } from '../ai/chatTargets';
+import { ATOMEK_CHAT_TARGET, buildChatTargets, friendlyAgentError, readSelectedChatTargetId, sanitizeVisibleAgentText, writeSelectedChatTargetId } from '../ai/chatTargets';
 import { listAgentTranscripts, clearAgentTranscriptForTarget } from '../ai/useConversation';
 import type { AgentTranscriptSummary } from '../ai/useConversation';
 import { buildDocumentRegistry } from '../context/documentRegistry';
@@ -117,10 +117,12 @@ const TYTUS_CORE_APP_IDS = {
 type RecentEntry = { name: string; path: string; at: number; kind?: 'file' | 'folder'; handleKey?: string };
 type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVisible: boolean; secondaryWidth: number; markdownPreviewVisible: boolean };
 type PersistedWorkbenchFile = Pick<WorkbenchFile, 'id' | 'name' | 'path' | 'language' | 'content' | 'dirty' | 'size' | 'source'>;
-type PersistedSessionState = { activity?: ActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: BottomPanelTab; recent?: RecentEntry[]; };
+type LegacyActivityView = ActivityView | 'source-control' | 'run';
+type LegacyBottomPanelTab = BottomPanelTab | 'problems';
+type PersistedSessionState = { activity?: LegacyActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: LegacyBottomPanelTab; recent?: RecentEntry[]; };
 type PaletteItem = { label: string; detail: string; run: () => void; disabled?: boolean };
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
-type BottomPanelTab = 'problems' | 'output' | 'terminal';
+type BottomPanelTab = 'output' | 'terminal';
 type QuickPromptKind = 'explain' | 'improve' | 'plan' | 'draft' | 'edit';
 type AtomekLocalTool = {
   id: string;
@@ -191,6 +193,17 @@ type MissionFolderState = {
   source: 'tray' | 'browser';
   teamPresetId?: string;
 };
+
+function normalizeActivityView(activity: PersistedSessionState['activity']): ActivityView {
+  if (activity === 'search' || activity === 'computer') return activity;
+  return 'explorer';
+}
+
+function normalizeBottomPanelTab(tab: PersistedSessionState['bottomPanelTab']): BottomPanelTab {
+  if (tab === 'terminal') return 'terminal';
+  return 'output';
+}
+
 type MissionTaskPreview = {
   id: string;
   title: string;
@@ -343,6 +356,10 @@ function resourcePodId(resource: TytusResource): string {
   if (metadataPodId) return metadataPodId;
   const match = resource.id.match(/(?:pod-agent|ail-route)\.([^.]+)/);
   return match?.[1] ?? '';
+}
+
+function resourceRouteId(resource: TytusResource): string | null {
+  return resourceMetadataString(resource, 'routeId') || resourceMetadataString(resource, 'route_id') || null;
 }
 
 function resourceAgentFamily(resource: TytusResource): 'openclaw' | 'hermes' | 'ail' | null {
@@ -890,14 +907,14 @@ export function WorkbenchShell({ host }: Props) {
   const initialLayout = useMemo(() => readLayoutPrefs(), []);
   const initialSession = useMemo(() => readSessionState(), []);
   const initialRecent = useMemo(() => mergeRecentEntries(readRecent(), initialSession.recent), [initialSession.recent]);
-  const [activity, setActivity] = useState<ActivityView>(initialSession.activity ?? 'computer');
+  const [activity, setActivity] = useState<ActivityView>(() => normalizeActivityView(initialSession.activity) || 'explorer');
   const [primaryVisible, setPrimaryVisible] = useState(initialLayout.primaryVisible);
   const [primaryWidth, setPrimaryWidth] = useState(initialLayout.primaryWidth);
   const [secondaryTab, setSecondaryTab] = useState<SecondaryTab>(initialSession.secondaryTab ?? 'chat');
   const [secondaryVisible, setSecondaryVisible] = useState(initialLayout.secondaryVisible);
   const [secondaryWidth, setSecondaryWidth] = useState(initialLayout.secondaryWidth);
   const [bottomPanelVisible, setBottomPanelVisible] = useState(Boolean(initialSession.bottomPanelVisible));
-  const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>(initialSession.bottomPanelTab ?? 'problems');
+  const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>(() => normalizeBottomPanelTab(initialSession.bottomPanelTab));
   const [markdownPreviewVisible, setMarkdownPreviewVisible] = useState(initialLayout.markdownPreviewVisible);
   const [welcomeClosed, setWelcomeClosed] = useState(Boolean(initialSession.welcomeClosed));
   const [folder, setFolder] = useState<WorkbenchFolder | null>(initialSession.folder ? { name: initialSession.folder.name, files: [] } : null);
@@ -2101,8 +2118,6 @@ function ActivityBar({ active, setActive, togglePrimary, openSettings, settingsA
       <button className="workbench-activity-brand" title={t('activity.toggleSidebar')} aria-label={t('activity.toggleSidebar')} onClick={togglePrimary}><AtomekBrandMark size={30} variant="cream" /></button>
       <ActivityButton icon={<File size={25} />} label={t('activity.explorer')} active={active === 'explorer'} onClick={() => setActive('explorer')} />
       <ActivityButton icon={<Search size={25} />} label={t('activity.search')} active={active === 'search'} onClick={() => setActive('search')} />
-      <ActivityButton icon={<GitBranch size={25} />} label={t('activity.sourceControl')} active={active === 'source-control'} onClick={() => setActive('source-control')} />
-      <ActivityButton icon={<Bug size={25} />} label={t('activity.runDebug')} active={active === 'run'} onClick={() => setActive('run')} />
       <ActivityButton icon={<Bot size={25} />} label={t('app.agentTeam')} active={active === 'computer'} onClick={() => setActive('computer')} />
       <div className="workbench-activity-spacer" />
       <ActivityButton icon={<Settings size={23} />} label={t('app.settings')} active={settingsActive} onClick={openSettings} />
@@ -2135,10 +2150,7 @@ function PrimarySidebar(props: {
   saveLocalJobOutput: (title: string, body: string) => void;
   activeFile: WorkbenchFile | null;
 }) {
-  const t = useAtomekT();
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
-  if (props.activity === 'source-control') return <PlaceholderPane title={t('activity.sourceControl').toUpperCase()} body="No source control provider registered. Git belongs here, not as a fake demo." />;
-  if (props.activity === 'run') return <PlaceholderPane title={t('activity.runDebug').toUpperCase()} body="Run configurations, terminals, and recipe execution will plug into this surface later." />;
   if (props.activity === 'computer') return <ControlTowerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
@@ -2823,7 +2835,7 @@ function ManualCheckPanel(props: {
   const sessionStatus = props.session ? latestManualCheckStatus(props.session) : 'pending';
   return (
     <div className="workbench-manual-check-panel">
-      <p className="workbench-muted">Terminal is parked. Atomek never executes host commands here; copy a command, run it yourself, then paste the result.</p>
+      <p className="workbench-muted">Manual checks never execute host commands. Copy a command, run it yourself, then paste the result.</p>
       {!props.session ? (
         <pre className="workbench-terminal-placeholder">$ open the command palette and run Checks: Open Manual Check Panel</pre>
       ) : (
@@ -2926,14 +2938,12 @@ function BottomPanel(props: {
   return (
     <section className="workbench-bottom-panel" aria-label="Panel">
       <div className="workbench-bottom-tabs">
-        <button className={props.tab === 'problems' ? 'active' : ''} onClick={() => props.setTab('problems')}>PROBLEMS</button>
         <button className={props.tab === 'output' ? 'active' : ''} onClick={() => props.setTab('output')}>OUTPUT</button>
-        <button className={props.tab === 'terminal' ? 'active' : ''} onClick={() => props.setTab('terminal')}>TERMINAL</button>
+        <button className={props.tab === 'terminal' ? 'active' : ''} onClick={() => props.setTab('terminal')}>MANUAL CHECKS</button>
         <span />
         <button title="Close Panel" onClick={props.onClose}><X size={14} /></button>
       </div>
       <div className="workbench-bottom-body">
-        {props.tab === 'problems' && <p className="workbench-muted">No problems detected in open files. Diagnostics wire in after the base shell is approved.</p>}
         {props.tab === 'terminal' && (
           <ManualCheckPanel
             session={props.manualCheckSession}
@@ -4180,33 +4190,6 @@ function backgroundJobLabelForTool(tool: AtomekLocalTool, runningToolId: string 
   return 'Background review';
 }
 
-function extractOpenAiModelId(payload: unknown): string | null {
-  const data = payload as { data?: Array<{ id?: unknown }> };
-  const first = data.data?.find((item) => typeof item.id === 'string' && item.id.trim());
-  return typeof first?.id === 'string' ? first.id : null;
-}
-
-function extractOpenAiAssistantText(payload: unknown): string {
-  const value = payload as {
-    choices?: Array<{
-      message?: { content?: unknown };
-      text?: unknown;
-      delta?: { content?: unknown };
-    }>;
-  };
-  const choice = value.choices?.[0];
-  const content = choice?.message?.content ?? choice?.text ?? choice?.delta?.content;
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content.map((part) => {
-      if (typeof part === 'string') return part;
-      if (part && typeof part === 'object' && 'text' in part && typeof (part as { text?: unknown }).text === 'string') return (part as { text: string }).text;
-      return '';
-    }).join('');
-  }
-  return JSON.stringify(payload, null, 2);
-}
-
 function ControlTowerPane({
   host,
   setStatus,
@@ -4694,6 +4677,7 @@ function ControlTowerPane({
 
   const runPodTask = useCallback(async (resource: TytusResource) => {
     const podId = resourcePodId(resource);
+    const routeId = resourceRouteId(resource);
     if (!podId) {
       setStatus(`Cannot dispatch ${resourceDisplayLabel(resource)}: missing pod id`);
       return;
@@ -4715,7 +4699,7 @@ function ControlTowerPane({
           ts: new Date().toISOString(),
           kind: 'pod-agent.run.start',
           message: `${label} mission task started`,
-          data: { resourceId: resource.id, podId, taskId: selectedTask?.id ?? 'manual', taskTitle: selectedTask?.title ?? 'Manual pod run' },
+          data: { resourceId: resource.id, podId, routeId: routeId ?? undefined, taskId: selectedTask?.id ?? 'manual', taskTitle: selectedTask?.title ?? 'Manual pod run' },
         }]);
       }
     } catch (err) {
@@ -4753,62 +4737,56 @@ function ControlTowerPane({
       setAgentRuns((runs) => runs.map((run) => run.id === runId ? { ...run, lines: [...run.lines, line].slice(-500) } : run));
     };
     try {
-      const modelsRes = await host.daemon.callPodEndpoint(podId, '/v1/models', { method: 'GET' });
-      if (!modelsRes.ok) {
-        throw new Error(`/v1/models ${modelsRes.status}: ${await modelsRes.text()}`);
+      pushLine('[Atomek] Routing through pod-agent chat bridge.');
+      const message = [
+        'You are a Tytus pod agent working from an Atomek mission pack.',
+        'Use only the mission/shared-folder context described by the user.',
+        'Return findings, markdown, or patch proposals. Do not claim direct writes.',
+        'If you propose edits, output unified diff or fenced replacement blocks for Atomek approval.',
+        '',
+        launchMission ? `Mission folder: ${launchMission.rootPath ?? launchMission.name}` : 'Mission folder: not available',
+        launchMission ? `Mission: ${launchMission.title}` : '',
+        launchMission ? `Goal: ${launchMission.goal}` : '',
+        selectedTask ? `Task: ${selectedTask.title} (${selectedTask.id})` : 'Task: manual',
+        '',
+        'Mission context:',
+        launchMission ? buildMissionMarkdown(launchMission, resourceGraph, activeFile, openEditors, prompt) : '',
+        resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
+        '',
+        'User task:',
+        prompt,
+      ].filter(Boolean).join('\n');
+      let answer = '';
+      let sawToken = false;
+      for await (const event of host.daemon.chatAgent({
+        podId,
+        routeId,
+        message,
+        mode: 'operator',
+        target: 'agent',
+        modelPreference: 'balanced',
+      })) {
+        if (event.type === 'profile') {
+          pushLine(`[Atomek] ${event.profile === 'local' ? 'Local Cortex' : 'Cloud Cortex'} route selected.`);
+        }
+        if (event.type === 'session') {
+          pushLine('[Atomek] Pod-agent session established.');
+        }
+        if (event.type === 'token') {
+          if (!sawToken) {
+            pushLine('[Atomek] Pod agent is responding…');
+            sawToken = true;
+          }
+          answer = sanitizeVisibleAgentText(`${answer}${event.text}`);
+        }
+        if (event.type === 'error') {
+          const safe = friendlyAgentError(event.message);
+          throw new Error(safe.message);
+        }
+        if (event.type === 'done') break;
       }
-      const models = await modelsRes.json() as unknown;
-      const model = extractOpenAiModelId(models);
-      if (!model) {
-        throw new Error('pod /v1/models returned no model id');
-      }
-      pushLine(`[Atomek] Selected pod model from live metadata: ${model}`);
-      const res = await host.daemon.callPodEndpoint(podId, '/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          messages: [
-            {
-              role: 'system',
-              content: [
-                'You are a Tytus pod agent working from an Atomek mission pack.',
-                'Use only the mission/shared-folder context described by the user.',
-                'Return findings, markdown, or patch proposals. Do not claim direct writes.',
-                'If you propose edits, output unified diff or fenced replacement blocks for Atomek approval.',
-              ].join('\n'),
-            },
-            {
-              role: 'user',
-              content: [
-                launchMission ? `Mission folder: ${launchMission.rootPath ?? launchMission.name}` : 'Mission folder: not available',
-                launchMission ? `Mission: ${launchMission.title}` : '',
-                launchMission ? `Goal: ${launchMission.goal}` : '',
-                selectedTask ? `Task: ${selectedTask.title} (${selectedTask.id})` : 'Task: manual',
-                '',
-                'Mission context:',
-                launchMission ? buildMissionMarkdown(launchMission, resourceGraph, activeFile, openEditors, prompt) : '',
-                resourceGraph ? buildResourcesMarkdown(resourceGraph) : '',
-                '',
-                'User task:',
-                prompt,
-              ].filter(Boolean).join('\n'),
-            },
-          ],
-        }),
-      });
-      const raw = await res.text();
-      if (!res.ok) {
-        throw new Error(`/v1/chat/completions ${res.status}: ${raw}`);
-      }
-      let parsed: unknown = raw;
-      try {
-        parsed = JSON.parse(raw) as unknown;
-      } catch {
-        // Some pod gateways may return plain text. Keep it.
-      }
-      const answer = typeof parsed === 'string' ? parsed : extractOpenAiAssistantText(parsed);
+      answer = answer.trim();
+      if (!answer) throw new Error('Pod agent returned no text.');
       pushLine(answer);
       const body = [
         `# Pod job — ${label}`,
@@ -5154,15 +5132,6 @@ function ControlTowerPane({
           </>
         ) : null}
       </div>
-    </aside>
-  );
-}
-
-function PlaceholderPane({ title, body }: { title: string; body: string }) {
-  return (
-    <aside className="workbench-sidebar">
-      <div className="workbench-sidebar-title">{title}</div>
-      <div className="workbench-empty-pane">{body}</div>
     </aside>
   );
 }

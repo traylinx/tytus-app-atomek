@@ -2,7 +2,7 @@
 
 Atomek is the standalone Tytus app that provides the Tytus Resource Fabric cockpit: mission folders, shared folders, OpenClaw/Hermes pods, local AI CLIs, local files, Monaco editing, chat, artifacts, embedded docs/skills, app skills, and approval-gated outputs.
 
-Current published app release: **v0.4.32**.
+Current published app release: **v0.4.33**.
 
 ## What it does
 
@@ -16,7 +16,7 @@ Current published app release: **v0.4.32**.
 - Creates mission folders as the shared context layer between local agents, Tytus pods, and local apps.
 - Generates team presets (Repo Repair, OpenClaw + Local, Creative Production, Research Watch) from the live resource graph.
 - Writes mission run/proposal/output/approval folders so every agent handoff is visible and resumable.
-- Sends selected tasks to OpenAI-compatible pod agents through `host.daemon.callPodEndpoint()` with live model discovery, not hardcoded model IDs.
+- Sends selected tasks to OpenClaw/Hermes pod agents through `host.daemon.chatAgent()` so the host preserves route identity and uses the correct Cortex/direct-agent bridge.
 - Converts generated edits into artifacts or preview diffs before files are saved.
 
 ## Boundary
@@ -59,13 +59,13 @@ npm run release:check
 `tytus-app.json` points to the tagged CDN build:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.32/dist/index.js
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.33/dist/index.js
 ```
 
 The catalog should point to the matching immutable manifest tag:
 
 ```text
-https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.32/tytus-app.json
+https://cdn.jsdelivr.net/gh/traylinx/tytus-app-atomek@v0.4.33/tytus-app.json
 ```
 
 ## Release loop
