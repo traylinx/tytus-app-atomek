@@ -1,0 +1,43 @@
+{
+  "id": "2026-06-06-atomek-production-missions",
+  "title": "Atomek Production Missions",
+  "createdAt": "2026-06-06T07:55:00Z",
+  "repo": "tytus-app-atomek",
+  "status": "planning",
+  "scope": {
+    "allowedRepos": ["tytus-app-atomek"],
+    "forbiddenRepos": ["tytus-os", "tytus-cli", "tytus-app-catalog", "tytus-app-juli3ta", "tytus-app-openhouse"],
+    "implementationAllowed": false,
+    "planningOnly": true
+  },
+  "objective": "Make Atomek Agent Team/Missions production-ready: visible mission files, task-first dispatch, durable runs, outputs, proposals, approvals, and resumable handoff.",
+  "primaryFilesToStudy": [
+    "src/workbench/components/WorkbenchShell.tsx",
+    "src/workbench/ai/useConversation.ts",
+    "src/workbench/ai/chatTargets.ts",
+    "src/workbench/edits/patchParser.ts",
+    "src/workbench/edits/workbenchEditService.ts",
+    "src/workbench/docs/tytus-resource-fabric.md",
+    "src/workbench/docs/mission-use-cases.md",
+    "tytus-app.json",
+    "README.md"
+  ],
+  "planFiles": [
+    "README.md",
+    "CURRENT-STATE-AUDIT.md",
+    "PRODUCT-SPEC.md",
+    "UX-ARCHITECTURE.md",
+    "TECHNICAL-PLAN.md",
+    "MISSION-CONTRACT.md",
+    "PHASES.md",
+    "QA-PLAN.md"
+  ],
+  "nonNegotiables": [
+    "Mission folder is the durable source of truth.",
+    "Task cards must become actionable.",
+    "Mission files must be visible/editable in Atomek after creation.",
+    "Runs must save transcripts and durable records.",
+    "Patch/file writes require preview and approval.",
+    "Do not touch non-Atomek repos during this sprint."
+  ]
+}
