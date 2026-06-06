@@ -43,3 +43,15 @@ A non-technical user should be able to answer these without asking Harvey:
 7. How do I resume tomorrow?
 
 Current Atomek fails several of those. This sprint fixes the flow.
+
+## Final review status
+
+Green light for implementation: **YES**.
+
+This is not a release green light. It means the sprint is now tight enough to start coding in Atomek only. See:
+
+- `PLAN-REVIEW.md`
+- `MISSION-NAMING.md`
+- `IMPLEMENTATION-BRIEF.md`
+- `ACCEPTANCE-GATES.md`
+- `GREEN-LIGHT.md`

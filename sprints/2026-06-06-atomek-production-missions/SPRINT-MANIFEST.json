@@ -3,12 +3,20 @@
   "title": "Atomek Production Missions",
   "createdAt": "2026-06-06T07:55:00Z",
   "repo": "tytus-app-atomek",
-  "status": "planning",
+  "status": "ready_for_implementation",
   "scope": {
-    "allowedRepos": ["tytus-app-atomek"],
-    "forbiddenRepos": ["tytus-os", "tytus-cli", "tytus-app-catalog", "tytus-app-juli3ta", "tytus-app-openhouse"],
-    "implementationAllowed": false,
-    "planningOnly": true
+    "allowedRepos": [
+      "tytus-app-atomek"
+    ],
+    "forbiddenRepos": [
+      "tytus-os",
+      "tytus-cli",
+      "tytus-app-catalog",
+      "tytus-app-juli3ta",
+      "tytus-app-openhouse"
+    ],
+    "implementationAllowed": true,
+    "planningOnly": false
   },
   "objective": "Make Atomek Agent Team/Missions production-ready: visible mission files, task-first dispatch, durable runs, outputs, proposals, approvals, and resumable handoff.",
   "primaryFilesToStudy": [
@@ -30,14 +38,26 @@
     "TECHNICAL-PLAN.md",
     "MISSION-CONTRACT.md",
     "PHASES.md",
-    "QA-PLAN.md"
+    "QA-PLAN.md",
+    "PLAN-REVIEW.md",
+    "MISSION-NAMING.md",
+    "IMPLEMENTATION-BRIEF.md",
+    "ACCEPTANCE-GATES.md",
+    "GREEN-LIGHT.md"
   ],
   "nonNegotiables": [
+    "Mission creation must collect a human mission name separate from goal and folder id.",
     "Mission folder is the durable source of truth.",
     "Task cards must become actionable.",
     "Mission files must be visible/editable in Atomek after creation.",
     "Runs must save transcripts and durable records.",
     "Patch/file writes require preview and approval.",
     "Do not touch non-Atomek repos during this sprint."
-  ]
+  ],
+  "greenLight": {
+    "implementation": true,
+    "release": false,
+    "firstImplementationMove": "Extract pure mission logic into src/workbench/missions/* with no visual behavior change.",
+    "releaseRequires": "All gates in ACCEPTANCE-GATES.md plus live localhost QA and release checks."
+  }
 }
