@@ -40,22 +40,22 @@ import { markdownToHtml } from '../markdown';
 import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, ChatTarget, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
 import {
   CURRENT_MISSION_EVENT,
-  buildHandoffMarkdown,
-  buildMissionJson,
   buildMissionMarkdown,
+  buildMissionPackFiles,
   buildMissionTasks,
   buildResourcesMarkdown,
-  buildTasksMarkdown,
   buildTeamPresetPreview,
   buildTeamPresetPreviews,
   ensureDirectory,
   isoNow,
   missionRunSortValue,
   missionSlug,
+  missionWorkbenchFiles,
   normalizeMissionTitle,
   missionStateFromSummary,
   pickTeamPresetId,
   pickWritableDirectory,
+  PRIMARY_MISSION_FILE_PATHS,
   readCurrentMission,
   resourceDisplayDetail,
   resourceDisplayLabel,
@@ -63,6 +63,7 @@ import {
   resourceRouteId,
   resourceSummary,
   saveCurrentMission,
+  primaryMissionFiles,
   summarizeAgentTeam,
   summarizeResourceFabric,
   writeMissionFileToBrowserDirectory,
@@ -75,6 +76,7 @@ import type {
   LocalAgentRunState,
   MissionAuditEvent,
   MissionFolderState,
+  MissionGeneratedFile,
   TeamPresetId,
 } from '../missions';
 import { useConversation } from '../ai/useConversation';
@@ -115,7 +117,7 @@ const LAYOUT_KEY = 'tytus.workspace.layout';
 const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CHAT_WORKSPACE_KEY = 'atomek:default';
-const APP_VERSION = '0.4.34';
+const APP_VERSION = '0.4.35';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
@@ -153,7 +155,9 @@ const TYTUS_CORE_APP_IDS = {
 
 type RecentEntry = { name: string; path: string; at: number; kind?: 'file' | 'folder'; handleKey?: string };
 type LayoutPrefs = { primaryVisible: boolean; primaryWidth: number; secondaryVisible: boolean; secondaryWidth: number; markdownPreviewVisible: boolean };
-type PersistedWorkbenchFile = Pick<WorkbenchFile, 'id' | 'name' | 'path' | 'language' | 'content' | 'dirty' | 'size' | 'source'>;
+type PersistedWorkbenchFile = Pick<WorkbenchFile, 'id' | 'name' | 'path' | 'language' | 'content' | 'dirty' | 'size' | 'source' | 'mission'>;
+type OpenMissionFilesOptions = { primaryOnly?: boolean; activatePath?: string; openTabs?: boolean; activate?: boolean; quiet?: boolean };
+type WriteMissionPackOptions = { openFiles?: boolean; activate?: boolean };
 type LegacyActivityView = ActivityView | 'source-control' | 'run';
 type LegacyBottomPanelTab = BottomPanelTab | 'problems';
 type PersistedSessionState = { activity?: LegacyActivityView; folder?: { name: string; handleKey?: string | null } | null; files?: PersistedWorkbenchFile[]; openEditorIds?: string[]; activeFileId?: string | null; query?: string; chatInput?: string; welcomeClosed?: boolean; secondaryTab?: SecondaryTab; bottomPanelVisible?: boolean; bottomPanelTab?: LegacyBottomPanelTab; recent?: RecentEntry[]; };
@@ -191,6 +195,18 @@ function normalizeBottomPanelTab(tab: PersistedSessionState['bottomPanelTab']): 
 
 function clampWidth(value: number, min: number, max: number): number {
   return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function assertSafeMissionRelPath(relPath: string): void {
+  const parts = relPath.split('/').filter(Boolean);
+  if (
+    parts.length === 0 ||
+    relPath.startsWith('/') ||
+    relPath.includes('\\') ||
+    parts.some((part) => part === '.' || part === '..')
+  ) {
+    throw new Error(`Unsafe mission file path: ${relPath}`);
+  }
 }
 
 function workbenchLayoutLimits(width: number): { primaryMin: number; primaryMax: number; secondaryMin: number; secondaryMax: number } {
@@ -480,6 +496,39 @@ export function WorkbenchShell({ host }: Props) {
     setCursor({ lineNumber: lineNumber ?? 1, column: 1 });
   }, []);
 
+  const openMissionFiles = useCallback((mission: MissionFolderState, generatedFiles: MissionGeneratedFile[], opts: OpenMissionFilesOptions = {}) => {
+    const selectedFiles = opts.primaryOnly === false ? generatedFiles : primaryMissionFiles(generatedFiles);
+    const incoming = missionWorkbenchFiles(mission, selectedFiles);
+    if (incoming.length === 0) return;
+
+    const dirtyMissionPaths = new Set(
+      files
+        .filter((file) => file.source === 'mission' && file.dirty && file.mission?.missionId === mission.missionId)
+        .map((file) => file.mission?.relPath)
+        .filter(Boolean) as string[],
+    );
+    const safeIncoming = incoming.filter((file) => !dirtyMissionPaths.has(file.mission?.relPath ?? ''));
+    const skipped = incoming.length - safeIncoming.length;
+    if (safeIncoming.length > 0) {
+      setFiles((current) => mergeFiles(current, safeIncoming));
+      if (opts.openTabs !== false) {
+        setOpenEditorIds((ids) => Array.from(new Set([...ids, ...safeIncoming.map((file) => file.id)])));
+        if (opts.activate !== false) {
+          const target = safeIncoming.find((file) => file.mission?.relPath === opts.activatePath) ?? safeIncoming[0];
+          setActiveFileId(target.id);
+          setWelcomeClosed(false);
+          setMarkdownPreviewVisible(true);
+          setRevealLine(null);
+          setCursor({ lineNumber: 1, column: 1 });
+        }
+      }
+    }
+    if (!opts.quiet) {
+      const verb = opts.openTabs === false ? 'Updated' : 'Opened';
+      setStatus(`${safeIncoming.length ? `${verb} ${safeIncoming.length} mission file${safeIncoming.length === 1 ? '' : 's'}` : 'Mission files already open'}${skipped ? ` · skipped ${skipped} dirty tab${skipped === 1 ? '' : 's'}` : ''}`);
+    }
+  }, [files]);
+
   const openEmbeddedDoc = useCallback((doc: AtomekEmbeddedDoc) => {
     const file: WorkbenchFile = {
       id: `atomek-doc:${doc.id}`,
@@ -555,24 +604,43 @@ export function WorkbenchShell({ host }: Props) {
     if (changed) bumpDocumentVersion(activeFileId);
   }, [activeFileId, bumpDocumentVersion]);
 
+  const saveWorkbenchFileWithHost = useCallback(async (file: WorkbenchFile): Promise<WorkbenchFile> => {
+    if (file.source !== 'mission') return saveWorkbenchFile(file);
+    const relPath = file.mission?.relPath;
+    const rootPath = file.mission?.rootPath;
+    if (!relPath) {
+      throw new Error('Mission file save requires mission metadata. Recreate or refresh the mission pack.');
+    }
+    assertSafeMissionRelPath(relPath);
+    if (rootPath && host.missions?.write) {
+      await host.missions.write({ rootPath, files: [{ path: relPath, content: file.content }] });
+      return { ...file, dirty: false };
+    }
+    if (file.mission?.handle) {
+      await writeMissionFileToBrowserDirectory(file.mission.handle, relPath, file.content);
+      return { ...file, dirty: false };
+    }
+    throw new Error('Mission file save requires a tray mission path. Recreate or refresh the mission pack.');
+  }, [host.missions]);
+
   const saveActiveFile = useCallback(async () => {
     if (!activeFile) return;
     try {
-      const saved = await saveWorkbenchFile(activeFile);
+      const saved = await saveWorkbenchFileWithHost(activeFile);
       setFiles((current) => current.map((file) => file.id === saved.id ? saved : file));
       setStatus(`Saved ${saved.name}`);
     } catch (err) {
       setStatus(`Save failed: ${(err as Error).message}`);
     }
-  }, [activeFile]);
+  }, [activeFile, saveWorkbenchFileWithHost]);
 
   const saveFileById = useCallback(async (id: string) => {
     const file = files.find((candidate) => candidate.id === id);
     if (!file) return null;
-    const saved = await saveWorkbenchFile(file);
+    const saved = await saveWorkbenchFileWithHost(file);
     setFiles((current) => current.map((candidate) => candidate.id === saved.id ? saved : candidate));
     return saved;
-  }, [files]);
+  }, [files, saveWorkbenchFileWithHost]);
 
   const saveAllDirty = useCallback(async () => {
     const targets = files.filter((file) => file.dirty);
@@ -581,7 +649,7 @@ export function WorkbenchShell({ host }: Props) {
       return;
     }
     try {
-      const saved = await Promise.all(targets.map((file) => saveWorkbenchFile(file)));
+      const saved = await Promise.all(targets.map((file) => saveWorkbenchFileWithHost(file)));
       const savedMap = new Map(saved.map((file) => [file.id, file]));
       setFiles((current) => current.map((file) => savedMap.get(file.id) ?? file));
       setAiDirtyNotice(null);
@@ -589,7 +657,7 @@ export function WorkbenchShell({ host }: Props) {
     } catch (err) {
       setStatus(`Save all failed: ${(err as Error).message}`);
     }
-  }, [files]);
+  }, [files, saveWorkbenchFileWithHost]);
 
   const closeEditor = useCallback((id: string) => {
     const file = files.find((candidate) => candidate.id === id);
@@ -1260,6 +1328,7 @@ export function WorkbenchShell({ host }: Props) {
             attachSkillToChat={attachSkillToChat}
             saveLocalJobOutput={saveLocalJobOutput}
             activeFile={activeFile}
+            openMissionFiles={openMissionFiles}
           />
           <div className="workbench-primary-resizer" onPointerDown={beginPrimaryResize} title={t('shell.resizeExplorer')} />
         </div>
@@ -1319,7 +1388,7 @@ export function WorkbenchShell({ host }: Props) {
                 onClose={closeSettingsTab}
               />
             ) : showWelcome ? (
-              <MissionControlHome host={host} openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} openControlTower={() => { setActivity('computer'); setPrimaryVisible(true); }} openChat={() => { setSecondaryTab('chat'); setSecondaryVisible(true); }} openEmbeddedDoc={openEmbeddedDoc} />
+              <MissionControlHome host={host} openFile={handleOpenFile} openFolder={handleOpenFolder} newFile={newUntitled} recent={recent} reopenRecent={reopenRecent} setStatus={setStatus} openControlTower={() => { setActivity('computer'); setPrimaryVisible(true); }} openChat={() => { setSecondaryTab('chat'); setSecondaryVisible(true); }} openEmbeddedDoc={openEmbeddedDoc} openMissionFiles={openMissionFiles} />
             ) : (
               <div className="workbench-no-editor">
                 <FileSearch size={34} />
@@ -1401,6 +1470,7 @@ export function WorkbenchShell({ host }: Props) {
           openEditors={openEditors}
           attachSkillToChat={attachSkillToChat}
           saveLocalJobOutput={saveLocalJobOutput}
+          openMissionFiles={openMissionFiles}
           contextScope={chatContextScope}
           setContextScope={setChatContextScope}
           contextAttachments={contextAttachments}
@@ -1508,10 +1578,11 @@ function PrimarySidebar(props: {
   hasFsAccess: boolean;
   attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>;
   saveLocalJobOutput: (title: string, body: string) => void;
+  openMissionFiles: (mission: MissionFolderState, files: MissionGeneratedFile[], opts?: OpenMissionFilesOptions) => void;
   activeFile: WorkbenchFile | null;
 }) {
   if (props.activity === 'search') return <SearchPane files={props.files} query={props.query} setQuery={props.setQuery} openWorkbenchFile={props.openWorkbenchFile} activeFileId={props.activeFileId} />;
-  if (props.activity === 'computer') return <ControlTowerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} activeFile={props.activeFile} openEditors={props.openEditors} />;
+  if (props.activity === 'computer') return <ControlTowerPane host={props.host} setStatus={props.setStatus} attachSkillToChat={props.attachSkillToChat} saveLocalJobOutput={props.saveLocalJobOutput} openMissionFiles={props.openMissionFiles} activeFile={props.activeFile} openEditors={props.openEditors} />;
   return <ExplorerPane {...props} />;
 }
 
@@ -1755,6 +1826,7 @@ function MissionControlHome({
   openControlTower,
   openChat,
   openEmbeddedDoc,
+  openMissionFiles,
 }: {
   host: HostClient;
   openFile: () => void;
@@ -1766,6 +1838,7 @@ function MissionControlHome({
   openControlTower: () => void;
   openChat: () => void;
   openEmbeddedDoc: (doc: AtomekEmbeddedDoc) => void;
+  openMissionFiles: (mission: MissionFolderState, files: MissionGeneratedFile[], opts?: OpenMissionFilesOptions) => void;
 }) {
   const t = useAtomekT();
   const presetDefaults = useMemo<Record<TeamPresetId, { name: string; goal: string }>>(() => ({
@@ -1860,27 +1933,22 @@ function MissionControlHome({
         message: 'Mission created from Atomek agent-team home',
         data: { resourceCount: graph?.resources.length ?? 0, missionTitle },
       };
+      const files = buildMissionPackFiles(
+        missionState,
+        graph,
+        null,
+        [],
+        trimmedGoal,
+        selectedPresetId,
+        [`${JSON.stringify(audit)}\n`],
+      );
       await host.missions.write({
         rootPath: created.rootPath,
-        files: [
-          { path: 'MISSION.md', content: buildMissionMarkdown(missionState, graph, null, [], trimmedGoal, selectedPresetId) },
-          { path: 'MISSION.json', content: buildMissionJson(missionState, graph, trimmedGoal, selectedPresetId) },
-          { path: 'RESOURCES.md', content: buildResourcesMarkdown(graph) },
-          { path: 'TASKS.md', content: buildTasksMarkdown(buildMissionTasks(trimmedGoal, graph, selectedPresetId)) },
-          { path: 'HANDOFF.md', content: buildHandoffMarkdown(missionState) },
-          { path: 'INBOX.md', content: '# Mission inbox\n\nDrop incoming agent notes, pod outputs, and shared-folder discoveries here.\n' },
-          { path: 'OUTBOX.md', content: '# Mission outbox\n\nApproved handoffs, final artifacts, and user-ready summaries go here.\n' },
-          { path: 'AUDIT.jsonl', content: `${JSON.stringify(audit)}\n` },
-          { path: 'RUNS.jsonl', content: '' },
-          { path: 'runs/README.md', content: '# Mission runs\n\nLocal, pod, and app run transcripts land here.\n' },
-          { path: 'outputs/README.md', content: '# Mission outputs\n\nFinal artifacts and generated files land here before handoff.\n' },
-          { path: 'proposals/README.md', content: '# Mission proposals\n\nPatch/write/publish proposals land here before approval.\n' },
-          { path: 'approvals/README.md', content: '# Mission approvals\n\nApproval and rejection decisions reference proposal files from here.\n' },
-          { path: 'NEXT.md', content: ['# Next actions', '', '- Pick resources for the mission.', '- Break goal into task cards.', '- Dispatch local/pod/app runs through Atomek.', '- Review approvals before applying outputs.', ''].join('\n') },
-        ],
+        files,
       });
       setMission(created);
       saveCurrentMission(missionState);
+      openMissionFiles(missionState, files);
       setStatus(`Mission created: ${created.rootPath}`);
       openControlTower();
     } catch (err) {
@@ -1888,7 +1956,7 @@ function MissionControlHome({
     } finally {
       setLoading(false);
     }
-  }, [goal, graph, host.missions, missionName, openControlTower, setStatus, teamPresetId]);
+  }, [goal, graph, host.missions, missionName, openControlTower, openMissionFiles, setStatus, teamPresetId]);
 
   const selectTeamPreset = useCallback((presetId: TeamPresetId) => {
     setTeamPresetId(presetId);
@@ -2423,6 +2491,7 @@ function SecondarySidebar(props: {
   openEditors: WorkbenchFile[];
   attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>;
   saveLocalJobOutput: (title: string, body: string) => void;
+  openMissionFiles: (mission: MissionFolderState, files: MissionGeneratedFile[], opts?: OpenMissionFilesOptions) => void;
   contextScope: ChatContextScope;
   setContextScope: (scope: ChatContextScope) => void;
   contextAttachments: ChatContextAttachment[];
@@ -2685,6 +2754,7 @@ function SecondarySidebar(props: {
           setStatus={props.setStatus}
           attachSkillToChat={props.attachSkillToChat}
           saveLocalJobOutput={props.saveLocalJobOutput}
+          openMissionFiles={props.openMissionFiles}
           activeFile={props.activeFile}
           openEditors={props.openEditors}
           variant="dock"
@@ -3605,6 +3675,7 @@ function ControlTowerPane({
   setStatus,
   attachSkillToChat,
   saveLocalJobOutput,
+  openMissionFiles,
   activeFile,
   openEditors,
   variant = 'sidebar',
@@ -3613,10 +3684,12 @@ function ControlTowerPane({
   setStatus: (status: string) => void;
   attachSkillToChat: (skill: AtomekSkillSummary) => Promise<void>;
   saveLocalJobOutput: (title: string, body: string) => void;
+  openMissionFiles: (mission: MissionFolderState, files: MissionGeneratedFile[], opts?: OpenMissionFilesOptions) => void;
   activeFile: WorkbenchFile | null;
   openEditors: WorkbenchFile[];
   variant?: 'sidebar' | 'dock';
 }) {
+  const t = useAtomekT();
   const [tools, setTools] = useState<AtomekLocalTool[]>([]);
   const [skills, setSkills] = useState<AtomekSkillSummary[]>([]);
   const [resourceGraph, setResourceGraph] = useState<TytusResourceGraph | null>(null);
@@ -3629,14 +3702,41 @@ function ControlTowerPane({
   const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [missionAudit, setMissionAudit] = useState<MissionAuditEvent[]>([]);
   const [missionRuns, setMissionRuns] = useState<TytusMissionRun[]>([]);
+  const [missionFiles, setMissionFiles] = useState<MissionGeneratedFile[]>([]);
   const missionRunsRef = useRef<TytusMissionRun[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('task-execute');
   const [teamView, setTeamView] = useState<'mission' | 'runs' | 'setup'>('mission');
   const activeRun = agentRuns.find((run) => run.status === 'running' || run.status === 'canceling') ?? agentRuns[0] ?? null;
+  const hasRunningAgentRun = agentRuns.some((run) => run.status === 'running' || run.status === 'canceling');
   const isDock = variant === 'dock';
-  const missionPreset = useMemo(() => buildTeamPresetPreview(resourceGraph, pickTeamPresetId(jobPrompt || mission?.goal || '', resourceGraph, mission?.teamPresetId)), [jobPrompt, mission?.goal, mission?.teamPresetId, resourceGraph]);
-  const missionTasks = useMemo(() => buildMissionTasks(jobPrompt || mission?.goal || '', resourceGraph, missionPreset.id), [jobPrompt, mission?.goal, missionPreset.id, resourceGraph]);
+  const missionPlanPrompt = mission?.goal || jobPrompt || '';
+  const missionPreset = useMemo(() => buildTeamPresetPreview(resourceGraph, pickTeamPresetId(missionPlanPrompt, resourceGraph, mission?.teamPresetId)), [mission?.teamPresetId, missionPlanPrompt, resourceGraph]);
+  const missionTasks = useMemo(() => buildMissionTasks(missionPlanPrompt, resourceGraph, missionPreset.id), [missionPlanPrompt, missionPreset.id, resourceGraph]);
   const selectedTask = missionTasks.find((task) => task.id === selectedTaskId) ?? missionTasks[1] ?? missionTasks[0] ?? null;
+  const selectedAssignment = useMemo(() => {
+    if (!selectedTask) return null;
+    return missionPreset.assignments.find((assignment) => assignment.role === selectedTask.role)
+      ?? missionPreset.assignments.find((assignment) => assignment.role === 'implementer')
+      ?? missionPreset.assignments[0]
+      ?? null;
+  }, [missionPreset.assignments, selectedTask]);
+  const selectedResource = useMemo(() => {
+    if (!selectedAssignment || !resourceGraph) return null;
+    return resourceGraph.resources.find((resource) => resource.id === selectedAssignment.resourceId) ?? null;
+  }, [resourceGraph, selectedAssignment]);
+  const missionFilesByPath = useMemo(() => new Map(missionFiles.map((file) => [file.path, file])), [missionFiles]);
+  const openMissionFile = useCallback((relPath: string) => {
+    if (!mission) {
+      setStatus('Start or resume a mission first');
+      return;
+    }
+    const file = missionFilesByPath.get(relPath);
+    if (!file) {
+      setStatus('Refresh mission pack before opening generated files');
+      return;
+    }
+    openMissionFiles(mission, [file], { primaryOnly: false, activatePath: relPath });
+  }, [mission, missionFilesByPath, openMissionFiles, setStatus]);
   const dirtyCount = openEditors.filter((file) => file.dirty).length;
   const contextSummary = activeFile
     ? `${activeFile.path} · ${activeFile.language} · ${activeFile.content.length.toLocaleString()} chars${activeFile.dirty ? ' · dirty' : ''}`
@@ -3762,6 +3862,7 @@ function ControlTowerPane({
   const resumeMission = useCallback((summary: TytusMissionSummary) => {
     const next = missionStateFromSummary(summary);
     setMission(next);
+    setMissionFiles([]);
     saveCurrentMission(next);
     void loadMissionRuns(next);
     setMissionAudit([{
@@ -3774,47 +3875,45 @@ function ControlTowerPane({
     setStatus(`Resumed mission: ${summary.rootPath}`);
   }, [loadMissionRuns, setStatus]);
 
-  const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = []) => {
+  const writeMissionPack = useCallback(async (target: MissionFolderState, prompt: string, extraEvents: MissionAuditEvent[] = [], options: WriteMissionPackOptions = {}) => {
     const nextAudit = [
       ...missionAudit,
       ...extraEvents,
       { ts: new Date().toISOString(), kind: 'mission.pack.write', message: 'Mission context pack written from Atomek' },
     ];
     const selectedPresetId = pickTeamPresetId(prompt || target.goal, resourceGraph, target.teamPresetId);
-    const tasks = buildMissionTasks(prompt || target.goal, resourceGraph, selectedPresetId);
-    const files = [
-      { path: 'MISSION.md', content: buildMissionMarkdown(target, resourceGraph, activeFile, openEditors, prompt, selectedPresetId) },
-      { path: 'MISSION.json', content: buildMissionJson(target, resourceGraph, prompt, selectedPresetId) },
-      { path: 'RESOURCES.md', content: buildResourcesMarkdown(resourceGraph) },
-      { path: 'TASKS.md', content: buildTasksMarkdown(tasks) },
-      { path: 'HANDOFF.md', content: buildHandoffMarkdown(target) },
-      { path: 'INBOX.md', content: '# Mission inbox\n\nDrop incoming agent notes, pod outputs, and shared-folder discoveries here.\n' },
-      { path: 'OUTBOX.md', content: '# Mission outbox\n\nApproved handoffs, final artifacts, and user-ready summaries go here.\n' },
-      { path: 'AUDIT.jsonl', content: nextAudit.map((event) => JSON.stringify(event)).join('\n') + '\n' },
-      { path: 'RUNS.jsonl', content: missionRunsRef.current.map((run) => JSON.stringify(run)).join('\n') + (missionRunsRef.current.length ? '\n' : '') },
-      { path: 'runs/README.md', content: '# Mission runs\n\nLocal, pod, and app run transcripts land here.\n' },
-      { path: 'outputs/README.md', content: '# Mission outputs\n\nFinal artifacts and generated files land here before handoff.\n' },
-      { path: 'proposals/README.md', content: '# Mission proposals\n\nPatch/write/publish proposals land here before approval.\n' },
-      { path: 'approvals/README.md', content: '# Mission approvals\n\nApproval and rejection decisions reference proposal files from here.\n' },
-    ];
+    const files = buildMissionPackFiles(target, resourceGraph, activeFile, openEditors, prompt, selectedPresetId, [
+      nextAudit.map((event) => JSON.stringify(event)).join('\n') + '\n',
+    ]).map((file) => file.path === 'RUNS.jsonl'
+      ? { ...file, content: missionRunsRef.current.map((run) => JSON.stringify(run)).join('\n') + (missionRunsRef.current.length ? '\n' : '') }
+      : file);
+    const dirtyMissionPaths = new Set(openEditors
+      .filter((file) => file.source === 'mission' && file.dirty && file.mission?.missionId === target.missionId)
+      .map((file) => file.mission?.relPath)
+      .filter(Boolean) as string[]);
+    const filesToWrite = files.filter((file) => !dirtyMissionPaths.has(file.path));
     if (target.rootPath && host.missions?.write) {
-      await host.missions.write({ rootPath: target.rootPath, files });
+      await host.missions.write({ rootPath: target.rootPath, files: filesToWrite });
     } else if (target.handle) {
       await ensureDirectory(target.handle, 'runs');
       await ensureDirectory(target.handle, 'outputs');
       await ensureDirectory(target.handle, 'proposals');
       await ensureDirectory(target.handle, 'approvals');
-      for (const file of files) await writeMissionFileToBrowserDirectory(target.handle, file.path, file.content);
+      for (const file of filesToWrite) await writeMissionFileToBrowserDirectory(target.handle, file.path, file.content);
     } else {
       throw new Error('Mission has neither tray rootPath nor browser folder handle');
     }
     setMissionAudit(nextAudit);
+    setMissionFiles(files);
+    openMissionFiles(target, files, options.openFiles
+      ? { activate: options.activate }
+      : { openTabs: false, activate: false, quiet: true });
     saveCurrentMission(target);
-  }, [activeFile, host.missions, missionAudit, openEditors, resourceGraph]);
+  }, [activeFile, host.missions, missionAudit, openEditors, openMissionFiles, resourceGraph]);
 
-  const ensureMissionPack = useCallback(async (prompt: string, options: { allowBrowserPicker?: boolean } = {}): Promise<MissionFolderState | null> => {
+  const ensureMissionPack = useCallback(async (prompt: string, options: { allowBrowserPicker?: boolean; openFiles?: boolean; activate?: boolean } = {}): Promise<MissionFolderState | null> => {
     if (mission) {
-      await writeMissionPack(mission, prompt);
+      await writeMissionPack(mission, prompt, [], { openFiles: Boolean(options.openFiles), activate: options.activate });
       return mission;
     }
     const title = `Atomek mission ${new Date().toLocaleString()}`;
@@ -3850,18 +3949,18 @@ function ControlTowerPane({
     setMission(nextMission);
     saveCurrentMission(nextMission);
     setMissionAudit([event]);
-    await writeMissionPack(nextMission, goal, [event]);
+    await writeMissionPack(nextMission, goal, [event], { openFiles: options.openFiles ?? true, activate: options.activate ?? true });
     setStatus(`Mission pack ready in ${nextMission.rootPath ?? nextMission.name}`);
     return nextMission;
   }, [host.missions, mission, setStatus, writeMissionPack]);
 
-  const openToolInTerminal = useCallback(async (tool: AtomekLocalTool) => {
+  const openToolInTerminal = useCallback(async (tool: AtomekLocalTool, promptOverride?: string) => {
     if (!host.local?.openTerminal) {
       setStatus('Terminal bridge unavailable in this host build');
       return;
     }
     try {
-      const prompt = jobPrompt.trim() || `Open ${tool.label} from Atomek with current context.`;
+      const prompt = (promptOverride ?? jobPrompt).trim() || `Open ${tool.label} from Atomek with current context.`;
       const launchMission = tool.kind === 'ai-cli'
         ? await ensureMissionPack(prompt)
         : mission;
@@ -3883,7 +3982,7 @@ function ControlTowerPane({
 
   const selectMissionFolder = useCallback(async () => {
     try {
-      const nextMission = await ensureMissionPack(jobPrompt.trim(), { allowBrowserPicker: true });
+      const nextMission = await ensureMissionPack(jobPrompt.trim(), { allowBrowserPicker: true, openFiles: true, activate: true });
       if (!nextMission) setStatus('Mission folder setup skipped.');
     } catch (err) {
       setStatus(`Mission folder setup failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -3909,12 +4008,12 @@ function ControlTowerPane({
     }]);
   }, [host.missions, jobPrompt, mission, writeMissionPack]);
 
-  const runLocalJob = useCallback(async (tool: AtomekLocalTool) => {
+  const runLocalJob = useCallback(async (tool: AtomekLocalTool, promptOverride?: string) => {
     if (!host.local?.runJob || !host.local?.streamJob) {
       setStatus('Local job runner unavailable in this host build');
       return;
     }
-    const prompt = jobPrompt.trim();
+    const prompt = (promptOverride ?? jobPrompt).trim();
     if (!prompt) {
       setStatus('Local job prompt is empty');
       return;
@@ -4085,14 +4184,14 @@ function ControlTowerPane({
     }
   }, [activeFile, ensureMissionPack, host.local, jobPrompt, openEditors, resourceGraph, saveLocalJobOutput, saveRunTranscriptToMission, selectedTask, setStatus, upsertMissionRun, writeMissionPack]);
 
-  const runPodTask = useCallback(async (resource: TytusResource) => {
+  const runPodTask = useCallback(async (resource: TytusResource, promptOverride?: string) => {
     const podId = resourcePodId(resource);
     const routeId = resourceRouteId(resource);
     if (!podId) {
       setStatus(`Cannot dispatch ${resourceDisplayLabel(resource)}: missing pod id`);
       return;
     }
-    const prompt = jobPrompt.trim();
+    const prompt = (promptOverride ?? jobPrompt).trim();
     if (!prompt) {
       setStatus('Pod task prompt is empty');
       return;
@@ -4290,6 +4389,86 @@ function ControlTowerPane({
     void copyTextToClipboard(setup?.commandPreview ?? setup?.deepLink ?? message);
   }, [setStatus]);
 
+  const runSelectedTask = useCallback(async () => {
+    try {
+      if (hasRunningAgentRun) {
+        setStatus('A mission task is already running. Open Runs or wait for it to finish.');
+        setTeamView('runs');
+        return;
+      }
+      if (!selectedTask) {
+        setStatus('Select a mission task first');
+        return;
+      }
+      const prompt = selectedTask.prompt;
+      setJobPrompt(prompt);
+      if (!selectedAssignment) {
+        setStatus(`No resource assignment for ${selectedTask.title}`);
+        return;
+      }
+      if (!selectedResource) {
+        setStatus(`${selectedAssignment.label} is not ready: ${selectedAssignment.resourceLabel}`);
+        return;
+      }
+      if (selectedResource.status === 'needs-setup' || selectedResource.setupAction) {
+        showSetupForResource(selectedResource);
+        return;
+      }
+      if (selectedResource.kind === 'local-cli') {
+        const metadataId = typeof selectedResource.metadata?.id === 'string' ? selectedResource.metadata.id : '';
+        const toolId = metadataId || selectedResource.id.replace(/^local-cli\./, '');
+        const tool = tools.find((candidate) => candidate.id === toolId || candidate.command === toolId || candidate.label.toLowerCase() === selectedResource.label.toLowerCase());
+        if (!tool) {
+          setStatus(`Local tool not found for ${selectedResource.label}`);
+          return;
+        }
+        if (tool.status !== 'available') {
+          setStatus(`${tool.label} is ${tool.status}; open Setup for install/repair`);
+          return;
+        }
+        if (tool.kind === 'ai-cli') {
+          await runLocalJob(tool, prompt);
+          setTeamView('runs');
+          return;
+        }
+        await openToolInTerminal(tool, prompt);
+        return;
+      }
+      if (selectedResource.kind === 'pod-agent') {
+        await runPodTask(selectedResource, prompt);
+        setTeamView('runs');
+        return;
+      }
+      if (selectedResource.kind === 'app-skill') {
+        const metadataId = typeof selectedResource.metadata?.id === 'string' ? selectedResource.metadata.id : selectedResource.id.replace(/^app-skill\./, '');
+        const skill = skills.find((candidate) => candidate.id === metadataId || candidate.id === selectedResource.id.replace(/^app-skill\./, '') || candidate.title === selectedResource.label);
+        if (!skill) {
+          setStatus(`App skill not found for ${selectedResource.label}`);
+          return;
+        }
+        await attachSkillToChat(skill);
+        if (mission) {
+          await writeMissionPack(mission, prompt, [{
+            ts: new Date().toISOString(),
+            kind: 'app-skill.selected',
+            message: `Attached app skill ${skill.title} for task ${selectedTask.title}`,
+            data: { skillId: skill.id, taskId: selectedTask.id },
+          }]);
+        }
+        setStatus(`Attached ${skill.title} to chat for ${selectedTask.title}`);
+        return;
+      }
+      if (selectedResource.kind === 'shared-folder' || selectedResource.kind === 'workspace') {
+        await useResourceInMission(selectedResource);
+        setStatus(`${selectedResource.label} selected as mission context. Pick an executable local/pod task to run.`);
+        return;
+      }
+      await useResourceInMission(selectedResource);
+    } catch (err) {
+      setStatus(`Run task failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [attachSkillToChat, hasRunningAgentRun, mission, openToolInTerminal, runLocalJob, runPodTask, selectedAssignment, selectedResource, selectedTask, setStatus, showSetupForResource, skills, tools, useResourceInMission, writeMissionPack]);
+
   return (
     <aside className={isDock ? 'workbench-agent-dock' : 'workbench-sidebar'}>
       {!isDock ? <div className="workbench-sidebar-title">AGENT TEAM</div> : null}
@@ -4320,6 +4499,33 @@ function ControlTowerPane({
           <span>{mission ? `${mission.rootPath ?? mission.name} · ${mission.source} · ${missionAudit.length} audit events · transcripts saved under runs/` : 'Atomek creates this automatically before launching local agents. It is the shared folder agents read/write transcripts from.'}</span>
           {resourceGraph ? <span>{resourceSummary(resourceGraph.resources)}{resourceGraph.warnings.length ? ` · ${resourceGraph.warnings.length} warnings` : ''}</span> : <span>Resource graph not loaded yet.</span>}
         </div>
+        <div className="workbench-section-title">{t('mission.files')}</div>
+        <div className="workbench-mission-file-tree">
+          {PRIMARY_MISSION_FILE_PATHS.map((relPath) => {
+            const file = missionFilesByPath.get(relPath);
+            return (
+              <button
+                key={relPath}
+                className="workbench-mission-file-row"
+                onClick={() => openMissionFile(relPath)}
+                disabled={!mission || !file}
+                title={file ? t('mission.files.openFile', { path: relPath }) : t('mission.files.refreshToOpen')}
+              >
+                <File size={13} />
+                <span>{relPath}</span>
+                <em>{file ? t('mission.files.generated') : t('mission.files.needsRefresh')}</em>
+              </button>
+            );
+          })}
+          <button
+            className="workbench-button-subtle"
+            onClick={() => mission && openMissionFiles(mission, missionFiles, { primaryOnly: false, activatePath: 'MISSION.md' })}
+            disabled={!mission || missionFiles.length === 0}
+          >
+            {t('mission.files.openGenerated')}
+          </button>
+          {!missionFiles.length ? <p className="workbench-muted">{t('mission.files.refreshToOpen')}</p> : null}
+        </div>
         <div className="workbench-section-title">SELECTED TEAM</div>
         <div className="workbench-team-assignment-list">
           <div className={`workbench-team-assignment-summary ${missionPreset.readiness}`}>
@@ -4340,7 +4546,7 @@ function ControlTowerPane({
           <button className="workbench-button-subtle workbench-agent-primary-action" onClick={() => { void selectMissionFolder(); }}>
             {mission ? 'Refresh mission pack' : 'Start mission pack'}
           </button>
-          <button className="workbench-button-subtle" onClick={() => mission && void writeMissionPack(mission, jobPrompt)} disabled={!mission}>
+          <button className="workbench-button-subtle" onClick={() => mission && void writeMissionPack(mission, jobPrompt, [], { openFiles: true, activate: true })} disabled={!mission}>
             Rewrite context files
           </button>
         </div>
@@ -4402,6 +4608,43 @@ function ControlTowerPane({
             </button>
           ))}
         </div>
+        {selectedTask ? (
+          <div className="workbench-task-detail">
+            <header>
+              <div>
+                <strong>{t('mission.taskDetail')}</strong>
+                <span>{selectedTask.title}</span>
+              </div>
+              <span className={`workbench-computer-pill ${selectedResource?.status ?? selectedTask.status}`}>{selectedResource?.status ?? selectedTask.status}</span>
+            </header>
+            <div className="workbench-task-detail-grid">
+              <span>{t('mission.assignedResource')}</span>
+              <strong>{selectedResource ? resourceDisplayLabel(selectedResource) : selectedTask.assignedResourceLabel}</strong>
+              <span>{t('mission.role')}</span>
+              <strong>{selectedAssignment?.label ?? selectedTask.role}</strong>
+              <span>{t('mission.route')}</span>
+              <strong>{selectedResource ? `${selectedResource.kind} · ${selectedResource.sandbox} · ${selectedResource.trustTier}` : selectedTask.resourceHint}</strong>
+            </div>
+            <div className="workbench-task-output-list">
+              <span>{t('mission.expectedOutputs')}</span>
+              <ul>
+                {selectedTask.expectedOutputs.map((output) => <li key={output}>{output}</li>)}
+              </ul>
+            </div>
+            <div className="workbench-task-detail-actions">
+              <button
+                className="workbench-button-subtle workbench-agent-primary-action"
+                onClick={() => { void runSelectedTask(); }}
+                disabled={!selectedTask || hasRunningAgentRun}
+              >
+                {hasRunningAgentRun ? t('mission.taskRunning') : t('mission.runTask')}
+              </button>
+              <button className="workbench-button-subtle" onClick={() => setTeamView('runs')}>
+                {t('mission.openRuns')}
+              </button>
+            </div>
+          </div>
+        ) : null}
           </>
         ) : null}
 
@@ -4675,6 +4918,7 @@ function hydrateSessionFiles(files: PersistedSessionState['files']): WorkbenchFi
       dirty: Boolean(file.dirty),
       size: file.size,
       source: file.source,
+      mission: file.mission,
     } satisfies WorkbenchFile));
 }
 
@@ -4685,6 +4929,14 @@ function serializeSessionFiles(files: WorkbenchFile[]): PersistedWorkbenchFile[]
     const canPersistContent = total + file.content.length <= maxTotal;
     const content = canPersistContent ? file.content : '';
     total += content.length;
+    const mission = file.mission
+      ? {
+        missionId: file.mission.missionId,
+        rootPath: file.mission.rootPath,
+        relPath: file.mission.relPath,
+        title: file.mission.title,
+      }
+      : undefined;
     return {
       id: file.id,
       name: file.name,
@@ -4694,6 +4946,7 @@ function serializeSessionFiles(files: WorkbenchFile[]): PersistedWorkbenchFile[]
       dirty: file.dirty,
       size: file.size,
       source: file.source,
+      mission,
     };
   });
 }

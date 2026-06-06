@@ -79,7 +79,14 @@ export type WorkbenchFile = {
   dirty: boolean;
   handle?: BrowserFileHandleLike;
   size?: number;
-  source: 'local-file' | 'local-folder' | 'sample' | 'generated';
+  source: 'local-file' | 'local-folder' | 'sample' | 'generated' | 'mission';
+  mission?: {
+    missionId: string;
+    rootPath?: string;
+    handle?: BrowserDirectoryHandleLike;
+    relPath: string;
+    title: string;
+  };
 };
 
 export type WorkbenchFolder = {
