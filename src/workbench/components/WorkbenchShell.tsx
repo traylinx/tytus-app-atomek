@@ -38,6 +38,44 @@ import { ensureHandlePermission, filesFromHandles, folderFromHandle, hasFileSyst
 import { labelForLanguage } from '../language';
 import { markdownToHtml } from '../markdown';
 import type { ActivityView, BrowserDirectoryHandleLike, BrowserFileHandleLike, ChatAiSettings, ChatGatewayPreference, ChatMessage, ChatTarget, CursorPosition, OutputArtifact, SecondaryTab, WorkbenchFile, WorkbenchFolder, WorkbenchRange } from '../types';
+import {
+  CURRENT_MISSION_EVENT,
+  buildHandoffMarkdown,
+  buildMissionJson,
+  buildMissionMarkdown,
+  buildMissionTasks,
+  buildResourcesMarkdown,
+  buildTasksMarkdown,
+  buildTeamPresetPreview,
+  buildTeamPresetPreviews,
+  ensureDirectory,
+  isoNow,
+  missionRunSortValue,
+  missionSlug,
+  missionStateFromSummary,
+  pickTeamPresetId,
+  pickWritableDirectory,
+  readCurrentMission,
+  resourceDisplayDetail,
+  resourceDisplayLabel,
+  resourcePodId,
+  resourceRouteId,
+  resourceSummary,
+  saveCurrentMission,
+  summarizeAgentTeam,
+  summarizeResourceFabric,
+  writeMissionFileToBrowserDirectory,
+  writeTextToDirectory,
+} from '../missions';
+import type {
+  AtomekLocalTool,
+  AtomekSkillPack,
+  AtomekSkillSummary,
+  LocalAgentRunState,
+  MissionAuditEvent,
+  MissionFolderState,
+  TeamPresetId,
+} from '../missions';
 import { useConversation } from '../ai/useConversation';
 import { ATOMEK_CHAT_TARGET, buildChatTargets, friendlyAgentError, readSelectedChatTargetId, sanitizeVisibleAgentText, writeSelectedChatTargetId } from '../ai/chatTargets';
 import { listAgentTranscripts, clearAgentTranscriptForTarget } from '../ai/useConversation';
@@ -76,8 +114,6 @@ const LAYOUT_KEY = 'tytus.workspace.layout';
 const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CHAT_WORKSPACE_KEY = 'atomek:default';
-const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
-const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
 const APP_VERSION = '0.4.32';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
@@ -124,44 +160,6 @@ type PaletteItem = { label: string; detail: string; run: () => void; disabled?: 
 type SearchResult = { file: WorkbenchFile; lineNumber: number; line: string };
 type BottomPanelTab = 'output' | 'terminal';
 type QuickPromptKind = 'explain' | 'improve' | 'plan' | 'draft' | 'edit';
-type AtomekLocalTool = {
-  id: string;
-  label: string;
-  command?: string;
-  kind: string;
-  status: string;
-  version?: string | null;
-  description?: string;
-};
-type AtomekSkillSummary = {
-  id: string;
-  title: string;
-  description: string;
-  driver: string;
-  source: string;
-  status: string;
-  appId?: string;
-  skillUrl?: string;
-  triggers?: string[];
-};
-type AtomekSkillPack = AtomekSkillSummary & {
-  body: string;
-  setup?: string[];
-};
-type LocalAgentRunState = {
-  id: string;
-  jobId?: string;
-  toolId: string;
-  label: string;
-  status: 'running' | 'failed' | 'complete' | 'canceling';
-  startedAt: number;
-  finishedAt?: number;
-  exitCode?: number;
-  taskId?: string;
-  taskTitle?: string;
-  transcriptPath?: string;
-  lines: string[];
-};
 type EditStats = { added: number; removed: number; changed: number };
 type PendingEdit = {
   fileId: string;
@@ -177,22 +175,6 @@ type PendingWorkspacePatch = {
   edits: PendingEdit[];
   skipped: string[];
 };
-type MissionAuditEvent = {
-  ts: string;
-  kind: string;
-  message: string;
-  data?: Record<string, unknown>;
-};
-type MissionFolderState = {
-  handle?: BrowserDirectoryHandleLike;
-  name: string;
-  missionId: string;
-  title: string;
-  goal: string;
-  rootPath?: string;
-  source: 'tray' | 'browser';
-  teamPresetId?: string;
-};
 
 function normalizeActivityView(activity: PersistedSessionState['activity']): ActivityView {
   if (activity === 'search' || activity === 'computer') return activity;
@@ -204,35 +186,7 @@ function normalizeBottomPanelTab(tab: PersistedSessionState['bottomPanelTab']): 
   return 'output';
 }
 
-type MissionTaskPreview = {
-  id: string;
-  title: string;
-  prompt: string;
-  resourceHint: string;
-  role: string;
-  assignedResourceLabel: string;
-  status: 'ready' | 'waiting' | 'running' | 'needs-approval' | 'done';
-  expectedOutputs: string[];
-};
-type TeamPresetId = 'repo-repair' | 'pod-local' | 'creative-production' | 'research-watch';
-type TeamRoleAssignment = {
-  role: 'planner' | 'implementer' | 'reviewer' | 'team-desk' | 'app-tool' | 'status';
-  label: string;
-  purpose: string;
-  resourceId: string;
-  resourceLabel: string;
-  status: string;
-  trustTier: string;
-  sandbox: string;
-};
-type TeamPresetPreview = {
-  id: TeamPresetId;
-  label: string;
-  summary: string;
-  bestFor: string;
-  readiness: 'ready' | 'partial' | 'needs-setup';
-  assignments: TeamRoleAssignment[];
-};
+
 
 function clampWidth(value: number, min: number, max: number): number {
   return Math.round(Math.max(min, Math.min(max, value)));
@@ -304,601 +258,6 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
-async function pickWritableDirectory(): Promise<BrowserDirectoryHandleLike | null> {
-  const host = window as Window & { showDirectoryPicker?: (options?: unknown) => Promise<BrowserDirectoryHandleLike> };
-  if (typeof host.showDirectoryPicker !== 'function') return null;
-  return host.showDirectoryPicker({ mode: 'readwrite' });
-}
-
-async function writeTextToDirectory(dir: BrowserDirectoryHandleLike, fileName: string, content: string): Promise<void> {
-  const getFileHandle = dir.getFileHandle;
-  if (!getFileHandle) throw new Error('Selected mission folder is read-only in this browser context');
-  const file = await getFileHandle.call(dir, fileName, { create: true });
-  if (!file.createWritable) throw new Error(`Cannot write ${fileName}; File System Access write handle unavailable`);
-  const writable = await file.createWritable();
-  await writable.write(content);
-  await writable.close();
-}
-
-async function ensureDirectory(dir: BrowserDirectoryHandleLike, name: string): Promise<BrowserDirectoryHandleLike> {
-  const getDirectoryHandle = dir.getDirectoryHandle;
-  if (!getDirectoryHandle) throw new Error('Selected mission folder cannot create subfolders in this browser context');
-  return getDirectoryHandle.call(dir, name, { create: true });
-}
-
-async function writeMissionFileToBrowserDirectory(dir: BrowserDirectoryHandleLike, relPath: string, content: string): Promise<void> {
-  const parts = relPath.split('/').filter(Boolean);
-  if (parts.length === 0) return;
-  let current = dir;
-  for (const part of parts.slice(0, -1)) {
-    current = await ensureDirectory(current, part);
-  }
-  await writeTextToDirectory(current, parts[parts.length - 1], content);
-}
-
-function resourceSummary(resources: readonly TytusResource[]): string {
-  const counts = resources.reduce<Record<string, number>>((acc, resource) => {
-    acc[resource.kind] = (acc[resource.kind] ?? 0) + 1;
-    return acc;
-  }, {});
-  return Object.entries(counts).map(([kind, count]) => `${count} ${kind}`).join(' · ') || 'no resources';
-}
-
-function resourceMetadataString(resource: TytusResource, key: string): string {
-  const value = resource.metadata?.[key];
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  return '';
-}
-
-function resourcePodId(resource: TytusResource): string {
-  const metadataPodId = resourceMetadataString(resource, 'podId');
-  if (metadataPodId) return metadataPodId;
-  const match = resource.id.match(/(?:pod-agent|ail-route)\.([^.]+)/);
-  return match?.[1] ?? '';
-}
-
-function resourceRouteId(resource: TytusResource): string | null {
-  return resourceMetadataString(resource, 'routeId') || resourceMetadataString(resource, 'route_id') || null;
-}
-
-function resourceAgentFamily(resource: TytusResource): 'openclaw' | 'hermes' | 'ail' | null {
-  const raw = [
-    resourceMetadataString(resource, 'agentFamily'),
-    resourceMetadataString(resource, 'agentType'),
-    resourceMetadataString(resource, 'internalAgentType'),
-    resourceMetadataString(resource, 'brand'),
-    resource.label,
-  ].join(' ').toLowerCase();
-  if (resource.kind === 'ail-route' || /(^|[^a-z0-9])ail([^a-z0-9]|$)/.test(raw)) return 'ail';
-  if (raw.includes('hermes')) return 'hermes';
-  if (raw.includes('openclaw') || raw.includes('nemoclaw')) return 'openclaw';
-  return null;
-}
-
-function resourceDisplayLabel(resource: TytusResource): string {
-  const family = resourceAgentFamily(resource);
-  const podId = resourcePodId(resource);
-  if (resource.kind === 'pod-agent' && family === 'openclaw') return `OpenClaw agent${podId ? ` pod ${podId}` : ''}`;
-  if (resource.kind === 'pod-agent' && family === 'hermes') return `Hermes agent${podId ? ` pod ${podId}` : ''}`;
-  if (resource.kind === 'ail-route') return `AIL gateway${podId ? ` ${podId}` : ''}`;
-  return resource.label
-    .replace(/\bNemoClaw\b/g, 'OpenClaw')
-    .replace(/\bnemoclaw\b/gi, 'OpenClaw');
-}
-
-function resourceDisplayDetail(resource: TytusResource): string {
-  if (resource.kind === 'pod-agent') {
-    const family = resourceAgentFamily(resource);
-    const units = resourceMetadataString(resource, 'units');
-    const base = family === 'openclaw'
-      ? 'OpenClaw pod agent'
-      : family === 'hermes'
-        ? 'Hermes reasoning agent'
-        : 'Tytus pod agent';
-    return `${base}${units ? ` · ${units} unit${units === '1' ? '' : 's'}` : ''} · ${resource.trustTier}`;
-  }
-  if (resource.kind === 'local-cli') return `Local CLI · ${resource.capabilities.slice(0, 3).join(', ') || 'tool launch'}`;
-  if (resource.kind === 'shared-folder') return `Shared folder · ${resource.sandbox}`;
-  if (resource.kind === 'app-skill') return `App skill · ${resource.capabilities.slice(0, 3).join(', ') || 'skill instructions'}`;
-  if (resource.kind === 'ail-route') return `Remote AIL route · ${resource.capabilities.slice(0, 3).join(', ') || 'text-gen'}`;
-  return `${resource.kind} · ${resource.trustTier}`;
-}
-
-function summarizeAgentTeam(graph: TytusResourceGraph | null): Array<{ label: string; value: number; detail: string; status: string }> {
-  const resources = graph?.resources ?? [];
-  const available = (resource: TytusResource) => resource.status === 'ready' || resource.status === 'available';
-  const openClaw = resources.filter((resource) => resource.kind === 'pod-agent' && resourceAgentFamily(resource) === 'openclaw');
-  const hermes = resources.filter((resource) => resource.kind === 'pod-agent' && resourceAgentFamily(resource) === 'hermes');
-  const local = resources.filter((resource) => resource.kind === 'local-cli' && available(resource));
-  const shared = resources.filter((resource) => resource.kind === 'shared-folder' && available(resource));
-  return [
-    { label: 'OpenClaw', value: openClaw.length, detail: 'fast pod agents for critique, planning, channel/app workflows', status: openClaw.some(available) ? 'ready' : 'not allocated' },
-    { label: 'Hermes', value: hermes.length, detail: 'heavier pod agent family when allocated', status: hermes.some(available) ? 'ready' : 'available when installed' },
-    { label: 'Local agents', value: local.length, detail: 'Claude, OpenCode, Codex, pi, Kimi through Tytus tray', status: local.length ? 'ready' : 'missing' },
-    { label: 'Shared folders', value: shared.length, detail: 'mission context and handoff fabric for the whole team', status: shared.length ? 'ready' : 'needs setup' },
-  ];
-}
-
-function summarizeResourceFabric(graph: TytusResourceGraph | null): Array<{ label: string; detail: string; status: string }> {
-  const resources = graph?.resources ?? [];
-  const hasReady = (kind: TytusResource['kind']) => resources.some((resource) => resource.kind === kind && (resource.status === 'ready' || resource.status === 'available'));
-  return [
-    { label: 'Local computer', detail: hasReady('local-cli') ? 'Local CLIs, files, terminal, and installed apps are reachable through Tytus tray.' : 'Waiting for local tools from Tytus tray.', status: hasReady('local-cli') ? 'ready' : 'needs setup' },
-    { label: 'Shared folders', detail: hasReady('shared-folder') ? 'Files, transcripts, patches, and artifacts can move between local agents and pods.' : 'Bind a shared folder to create the exchange layer.', status: hasReady('shared-folder') ? 'ready' : 'needs setup' },
-    { label: 'Tytus pods', detail: hasReady('pod-agent') ? 'OpenClaw/Hermes pods can pick up context and return remote work products.' : 'No pod agent is ready yet.', status: hasReady('pod-agent') ? 'ready' : 'needs setup' },
-    { label: 'Local apps', detail: hasReady('app-skill') ? 'App skills expose JULI3TA, Blender, Remotion, and other tools as mission capabilities.' : 'App skills appear when installed/configured.', status: hasReady('app-skill') ? 'ready' : 'optional' },
-  ];
-}
-
-const TEAM_PRESET_DEFINITIONS: Array<Pick<TeamPresetPreview, 'id' | 'label' | 'summary' | 'bestFor'>> = [
-  {
-    id: 'repo-repair',
-    label: 'Repo Repair',
-    summary: 'Local implementer plus independent reviewer, with all transcripts in the mission folder.',
-    bestFor: 'code fixes, docs, release cleanup',
-  },
-  {
-    id: 'pod-local',
-    label: 'OpenClaw + Local',
-    summary: 'OpenClaw/Hermes pod perspective plus local Claude/OpenCode/Codex/pi execution.',
-    bestFor: 'cross-agent critique, planning, distributed work',
-  },
-  {
-    id: 'creative-production',
-    label: 'Creative Production',
-    summary: 'App skills and local/pod agents share source assets, scripts, outputs, and approvals.',
-    bestFor: 'JULI3TA, Blender, Remotion, media pipelines',
-  },
-  {
-    id: 'research-watch',
-    label: 'Research Watch',
-    summary: 'Remote/pod research, local synthesis, shared-folder handoff, optional channel updates.',
-    bestFor: 'monitoring, summaries, recurring intelligence',
-  },
-];
-
-function isResourceUsable(resource: TytusResource): boolean {
-  return resource.status === 'ready' || resource.status === 'available' || resource.status === 'degraded';
-}
-
-function resourceSearchText(resource: TytusResource): string {
-  return [
-    resource.id,
-    resource.label,
-    resource.kind,
-    resourceDisplayLabel(resource),
-    resourceDisplayDetail(resource),
-    resource.capabilities.join(' '),
-    Object.values(resource.metadata ?? {}).join(' '),
-  ].join(' ').toLowerCase();
-}
-
-function findResource(resources: TytusResource[], predicate: (resource: TytusResource) => boolean): TytusResource | null {
-  return resources.find((resource) => isResourceUsable(resource) && predicate(resource)) ?? null;
-}
-
-function findResourceByTerms(resources: TytusResource[], kind: TytusResource['kind'], terms: string[]): TytusResource | null {
-  return findResource(resources, (resource) => {
-    if (resource.kind !== kind) return false;
-    const haystack = resourceSearchText(resource);
-    return terms.some((term) => {
-      const normalized = term.trim().toLowerCase();
-      if (!normalized) return false;
-      if (normalized.length <= 4) {
-        const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(haystack);
-      }
-      return haystack.includes(normalized);
-    });
-  });
-}
-
-function assignmentFromResource(
-  role: TeamRoleAssignment['role'],
-  label: string,
-  purpose: string,
-  resource: TytusResource | null,
-  fallback: string,
-): TeamRoleAssignment {
-  return {
-    role,
-    label,
-    purpose,
-    resourceId: resource?.id ?? `missing:${role}`,
-    resourceLabel: resource ? resourceDisplayLabel(resource) : fallback,
-    status: resource?.status ?? 'needs-setup',
-    trustTier: resource?.trustTier ?? 'not-available',
-    sandbox: resource?.sandbox ?? 'none',
-  };
-}
-
-function buildTeamPresetPreview(graph: TytusResourceGraph | null, presetId: TeamPresetId = 'repo-repair'): TeamPresetPreview {
-  const definition = TEAM_PRESET_DEFINITIONS.find((item) => item.id === presetId) ?? TEAM_PRESET_DEFINITIONS[0];
-  const resources = graph?.resources ?? [];
-  const openClaw = findResource(resources, (resource) => resource.kind === 'pod-agent' && resourceAgentFamily(resource) === 'openclaw');
-  const hermes = findResource(resources, (resource) => resource.kind === 'pod-agent' && resourceAgentFamily(resource) === 'hermes');
-  const ail = findResource(resources, (resource) => resource.kind === 'ail-route');
-  const shared = findResource(resources, (resource) => resource.kind === 'shared-folder');
-  const claude = findResourceByTerms(resources, 'local-cli', ['claude']);
-  const openCode = findResourceByTerms(resources, 'local-cli', ['opencode', 'open code']);
-  const codex = findResourceByTerms(resources, 'local-cli', ['codex']);
-  const pi = findResourceByTerms(resources, 'local-cli', ['pi']);
-  const kimi = findResourceByTerms(resources, 'local-cli', ['kimi']);
-  const anyLocal = findResource(resources, (resource) => resource.kind === 'local-cli');
-  const juli3ta = findResourceByTerms(resources, 'app-skill', ['juli3ta', 'music', 'song']);
-  const blender = findResourceByTerms(resources, 'app-skill', ['blender', '3d']);
-  const remotion = findResourceByTerms(resources, 'app-skill', ['remotion', 'video', 'render']);
-  const anySkill = findResource(resources, (resource) => resource.kind === 'app-skill');
-
-  const planner = presetId === 'pod-local'
-    ? (openClaw ?? hermes ?? ail ?? claude ?? anyLocal)
-    : presetId === 'creative-production'
-      ? (hermes ?? ail ?? claude ?? anyLocal)
-      : presetId === 'research-watch'
-        ? (openClaw ?? ail ?? hermes ?? claude ?? anyLocal)
-        : (claude ?? openCode ?? ail ?? anyLocal);
-  const implementer = presetId === 'creative-production'
-    ? (juli3ta ?? blender ?? remotion ?? anySkill ?? openCode ?? claude ?? anyLocal)
-    : (openCode ?? claude ?? codex ?? anyLocal);
-  const reviewer = presetId === 'pod-local'
-    ? (codex ?? pi ?? kimi ?? openClaw ?? claude ?? anyLocal)
-    : presetId === 'research-watch'
-      ? (pi ?? kimi ?? codex ?? openClaw ?? anyLocal)
-      : (codex ?? pi ?? openClaw ?? kimi ?? anyLocal);
-  const appTool = presetId === 'creative-production'
-    ? (juli3ta ?? blender ?? remotion ?? anySkill)
-    : presetId === 'research-watch'
-      ? findResourceByTerms(resources, 'app-skill', ['browser', 'channel', 'telegram']) ?? anySkill
-      : anySkill;
-
-  const assignments: TeamRoleAssignment[] = [
-    assignmentFromResource('planner', 'Planner', 'Break goal into tasks, risks, and required context.', planner, 'No planner agent ready'),
-    assignmentFromResource('implementer', 'Implementer', 'Execute local/app work and return transcript or patch proposal.', implementer, 'No local/app implementer ready'),
-    assignmentFromResource('reviewer', 'Reviewer', 'Independent critique before approval or handoff.', reviewer, 'No reviewer agent ready'),
-    assignmentFromResource('team-desk', 'Team Desk', 'Shared mission folder for transcripts, outputs, proposals, and handoff.', shared, 'Mission folder only until shared folder is bound'),
-  ];
-  if (presetId === 'creative-production' || appTool) {
-    assignments.push(assignmentFromResource('app-tool', 'App Tool', 'Drive installed local app skill through mission context.', appTool, 'No configured app skill'));
-  }
-
-  const readyCount = assignments.filter((assignment) => assignment.status === 'ready' || assignment.status === 'available' || assignment.status === 'degraded').length;
-  const readiness: TeamPresetPreview['readiness'] = readyCount >= assignments.length - 1 ? 'ready' : readyCount >= 2 ? 'partial' : 'needs-setup';
-  return { ...definition, readiness, assignments };
-}
-
-function pickTeamPresetId(goal: string, graph: TytusResourceGraph | null, requested?: string): TeamPresetId {
-  if (requested && TEAM_PRESET_DEFINITIONS.some((item) => item.id === requested)) return requested as TeamPresetId;
-  const text = goal.toLowerCase();
-  if (/(music|song|audio|video|render|blender|remotion|juli3ta|creative)/.test(text)) return 'creative-production';
-  if (/(research|watch|monitor|news|summar|scan)/.test(text)) return 'research-watch';
-  if ((graph?.resources ?? []).some((resource) => resource.kind === 'pod-agent' && isResourceUsable(resource))) return 'pod-local';
-  return 'repo-repair';
-}
-
-function buildTeamPresetPreviews(graph: TytusResourceGraph | null): TeamPresetPreview[] {
-  return TEAM_PRESET_DEFINITIONS.map((definition) => buildTeamPresetPreview(graph, definition.id));
-}
-
-function formatAssignment(assignment: TeamRoleAssignment): string {
-  return `${assignment.label}: ${assignment.resourceLabel} (${assignment.status})`;
-}
-
-function missionSlug(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mission';
-}
-
-function isoNow(): string {
-  return new Date().toISOString();
-}
-
-function missionRunSortValue(run: TytusMissionRun): string {
-  return run.finishedAt ?? run.startedAt ?? '';
-}
-
-function saveCurrentMission(mission: MissionFolderState | TytusMission): void {
-  const state: MissionFolderState = 'source' in mission
-    ? mission
-    : {
-      missionId: mission.missionId,
-      title: mission.title,
-      goal: mission.goal,
-      rootPath: mission.rootPath,
-      name: mission.rootPath.split('/').pop() || mission.missionId,
-      source: 'tray',
-      teamPresetId: undefined,
-    };
-  try {
-    localStorage.setItem(CURRENT_MISSION_KEY, JSON.stringify(state));
-    window.dispatchEvent(new CustomEvent(CURRENT_MISSION_EVENT, { detail: state }));
-  } catch {
-    // localStorage can be unavailable in strict privacy contexts. Mission still exists on disk.
-  }
-}
-
-function readCurrentMission(): MissionFolderState | null {
-  try {
-    const raw = localStorage.getItem(CURRENT_MISSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<MissionFolderState>;
-    if (!parsed.missionId || !parsed.title) return null;
-    return {
-      missionId: parsed.missionId,
-      title: parsed.title,
-      goal: parsed.goal ?? '',
-      rootPath: parsed.rootPath,
-      name: parsed.name ?? parsed.rootPath?.split('/').pop() ?? parsed.missionId,
-      source: parsed.source === 'browser' ? 'browser' : 'tray',
-      teamPresetId: TEAM_PRESET_DEFINITIONS.some((item) => item.id === parsed.teamPresetId) ? parsed.teamPresetId as TeamPresetId : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function missionStateFromSummary(summary: TytusMissionSummary): MissionFolderState {
-  return {
-    missionId: summary.missionId,
-    title: summary.title,
-    goal: summary.goal,
-    rootPath: summary.rootPath,
-    name: summary.rootPath.split('/').pop() || summary.missionId,
-    source: 'tray',
-    teamPresetId: undefined,
-  };
-}
-
-function buildMissionTasks(goal: string, graph: TytusResourceGraph | null, presetId?: TeamPresetId): MissionTaskPreview[] {
-  const trimmedGoal = goal.trim() || 'Coordinate a Tytus mission.';
-  const selectedPreset = buildTeamPresetPreview(graph, pickTeamPresetId(trimmedGoal, graph, presetId));
-  const assignmentFor = (role: TeamRoleAssignment['role']) => selectedPreset.assignments.find((assignment) => assignment.role === role);
-  const planner = assignmentFor('planner');
-  const implementer = assignmentFor('implementer');
-  const reviewer = assignmentFor('reviewer');
-  const desk = assignmentFor('team-desk');
-  const appTool = assignmentFor('app-tool');
-  return [
-    {
-      id: 'task-scope',
-      title: 'Scope mission and context',
-      prompt: `Planner role: turn this goal into an executable mission plan, list required files/assets, and define approval gates. Goal: ${trimmedGoal}`,
-      resourceHint: planner ? formatAssignment(planner) : 'Planner agent',
-      role: 'planner',
-      assignedResourceLabel: planner?.resourceLabel ?? 'Planner agent',
-      status: 'ready',
-      expectedOutputs: ['PLAN.md', 'risk list', 'resource choices'],
-    },
-    {
-      id: 'task-execute',
-      title: 'Execute or produce artifact',
-      prompt: `Implementer role: use the mission folder, selected files, and shared/team desk context to execute the smallest safe step. Return transcript, artifact, or patch proposal only. Goal: ${trimmedGoal}`,
-      resourceHint: implementer ? formatAssignment(implementer) : 'Local/app implementer',
-      role: 'implementer',
-      assignedResourceLabel: implementer?.resourceLabel ?? 'Local/app implementer',
-      status: 'waiting',
-      expectedOutputs: ['transcript', 'artifact', 'patch proposal'],
-    },
-    appTool ? {
-      id: 'task-app-tool',
-      title: 'Drive app skill',
-      prompt: `App-tool role: use the relevant app skill only through configured Tytus/app instructions. Save source assets and outputs into the mission/team desk. Goal: ${trimmedGoal}`,
-      resourceHint: formatAssignment(appTool),
-      role: 'app-tool',
-      assignedResourceLabel: appTool.resourceLabel,
-      status: appTool.status === 'ready' || appTool.status === 'available' ? 'waiting' : 'needs-approval',
-      expectedOutputs: ['app output', 'asset path', 'usage notes'],
-    } : null,
-    {
-      id: 'task-handoff',
-      title: 'Review and hand off',
-      prompt: `Reviewer role: independently review the outputs, list approval decisions, and prepare a handoff that another agent can continue from. Goal: ${trimmedGoal}`,
-      resourceHint: reviewer ? `${formatAssignment(reviewer)} · ${desk?.resourceLabel ?? 'mission folder'}` : 'Reviewer + mission folder',
-      role: 'reviewer',
-      assignedResourceLabel: reviewer?.resourceLabel ?? 'Reviewer agent',
-      status: 'waiting',
-      expectedOutputs: ['REVIEW.md', 'HANDOFF.md', 'approval list'],
-    },
-  ].filter(Boolean) as MissionTaskPreview[];
-}
-
-function buildTasksMarkdown(tasks: MissionTaskPreview[]): string {
-  return [
-    '# Mission tasks',
-    '',
-    ...tasks.map((task, index) => [
-      `## ${index + 1}. ${task.title}`,
-      '',
-      `- ID: \`${task.id}\``,
-      `- Status: ${task.status}`,
-      `- Role: ${task.role}`,
-      `- Assigned resource: ${task.assignedResourceLabel}`,
-      `- Resource hint: ${task.resourceHint}`,
-      `- Expected outputs: ${task.expectedOutputs.join(', ')}`,
-      '',
-      task.prompt,
-      '',
-    ].join('\n')),
-  ].join('\n');
-}
-
-function buildHandoffMarkdown(mission: MissionFolderState): string {
-  return [
-    `# Handoff — ${mission.title}`,
-    '',
-    `- Mission ID: \`${mission.missionId}\``,
-    `- Root: \`${mission.rootPath ?? mission.name}\``,
-    `- Updated: ${new Date().toISOString()}`,
-    '',
-    '## What changed',
-    '',
-    '- TBD',
-    '',
-    '## Decisions',
-    '',
-    '- TBD',
-    '',
-    '## Open approvals',
-    '',
-    '- No direct writes without Atomek preview/approval.',
-    '',
-    '## Next owner',
-    '',
-    '- Pick the next OpenClaw, Hermes, local-agent, shared-folder, or app-skill resource from Atomek.',
-    '',
-  ].join('\n');
-}
-
-function buildMissionMarkdown(mission: MissionFolderState, graph: TytusResourceGraph | null, activeFile: WorkbenchFile | null, openEditors: WorkbenchFile[], prompt: string, presetId?: TeamPresetId): string {
-  const preset = buildTeamPresetPreview(graph, pickTeamPresetId(prompt || mission.goal, graph, presetId ?? mission.teamPresetId));
-  return [
-    `# ${mission.title}`,
-    '',
-    `- Mission ID: \`${mission.missionId}\``,
-    `- Updated: ${new Date().toISOString()}`,
-    `- Folder: ${mission.rootPath ?? mission.name}`,
-    '',
-    '## Goal',
-    '',
-    mission.goal || '(no goal set)',
-    '',
-    '## Team preset',
-    '',
-    `- Preset: ${preset.label} (${preset.readiness})`,
-    `- Best for: ${preset.bestFor}`,
-    `- Summary: ${preset.summary}`,
-    '',
-    ...preset.assignments.map((assignment) => `- ${assignment.label}: ${assignment.resourceLabel} — ${assignment.purpose} [${assignment.status}, ${assignment.trustTier}, ${assignment.sandbox}]`),
-    '',
-    '## Current Atomek context',
-    '',
-    activeFile
-      ? `- Active file: \`${activeFile.path}\` (${activeFile.language}, ${activeFile.content.length} chars${activeFile.dirty ? ', dirty' : ''})`
-      : '- Active file: none',
-    `- Open editors: ${openEditors.length}`,
-    '',
-    '## Current task',
-    '',
-    prompt || '(no task prompt set)',
-    '',
-    '## Resource graph',
-    '',
-    graph ? `- ${resourceSummary(graph.resources)}` : '- not loaded',
-    ...(graph?.warnings?.length ? graph.warnings.map((warning) => `- Warning: ${warning.code} — ${warning.message}`) : []),
-    '',
-    '## Rules',
-    '',
-    '- Mission folder is the shared source of truth.',
-    '- Shared folder / Team Desk is the exchange layer between local computer and Tytus pods when available.',
-    '- Agents must not write project files directly.',
-    '- Proposed edits must be returned as unified diffs or fenced replacement blocks.',
-    '- Atomek previews and approves edits before applying.',
-    '- Secrets are never requested or copied into mission context.',
-  ].join('\n');
-}
-
-function buildResourcesMarkdown(graph: TytusResourceGraph | null): string {
-  if (!graph) return '# Resources\n\nResource graph not loaded yet.\n';
-  return [
-    '# Resources',
-    '',
-    `Generated: ${graph.generatedAt}`,
-    '',
-    ...graph.resources.map((resource) => [
-      `## ${resourceDisplayLabel(resource)}`,
-      '',
-      `- ID: \`${resource.id}\``,
-      `- Kind: ${resource.kind}`,
-      `- Status: ${resource.status}${resource.reason ? ` — ${resource.reason}` : ''}`,
-      `- Trust: ${resource.trustTier}`,
-      `- Sandbox: ${resource.sandbox}`,
-      `- Capabilities: ${resource.capabilities.join(', ') || 'none'}`,
-      resource.allowedRoots.length ? `- Allowed roots: ${resource.allowedRoots.map((root) => `\`${root}\``).join(', ')}` : '- Allowed roots: none',
-      '',
-    ].join('\n')),
-    graph.warnings.length ? '## Warnings\n' : '',
-    ...graph.warnings.map((warning) => `- ${warning.code}: ${warning.message}${warning.resourceId ? ` (${warning.resourceId})` : ''}`),
-    '',
-  ].join('\n');
-}
-
-function buildMissionJson(mission: MissionFolderState, graph: TytusResourceGraph | null, prompt: string, presetId?: TeamPresetId): string {
-  const selectedPresetId = pickTeamPresetId(prompt || mission.goal, graph, presetId ?? mission.teamPresetId);
-  const preset = buildTeamPresetPreview(graph, selectedPresetId);
-  const tasks = buildMissionTasks(prompt || mission.goal, graph, selectedPresetId);
-  return JSON.stringify({
-    schemaVersion: 1,
-    missionId: mission.missionId,
-    title: mission.title,
-    goal: mission.goal,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    status: 'active',
-    rootPath: mission.rootPath ?? mission.name,
-    teamPreset: {
-      id: preset.id,
-      label: preset.label,
-      readiness: preset.readiness,
-      summary: preset.summary,
-      bestFor: preset.bestFor,
-    },
-    team: preset.assignments.map((assignment) => ({
-      role: assignment.role,
-      label: assignment.label,
-      purpose: assignment.purpose,
-      resourceId: assignment.resourceId,
-      resourceLabel: assignment.resourceLabel,
-      status: assignment.status,
-      trustTier: assignment.trustTier,
-      sandbox: assignment.sandbox,
-    })),
-    storage: {
-      missionFolder: mission.rootPath ?? mission.name,
-      teamDesk: preset.assignments.find((assignment) => assignment.role === 'team-desk')?.resourceLabel ?? 'mission folder',
-      paths: {
-        runs: 'runs/',
-        outputs: 'outputs/',
-        proposals: 'proposals/',
-        approvals: 'approvals/',
-        inbox: 'INBOX.md',
-        outbox: 'OUTBOX.md',
-      },
-    },
-    resources: (graph?.resources ?? []).filter((resource) => resource.status === 'ready').map((resource) => ({
-      resourceId: resource.id,
-      pinnedLabel: resourceDisplayLabel(resource),
-      pinnedKind: resource.kind,
-      pinnedCapabilities: resource.capabilities,
-      visibility: {
-        allowedRoots: resource.allowedRoots,
-        sandbox: resource.sandbox,
-        trustTier: resource.trustTier,
-      },
-    })),
-    permissions: {
-      fileWrite: 'preview-only',
-      shellExec: 'allowlist-with-approval',
-      netEgress: 'resource-default',
-      secretRead: 'never',
-    },
-    secretsPolicy: {
-      deniedGlobs: ['**/.env', '**/.env.*', '**/.ssh/**', '**/*_key*', '**/*secret*', '**/*token*', '**/id_rsa', '**/id_ed25519'],
-      deniedPatterns: ['OPENAI_API_KEY\\\\s*=', 'sk-[A-Za-z0-9_-]{20,}', 'ANTHROPIC_API_KEY\\\\s*='],
-    },
-    budget: { maxRuntimeMinutes: 30, maxArtifactMb: 25 },
-    tasks: tasks.map((task, index) => ({
-      id: task.id,
-      title: task.title,
-      prompt: task.prompt,
-      role: task.role,
-      assignedResourceLabel: task.assignedResourceLabel,
-      status: index === 0 ? 'ready' : 'waiting',
-      selectedResourceHint: task.resourceHint,
-      dependsOn: index === 0 ? [] : [tasks[index - 1].id],
-      expectedOutputs: task.expectedOutputs,
-      approvalGateIds: ['file-write-preview'],
-    })),
-  }, null, 2);
-}
 
 export function WorkbenchShell({ host }: Props) {
   const t = useAtomekT();
