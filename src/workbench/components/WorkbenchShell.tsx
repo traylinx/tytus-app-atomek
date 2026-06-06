@@ -115,7 +115,7 @@ const LAYOUT_KEY = 'tytus.workspace.layout';
 const SESSION_KEY = 'tytus.atomek.session.v2';
 const CHAT_AI_SETTINGS_KEY = 'tytus.atomek.chatAiSettings';
 const CHAT_WORKSPACE_KEY = 'atomek:default';
-const APP_VERSION = '0.4.32';
+const APP_VERSION = '0.4.34';
 const DEFAULT_CHAT_AI_SETTINGS: ChatAiSettings = {
   gatewayPreference: 'auto',
   model: '',
