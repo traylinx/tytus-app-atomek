@@ -5,6 +5,13 @@ import { TEAM_PRESET_DEFINITIONS } from './missionResources';
 export const CURRENT_MISSION_KEY = 'tytus.atomek.currentMission';
 export const CURRENT_MISSION_EVENT = 'tytus.atomek.currentMissionChanged';
 
+export function normalizeMissionTitle(name: string, goal: string): string {
+  const explicit = name.trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (explicit) return explicit;
+  const fallback = goal.trim().replace(/\s+/g, ' ').slice(0, 80);
+  return fallback || 'Untitled mission';
+}
+
 export function missionSlug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mission';
 }

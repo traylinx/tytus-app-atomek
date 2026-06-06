@@ -52,6 +52,7 @@ import {
   isoNow,
   missionRunSortValue,
   missionSlug,
+  normalizeMissionTitle,
   missionStateFromSummary,
   pickTeamPresetId,
   pickWritableDirectory,
@@ -1766,7 +1767,29 @@ function MissionControlHome({
   openChat: () => void;
   openEmbeddedDoc: (doc: AtomekEmbeddedDoc) => void;
 }) {
-  const [goal, setGoal] = useState('Coordinate a Tytus mission across pods, local agents, shared folders, and app skills.');
+  const t = useAtomekT();
+  const presetDefaults = useMemo<Record<TeamPresetId, { name: string; goal: string }>>(() => ({
+    'repo-repair': {
+      name: t('mission.default.repoRepair.name'),
+      goal: t('mission.default.repoRepair.goal'),
+    },
+    'pod-local': {
+      name: t('mission.default.podLocal.name'),
+      goal: t('mission.default.podLocal.goal'),
+    },
+    'creative-production': {
+      name: t('mission.default.creativeProduction.name'),
+      goal: t('mission.default.creativeProduction.goal'),
+    },
+    'research-watch': {
+      name: t('mission.default.researchWatch.name'),
+      goal: t('mission.default.researchWatch.goal'),
+    },
+  }), [t]);
+  const [missionName, setMissionName] = useState(() => t('mission.default.podLocal.name'));
+  const [goal, setGoal] = useState(() => t('mission.default.podLocal.goal'));
+  const [missionNameTouched, setMissionNameTouched] = useState(false);
+  const [goalTouched, setGoalTouched] = useState(false);
   const [graph, setGraph] = useState<TytusResourceGraph | null>(null);
   const [missionList, setMissionList] = useState<TytusMissionSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1814,17 +1837,18 @@ function MissionControlHome({
       return;
     }
     const trimmedGoal = goal.trim() || 'Coordinate a Tytus mission.';
+    const missionTitle = normalizeMissionTitle(missionName, trimmedGoal);
     const selectedPresetId = pickTeamPresetId(trimmedGoal, graph, teamPresetId);
     setLoading(true);
     try {
       const created = await host.missions.create({
-        title: `Atomek team mission — ${new Date().toLocaleString()}`,
+        title: missionTitle,
         goal: trimmedGoal,
       });
       const missionState: MissionFolderState = {
         missionId: created.missionId,
-        title: created.title,
-        goal: created.goal,
+        title: created.title || missionTitle,
+        goal: created.goal || trimmedGoal,
         rootPath: created.rootPath,
         name: created.rootPath.split('/').pop() || created.missionId,
         source: 'tray',
@@ -1834,7 +1858,7 @@ function MissionControlHome({
         ts: new Date().toISOString(),
         kind: 'mission.control.created',
         message: 'Mission created from Atomek agent-team home',
-        data: { resourceCount: graph?.resources.length ?? 0 },
+        data: { resourceCount: graph?.resources.length ?? 0, missionTitle },
       };
       await host.missions.write({
         rootPath: created.rootPath,
@@ -1864,7 +1888,14 @@ function MissionControlHome({
     } finally {
       setLoading(false);
     }
-  }, [goal, graph, host.missions, openControlTower, setStatus, teamPresetId]);
+  }, [goal, graph, host.missions, missionName, openControlTower, setStatus, teamPresetId]);
+
+  const selectTeamPreset = useCallback((presetId: TeamPresetId) => {
+    setTeamPresetId(presetId);
+    const defaults = presetDefaults[presetId];
+    if (!missionNameTouched) setMissionName(defaults.name);
+    if (!goalTouched) setGoal(defaults.goal);
+  }, [goalTouched, missionNameTouched, presetDefaults]);
 
   const summaries = summarizeControlTowerResources(graph);
   const agentTeam = summarizeAgentTeam(graph);
@@ -1888,11 +1919,31 @@ function MissionControlHome({
         <h1>Split the mission. Ship the build.</h1>
         <p>Atomek is the Tytus control surface for OpenClaw, Hermes, local AI agents, shared folders, pods, local apps, files, outputs, and approval-gated handoffs around one durable mission folder.</p>
         <div className="workbench-control-goal-row">
-          <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} aria-label="Mission goal" />
+          <div className="workbench-control-mission-fields">
+            <label className="workbench-control-field">
+              <span>{t('mission.name')}</span>
+              <input
+                value={missionName}
+                onChange={(event) => { setMissionNameTouched(true); setMissionName(event.target.value); }}
+                maxLength={80}
+                placeholder={t('mission.namePlaceholder')}
+              />
+            </label>
+            <label className="workbench-control-field">
+              <span>{t('mission.goal')}</span>
+              <textarea
+                value={goal}
+                onChange={(event) => { setGoalTouched(true); setGoal(event.target.value); }}
+                rows={3}
+                aria-label={t('mission.goal')}
+                placeholder={t('mission.goalPlaceholder')}
+              />
+            </label>
+          </div>
           <div className="workbench-control-hero-actions">
-            <button className="workbench-button-primary" onClick={() => { void startMission(); }} disabled={loading}>Start mission</button>
-            <button className="workbench-button-subtle" onClick={openControlTower}>Open team board</button>
-            <button className="workbench-button-subtle" onClick={openChat}>Open chat</button>
+            <button className="workbench-button-primary" onClick={() => { void startMission(); }} disabled={loading}>{t('mission.start')}</button>
+            <button className="workbench-button-subtle" onClick={openControlTower}>{t('mission.openBoard')}</button>
+            <button className="workbench-button-subtle" onClick={openChat}>{t('mission.openChat')}</button>
           </div>
         </div>
         <div className="workbench-team-preset-strip" aria-label="Team presets">
@@ -1900,7 +1951,7 @@ function MissionControlHome({
             <button
               key={preset.id}
               className={`workbench-team-preset-card ${preset.id === selectedTeamPreset.id ? 'active' : ''} ${preset.readiness}`}
-              onClick={() => setTeamPresetId(preset.id)}
+              onClick={() => selectTeamPreset(preset.id)}
             >
               <div>
                 <strong>{preset.label}</strong>
