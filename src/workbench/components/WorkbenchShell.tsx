@@ -1591,6 +1591,7 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
   const noFolder = !props.folder;
   const tree = useMemo(() => buildFileTree(props.files, props.folder?.name), [props.files, props.folder?.name]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set());
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
 
   useEffect(() => {
     const dirs = collectTreeDirPaths(tree);
@@ -1600,6 +1601,10 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
       return next;
     });
   }, [tree]);
+
+  useEffect(() => {
+    setWorkspaceExpanded(true);
+  }, [props.folder?.name]);
 
   const toggleDir = useCallback((path: string) => {
     setExpandedDirs((current) => {
@@ -1634,8 +1639,17 @@ function ExplorerPane(props: Omit<Parameters<typeof PrimarySidebar>[0], 'activit
             {props.openEditors.length === 0 ? <p className="workbench-muted">{t('explorer.noOpenEditors')}</p> : props.openEditors.map((file) => (
               <FileRow key={file.id} file={file} active={file.id === props.activeFileId} onOpen={() => props.openWorkbenchFile(file)} label={file.name} detail={file.path} />
             ))}
-            <div className="workbench-section-title"><ChevronDown size={12} /> {props.folder?.name ?? t('app.workspace')}</div>
-            {tree.length === 0 ? <p className="workbench-muted">{t('explorer.noReadableFiles')}</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile, expandedDirs, toggleDir)}
+            <button
+              type="button"
+              className="workbench-section-title workbench-section-toggle"
+              onClick={() => setWorkspaceExpanded((value) => !value)}
+              aria-expanded={workspaceExpanded}
+              title={t(workspaceExpanded ? 'explorer.collapseFolder' : 'explorer.expandFolder', { name: props.folder?.name ?? t('app.workspace') })}
+            >
+              {workspaceExpanded ? <ChevronDown size={12} /> : <ChevronDown className="workbench-chevron-collapsed" size={12} />}
+              {props.folder?.name ?? t('app.workspace')}
+            </button>
+            {workspaceExpanded ? (tree.length === 0 ? <p className="workbench-muted">{t('explorer.noReadableFiles')}</p> : renderTreeNodes(tree, props.activeFileId, props.openWorkbenchFile, expandedDirs, toggleDir, t)) : null}
           </>
         )}
         <div className="workbench-section-title">{t('explorer.recent')}</div>
@@ -1701,6 +1715,7 @@ function renderTreeNodes(
   openWorkbenchFile: (file: WorkbenchFile) => void,
   expandedDirs: Set<string>,
   toggleDir: (path: string) => void,
+  t: (key: string, vars?: Record<string, string | number>) => string,
   depth = 0,
 ): ReactNode {
   return nodes.map((node) => {
@@ -1710,13 +1725,13 @@ function renderTreeNodes(
     const expanded = expandedDirs.has(node.path);
     return (
       <div key={node.path}>
-        <button className="workbench-folder-row" style={{ '--workbench-depth': depth } as CSSProperties} onClick={() => toggleDir(node.path)} title={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}>
+        <button className="workbench-folder-row" style={{ '--workbench-depth': depth } as CSSProperties} onClick={() => toggleDir(node.path)} title={t(expanded ? 'explorer.collapseFolder' : 'explorer.expandFolder', { name: node.name })}>
           {expanded ? <ChevronDown size={12} /> : <ChevronDown className="workbench-chevron-collapsed" size={12} />}
           {expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
           <span className="workbench-row-name">{node.name}</span>
           <span className="workbench-row-meta">{node.children.length}</span>
         </button>
-        {expanded ? renderTreeNodes(node.children, activeFileId, openWorkbenchFile, expandedDirs, toggleDir, depth + 1) : null}
+        {expanded ? renderTreeNodes(node.children, activeFileId, openWorkbenchFile, expandedDirs, toggleDir, t, depth + 1) : null}
       </div>
     );
   });

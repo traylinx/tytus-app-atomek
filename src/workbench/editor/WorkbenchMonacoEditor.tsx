@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import EditorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?url';
+import JsonWorkerUrl from 'monaco-editor/esm/vs/language/json/json.worker?url';
+import CssWorkerUrl from 'monaco-editor/esm/vs/language/css/css.worker?url';
+import HtmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url';
+import TsWorkerUrl from 'monaco-editor/esm/vs/language/typescript/ts.worker?url';
 import { registerTytusMonacoTheme } from './monacoTheme';
 import type { CursorPosition, WorkbenchFile, WorkbenchRange } from '../types';
 
@@ -17,13 +17,27 @@ type Props = {
   onSave: () => void;
 };
 
+function createMonacoWorker(workerUrl: string): Worker {
+  const resolvedUrl = new URL(workerUrl, import.meta.url).toString();
+  const canUseDirectWorker = typeof window === 'undefined' || new URL(resolvedUrl).origin === window.location.origin;
+  if (canUseDirectWorker) return new Worker(resolvedUrl, { type: 'module' });
+
+  // TytusOS loads app bundles from immutable jsDelivr URLs while the shell runs on
+  // localhost. Browsers reject cross-origin Worker script URLs, so create a
+  // same-origin blob worker that imports the immutable CDN module instead.
+  const blobUrl = URL.createObjectURL(new Blob([`import ${JSON.stringify(resolvedUrl)};`], { type: 'text/javascript' }));
+  const worker = new Worker(blobUrl, { type: 'module' });
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  return worker;
+}
+
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
-    if (label === 'json') return new JsonWorker();
-    if (label === 'css' || label === 'scss' || label === 'less') return new CssWorker();
-    if (label === 'html' || label === 'handlebars' || label === 'razor') return new HtmlWorker();
-    if (label === 'typescript' || label === 'javascript') return new TsWorker();
-    return new EditorWorker();
+    if (label === 'json') return createMonacoWorker(JsonWorkerUrl);
+    if (label === 'css' || label === 'scss' || label === 'less') return createMonacoWorker(CssWorkerUrl);
+    if (label === 'html' || label === 'handlebars' || label === 'razor') return createMonacoWorker(HtmlWorkerUrl);
+    if (label === 'typescript' || label === 'javascript') return createMonacoWorker(TsWorkerUrl);
+    return createMonacoWorker(EditorWorkerUrl);
   },
 };
 
