@@ -153,14 +153,23 @@ const writeSelectedThreadId = (threadId: string): void => {
 
 const legacyAgentSessionKey = (podId: string): string => `${WORKSPACE_KEY}:agent-session:${podId}`;
 const legacyAgentTranscriptKey = (podId: string): string => `${WORKSPACE_KEY}:agent-transcript:${podId}`;
-const agentSessionKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-session:${targetId}`;
-const agentTranscriptKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:${targetId}`;
+// v2 intentionally does not read old pod-only keys for route-scoped agents.
+// Older Atomek builds keyed sessions by pod_id ("01"), but several real
+// agents can share that slot. Reusing a pod-only session makes the selected UI
+// target and Cortex session disagree, so Claus can continue Lisa's/Hermie's
+// persona. Route-scoped agents must use clean per-route storage.
+const AGENT_STORAGE_VERSION = 'v2';
+const legacyScopedAgentSessionKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-session:${targetId}`;
+const legacyScopedAgentTranscriptKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:${targetId}`;
+const agentSessionKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-session:${AGENT_STORAGE_VERSION}:${targetId}`;
+const agentTranscriptKey = (targetId: string): string => `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:${AGENT_STORAGE_VERSION}:${targetId}`;
 const MAX_AGENT_TRANSCRIPT_MESSAGES = 100;
 
-const readAgentSessionId = (targetId: string, legacyPodId?: string | null): string | null => {
+const readAgentSessionId = (targetId: string, legacyPodId?: string | null, allowLegacyPodFallback = true): string | null => {
   try {
     const current = localStorage.getItem(agentSessionKey(targetId))?.trim();
     if (current) return current;
+    if (!allowLegacyPodFallback) return null;
     const legacyTarget = localStorage.getItem(legacyAgentSessionKey(targetId))?.trim();
     if (legacyTarget) return legacyTarget;
     if (legacyPodId && legacyPodId !== targetId) {
@@ -206,10 +215,11 @@ const parseAgentTranscript = (raw: string | null): ChatMessage[] => {
     .slice(-MAX_AGENT_TRANSCRIPT_MESSAGES);
 };
 
-const readAgentTranscript = (targetId: string, legacyPodId?: string | null): ChatMessage[] => {
+const readAgentTranscript = (targetId: string, legacyPodId?: string | null, allowLegacyPodFallback = true): ChatMessage[] => {
   try {
     const current = parseAgentTranscript(localStorage.getItem(agentTranscriptKey(targetId)));
     if (current.length > 0) return current;
+    if (!allowLegacyPodFallback) return [];
     const legacyTarget = parseAgentTranscript(localStorage.getItem(legacyAgentTranscriptKey(targetId)));
     if (legacyTarget.length > 0 || !legacyPodId || legacyPodId === targetId) return legacyTarget;
     return parseAgentTranscript(localStorage.getItem(legacyAgentTranscriptKey(legacyPodId)));
@@ -227,17 +237,18 @@ export interface AgentTranscriptSummary {
 
 export function listAgentTranscripts(): AgentTranscriptSummary[] {
   const prefix = `${WORKSPACE_KEY}:${APP_ID}:agent-transcript:`;
+  const currentPrefix = `${prefix}${AGENT_STORAGE_VERSION}:`;
   const summaries: AgentTranscriptSummary[] = [];
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
-      if (!key || !key.startsWith(prefix)) continue;
+      if (!key || !key.startsWith(currentPrefix)) continue;
       const messages = parseAgentTranscript(localStorage.getItem(key));
       if (messages.length === 0) continue;
       const last = messages[messages.length - 1];
       const firstUser = messages.find((m) => m.role === 'user');
       summaries.push({
-        targetId: key.slice(prefix.length),
+        targetId: key.slice(currentPrefix.length),
         lastActivityAt: typeof last?.createdAt === 'number' ? last.createdAt : Date.now(),
         messageCount: messages.length,
         preview: (firstUser?.body ?? last?.body ?? '').trim().slice(0, 80),
@@ -255,6 +266,8 @@ const clearAgentTranscript = (targetId: string, legacyPodId?: string | null): vo
   try {
     localStorage.removeItem(agentTranscriptKey(targetId));
     localStorage.removeItem(agentSessionKey(targetId));
+    localStorage.removeItem(legacyScopedAgentTranscriptKey(targetId));
+    localStorage.removeItem(legacyScopedAgentSessionKey(targetId));
     localStorage.removeItem(legacyAgentTranscriptKey(targetId));
     localStorage.removeItem(legacyAgentSessionKey(targetId));
     if (legacyPodId && legacyPodId !== targetId) {
@@ -378,7 +391,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
 
   useEffect(() => {
     if (selectedTarget.kind === 'pod-agent') {
-      setMessages(readAgentTranscript(selectedTarget.id, selectedTarget.podId));
+      setMessages(readAgentTranscript(selectedTarget.id, selectedTarget.podId, !selectedTarget.routeId));
       setMemoryHits([]);
       return;
     }
@@ -594,7 +607,7 @@ export function useConversation({ host, requestContext, chatSettings, selectedTa
           for await (const event of daemon.chatAgent({
             podId: target.podId,
             routeId: target.routeId ?? null,
-            sessionId: readAgentSessionId(target.id, target.podId),
+            sessionId: readAgentSessionId(target.id, target.podId, !target.routeId),
             message: agentPrompt(body, baseContext),
             mode: 'operator',
             target: 'agent',
